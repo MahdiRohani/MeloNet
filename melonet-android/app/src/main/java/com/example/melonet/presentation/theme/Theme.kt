@@ -1,6 +1,5 @@
-package com.example.melonet.ui.theme
+package com.example.melonet.presentation.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

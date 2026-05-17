@@ -1,4 +1,4 @@
-package com.example.melonet.ui.theme
+package com.example.melonet.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
