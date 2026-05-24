@@ -2,12 +2,14 @@ package com.example.melonet.di
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import com.example.melonet.data.local.SettingsRepository
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.example.melonet.data.remote.MeloNetApi
+import org.koin.android.ext.koin.androidContext
 
 @RequiresApi(Build.VERSION_CODES.O)
 val appModule = module{
@@ -33,4 +35,5 @@ val appModule = module{
     single {
         get<Retrofit>().create(MeloNetApi::class.java)
     }
+    single { SettingsRepository(androidContext()) }
 }
