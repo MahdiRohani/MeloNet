@@ -35,7 +35,7 @@ val Typography = Typography(
         lineHeight = 32.sp,
     ),
 
-    // برای سرفصل‌های اصلی داخل صفحه
+
     headlineLarge = TextStyle(
         fontFamily = IranSans,
         fontWeight = FontWeight.Medium,
