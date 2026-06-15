@@ -9,7 +9,12 @@ import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.example.melonet.data.remote.MeloNetApi
+import com.example.melonet.presentation.feature.home.data.HomeRepository
+import com.example.melonet.presentation.feature.home.presentation.HomeViewModel
+import com.example.melonet.presentation.feature.profile.data.UserRepository
+import com.example.melonet.presentation.feature.profile.presentation.ProfileViewModel
 import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.viewmodel.dsl.viewModel
 
 @RequiresApi(Build.VERSION_CODES.O)
 val appModule = module{
@@ -36,4 +41,14 @@ val appModule = module{
         get<Retrofit>().create(MeloNetApi::class.java)
     }
     single { SettingsRepository(androidContext()) }
+    single {
+        UserRepository(
+            api = get(),
+            settingsRepository = get()
+        )
+    }
+    viewModel { ProfileViewModel(userRepository = get()) }
+
+    single { HomeRepository(api = get()) }
+    viewModel { HomeViewModel(repository = get()) }
 }

@@ -12,6 +12,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.melonet.presentation.feature.home.presentation.HomeScreen
+import com.example.melonet.presentation.feature.home.presentation.HomeViewModel
+import com.example.melonet.presentation.feature.profile.presentation.ProfileScreen
+import com.example.melonet.presentation.feature.profile.presentation.ProfileViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun MelonetMainScreen() {
@@ -36,11 +41,32 @@ fun MelonetMainScreen() {
             }
 
 
-            composable<HomeRoute> { DummyScreen("تب خانه") }
+            composable<HomeRoute> {
+                val homeViewModel: HomeViewModel = koinViewModel()
+                HomeScreen(
+                    viewModel = homeViewModel,
+                    onSongClick = { songId ->
+                        navController.navigate(PlayerRoute(songId = songId))
+                    }
+                )
+            }
             composable<SearchRoute> { DummyScreen("تب جستجو") }
             composable<DownloadsRoute> { DummyScreen("تب دانلودها") }
             composable<PlaylistsRoute> { DummyScreen("تب پلی‌لیست‌ها") }
-            composable<ProfileRoute> { DummyScreen("تب پروفایل من (Harmoniq Me)") }
+            composable<ProfileRoute> {
+                val profileViewModel: ProfileViewModel = koinViewModel()
+
+
+                ProfileScreen(
+                    profileViewModel = profileViewModel,
+                    onEditProfileClick = {  },
+                    onLikedSongsClick = { navController.navigate(PlaylistsRoute) },
+                    onMyPlaylistsClick = { navController.navigate(PlaylistsRoute) },
+                    onUpgradePremiumClick = {
+                        profileViewModel.onUpgradePremiumClicked()
+                    }
+                )
+            }
 
 
             composable<PlayerRoute> { backStackEntry ->
