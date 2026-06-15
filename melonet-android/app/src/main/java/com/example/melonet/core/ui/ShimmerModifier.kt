@@ -1,4 +1,4 @@
-package com.example.melonet.utils
+package com.example.melonet.core.ui
 
 
 import androidx.compose.animation.core.LinearEasing

@@ -26,7 +26,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.melonet.data.model.SongDto
-import com.example.melonet.utils.shimmerEffect
+import com.example.melonet.core.ui.shimmerEffect
 
 
 @Composable
