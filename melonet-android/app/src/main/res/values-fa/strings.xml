@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">ملونت</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">خانه</string>
+    <string name="nav_search">جستجو</string>
+    <string name="nav_downloads">دانلودها</string>
+    <string name="nav_playlists">پلی‌لیست</string>
+    <string name="nav_profile">پروفایل</string>
+
+    <!-- Home -->
+    <string name="home_carousel_fallback">ملونت</string>
+    <string name="home_quick_action_liked">لایک شده</string>
+    <string name="home_quick_action_recent">اخیراً</string>
+    <string name="home_quick_action_playlists">پلی‌لیست</string>
+    <string name="home_quick_action_following">دنبال شده</string>
+
+    <!-- Profile -->
+    <string name="profile_guest_user">کاربر مهمان</string>
+    <string name="profile_liked_songs">آهنگ‌های لایک شده</string>
+    <string name="profile_my_playlists">پلی‌لیست‌های من</string>
+
+    <!-- Premium -->
+    <string name="premium_active_title">اشتراک شما فعال است</string>
+    <string name="premium_active_description">شما به تمامی امکانات و دانلود آفلاین دسترسی دارید.</string>
+    <string name="premium_active_button">فعال شده</string>
+    <string name="premium_upgrade_title">ارتقا به حساب ویژه</string>
+    <string name="premium_upgrade_description">برای پخش نامحدود و دانلود آهنگ‌ها، حساب خود را ارتقا دهید.</string>
+    <string name="premium_upgrade_button">خرید اشتراک</string>
+
+    <!-- Actions -->
+    <string name="action_retry">تلاش مجدد</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_user_avatar">آواتار کاربر</string>
+    <string name="cd_premium_user">کاربر ویژه</string>
+    <string name="cd_edit_profile">ویرایش پروفایل</string>
+    <string name="cd_notifications">اعلان‌ها</string>
+    <string name="cd_settings">تنظیمات</string>
+
+    <!-- Placeholder screens -->
+    <string name="placeholder_search_tab">تب جستجو</string>
+    <string name="placeholder_downloads_tab">تب دانلودها</string>
+    <string name="placeholder_playlists_tab">تب پلی‌لیست‌ها</string>
+    <string name="placeholder_player">صفحه پلیر — شناسه آهنگ: %1$d</string>
+    <string name="placeholder_chat">صفحه چت — شناسه کاربر: %1$d</string>
+</resources>

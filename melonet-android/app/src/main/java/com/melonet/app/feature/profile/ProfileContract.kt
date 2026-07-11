@@ -7,7 +7,7 @@ import com.melonet.app.core.common.UiEvent
 object ProfileContract {
 
     data class State(
-        val userName: String = "کاربر مهمان",
+        val userName: String = "",
         val avatarUrl: String = "",
         val isPremium: Boolean = false,
         val isLoading: Boolean = false,

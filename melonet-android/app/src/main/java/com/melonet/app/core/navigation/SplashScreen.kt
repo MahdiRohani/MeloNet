@@ -9,8 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.melonet.app.R
 import kotlinx.coroutines.delay
 
 @Composable
@@ -27,10 +27,9 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "MeloNet",
-            color = MaterialTheme.colorScheme.onPrimary,
-            fontSize = 48.sp,
-            fontWeight = FontWeight.Bold
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.onPrimary
         )
     }
 }

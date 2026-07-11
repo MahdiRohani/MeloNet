@@ -1,3 +1,47 @@
 <resources>
-    <string name="app_name">Melonet</string>
+    <string name="app_name">MeloNet</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_downloads">Downloads</string>
+    <string name="nav_playlists">Playlists</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Home -->
+    <string name="home_carousel_fallback">MeloNet</string>
+    <string name="home_quick_action_liked">Liked</string>
+    <string name="home_quick_action_recent">Recent</string>
+    <string name="home_quick_action_playlists">Playlists</string>
+    <string name="home_quick_action_following">Following</string>
+
+    <!-- Profile -->
+    <string name="profile_guest_user">Guest User</string>
+    <string name="profile_liked_songs">Liked Songs</string>
+    <string name="profile_my_playlists">My Playlists</string>
+
+    <!-- Premium -->
+    <string name="premium_active_title">Your subscription is active</string>
+    <string name="premium_active_description">You have access to all features and offline downloads.</string>
+    <string name="premium_active_button">Active</string>
+    <string name="premium_upgrade_title">Upgrade to Premium</string>
+    <string name="premium_upgrade_description">Get unlimited playback and song downloads by upgrading your account.</string>
+    <string name="premium_upgrade_button">Subscribe</string>
+
+    <!-- Actions -->
+    <string name="action_retry">Retry</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_user_avatar">User avatar</string>
+    <string name="cd_premium_user">Premium user</string>
+    <string name="cd_edit_profile">Edit profile</string>
+    <string name="cd_notifications">Notifications</string>
+    <string name="cd_settings">Settings</string>
+
+    <!-- Placeholder screens -->
+    <string name="placeholder_search_tab">Search tab</string>
+    <string name="placeholder_downloads_tab">Downloads tab</string>
+    <string name="placeholder_playlists_tab">Playlists tab</string>
+    <string name="placeholder_player">Player screen — song ID: %1$d</string>
+    <string name="placeholder_chat">Chat screen — user ID: %1$d</string>
 </resources>
