@@ -27,7 +27,7 @@ const songSelectColumns = `
 	s.updated_at,
 	a.name AS artist_name,
 	COALESCE(g.name, s.category) AS genre_name,
-	al.title AS album_title
+	COALESCE(al.title, '') AS album_title
 `
 
 const songFromClause = `
