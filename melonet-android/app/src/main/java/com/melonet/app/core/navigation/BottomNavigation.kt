@@ -40,31 +40,25 @@ fun MelonetBottomNavigation(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val hideBottomNav = currentDestination?.hasRoute(SplashRoute::class) == true ||
-        currentDestination?.hasRoute(PlayerRoute::class) == true ||
-        currentDestination?.hasRoute(ChatRoute::class) == true
+    NavigationBar {
+        bottomNavItems.forEach { item ->
+            val title = stringResource(item.titleRes)
+            val isSelected = currentDestination?.hierarchy?.any {
+                it.hasRoute(item.route::class)
+            } == true
 
-    if (!hideBottomNav) {
-        NavigationBar {
-            bottomNavItems.forEach { item ->
-                val title = stringResource(item.titleRes)
-                val isSelected = currentDestination?.hierarchy?.any {
-                    it.hasRoute(item.route::class)
-                } == true
-
-                NavigationBarItem(
-                    selected = isSelected,
-                    onClick = {
-                        navController.navigate(item.route) {
-                            popUpTo(HomeRoute) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = { Icon(imageVector = item.icon, contentDescription = title) },
-                    label = { Text(text = title) }
-                )
-            }
+            NavigationBarItem(
+                selected = isSelected,
+                onClick = {
+                    navController.navigate(item.route) {
+                        popUpTo(HomeRoute) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = { Icon(imageVector = item.icon, contentDescription = title) },
+                label = { Text(text = title) }
+            )
         }
     }
 }

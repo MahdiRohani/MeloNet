@@ -31,12 +31,31 @@
     <!-- Actions -->
     <string name="action_retry">تلاش مجدد</string>
 
+    <!-- Auth -->
+    <string name="auth_login_title">خوش آمدید</string>
+    <string name="auth_login_subtitle">برای ادامه گوش دادن وارد شوید</string>
+    <string name="auth_register_title">ساخت حساب</string>
+    <string name="auth_register_subtitle">به ملونت بپیوندید و موسیقی کشف کنید</string>
+    <string name="auth_login_field">نام کاربری یا ایمیل</string>
+    <string name="auth_username_field">نام کاربری</string>
+    <string name="auth_email_field">ایمیل</string>
+    <string name="auth_display_name_field">نام نمایشی</string>
+    <string name="auth_password_field">رمز عبور</string>
+    <string name="auth_login_button">ورود</string>
+    <string name="auth_register_button">ساخت حساب</string>
+    <string name="auth_go_to_register">حساب ندارید؟ ثبت‌نام کنید</string>
+    <string name="auth_go_to_login">حساب دارید؟ وارد شوید</string>
+    <string name="auth_error_required_fields">لطفاً همه فیلدها را پر کنید</string>
+    <string name="auth_error_invalid_credentials">نام کاربری یا رمز عبور اشتباه است</string>
+    <string name="auth_error_registration_failed">ثبت‌نام ناموفق بود. دوباره تلاش کنید.</string>
+
     <!-- Content descriptions -->
     <string name="cd_user_avatar">آواتار کاربر</string>
     <string name="cd_premium_user">کاربر ویژه</string>
     <string name="cd_edit_profile">ویرایش پروفایل</string>
     <string name="cd_notifications">اعلان‌ها</string>
     <string name="cd_settings">تنظیمات</string>
+    <string name="cd_toggle_password">نمایش/مخفی کردن رمز عبور</string>
 
     <!-- Placeholder screens -->
     <string name="placeholder_search_tab">تب جستجو</string>

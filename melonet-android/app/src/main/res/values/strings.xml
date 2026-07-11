@@ -31,12 +31,31 @@
     <!-- Actions -->
     <string name="action_retry">Retry</string>
 
+    <!-- Auth -->
+    <string name="auth_login_title">Welcome back</string>
+    <string name="auth_login_subtitle">Sign in to continue listening</string>
+    <string name="auth_register_title">Create account</string>
+    <string name="auth_register_subtitle">Join MeloNet and discover music</string>
+    <string name="auth_login_field">Username or email</string>
+    <string name="auth_username_field">Username</string>
+    <string name="auth_email_field">Email</string>
+    <string name="auth_display_name_field">Display name</string>
+    <string name="auth_password_field">Password</string>
+    <string name="auth_login_button">Sign in</string>
+    <string name="auth_register_button">Create account</string>
+    <string name="auth_go_to_register">Don\'t have an account? Sign up</string>
+    <string name="auth_go_to_login">Already have an account? Sign in</string>
+    <string name="auth_error_required_fields">Please fill in all fields</string>
+    <string name="auth_error_invalid_credentials">Invalid username or password</string>
+    <string name="auth_error_registration_failed">Registration failed. Please try again.</string>
+
     <!-- Content descriptions -->
     <string name="cd_user_avatar">User avatar</string>
     <string name="cd_premium_user">Premium user</string>
     <string name="cd_edit_profile">Edit profile</string>
     <string name="cd_notifications">Notifications</string>
     <string name="cd_settings">Settings</string>
+    <string name="cd_toggle_password">Toggle password visibility</string>
 
     <!-- Placeholder screens -->
     <string name="placeholder_search_tab">Search tab</string>

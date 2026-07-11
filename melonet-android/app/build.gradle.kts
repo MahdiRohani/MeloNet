@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinSerialization)
 }
 
@@ -70,9 +69,6 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.koin.android)
@@ -99,5 +95,4 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.ui)
     implementation(libs.coil.compose)
-    implementation(libs.androidx.work.runtime.ktx)
 }

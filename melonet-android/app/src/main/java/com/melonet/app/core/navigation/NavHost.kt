@@ -1,19 +1,31 @@
 package com.melonet.app.core.navigation
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.melonet.app.R
+import com.melonet.app.core.designsystem.component.MeloTopBar
+import com.melonet.app.data.model.AuthState
+import com.melonet.app.feature.auth.AuthViewModel
+import com.melonet.app.feature.auth.LoginScreen
+import com.melonet.app.feature.auth.LoginViewModel
+import com.melonet.app.feature.auth.RegisterScreen
+import com.melonet.app.feature.auth.RegisterViewModel
 import com.melonet.app.feature.home.HomeScreen
 import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.profile.ProfileScreen
@@ -23,21 +35,91 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun MelonetMainScreen() {
     val navController = rememberNavController()
+    val authViewModel: AuthViewModel = koinViewModel()
+    val authState by authViewModel.authState.collectAsState()
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
+    val showAppShell = currentDestination?.let { destination ->
+        !destination.hasRoute(SplashRoute::class) &&
+            !destination.hasRoute(LoginRoute::class) &&
+            !destination.hasRoute(RegisterRoute::class) &&
+            !destination.hasRoute(PlayerRoute::class) &&
+            !destination.hasRoute(ChatRoute::class)
+    } == true
+
+    val authenticatedUser = (authState as? AuthState.Authenticated)?.user
 
     Scaffold(
-        bottomBar = { MelonetBottomNavigation(navController) }
+        topBar = {
+            if (showAppShell && authenticatedUser != null) {
+                MeloTopBar(
+                    avatarUrl = authenticatedUser.avatarUrl,
+                    onAvatarClick = { navController.navigate(ProfileRoute) },
+                    onNotificationsClick = { /* A9 */ },
+                    onSettingsClick = { /* A9 */ },
+                )
+            }
+        },
+        bottomBar = {
+            if (showAppShell) {
+                Column {
+                    // Mini player slot — wired in A6 (Player)
+                    MelonetBottomNavigation(navController)
+                }
+            }
+        },
     ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = SplashRoute,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
         ) {
             composable<SplashRoute> {
-                SplashScreen(onSplashFinished = {
-                    navController.navigate(HomeRoute) {
-                        popUpTo(SplashRoute) { inclusive = true }
-                    }
-                })
+                SplashScreen(
+                    authState = authState,
+                    onNavigateToAuth = {
+                        navController.navigate(LoginRoute) {
+                            popUpTo(SplashRoute) { inclusive = true }
+                        }
+                    },
+                    onNavigateToMain = {
+                        navController.navigate(HomeRoute) {
+                            popUpTo(SplashRoute) { inclusive = true }
+                        }
+                    },
+                )
+            }
+
+            composable<LoginRoute> {
+                val loginViewModel: LoginViewModel = koinViewModel()
+                LoginScreen(
+                    viewModel = loginViewModel,
+                    onNavigateToMain = {
+                        navController.navigate(HomeRoute) {
+                            popUpTo(LoginRoute) { inclusive = true }
+                        }
+                    },
+                    onNavigateToRegister = {
+                        navController.navigate(RegisterRoute)
+                    },
+                )
+            }
+
+            composable<RegisterRoute> {
+                val registerViewModel: RegisterViewModel = koinViewModel()
+                RegisterScreen(
+                    viewModel = registerViewModel,
+                    onNavigateToMain = {
+                        navController.navigate(HomeRoute) {
+                            popUpTo(RegisterRoute) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = {
+                        navController.popBackStack()
+                    },
+                )
             }
 
             composable<HomeRoute> {
@@ -46,7 +128,7 @@ fun MelonetMainScreen() {
                     viewModel = homeViewModel,
                     onSongClick = { songId ->
                         navController.navigate(PlayerRoute(songId = songId))
-                    }
+                    },
                 )
             }
 
@@ -65,7 +147,7 @@ fun MelonetMainScreen() {
                 ProfileScreen(
                     viewModel = profileViewModel,
                     onLikedSongsClick = { navController.navigate(PlaylistsRoute) },
-                    onMyPlaylistsClick = { navController.navigate(PlaylistsRoute) }
+                    onMyPlaylistsClick = { navController.navigate(PlaylistsRoute) },
                 )
             }
 
@@ -73,7 +155,7 @@ fun MelonetMainScreen() {
                 val args = backStackEntry.toRoute<PlayerRoute>()
                 DummyScreen(
                     titleRes = R.string.placeholder_player,
-                    formatArg = args.songId
+                    formatArg = args.songId,
                 )
             }
 
@@ -81,7 +163,7 @@ fun MelonetMainScreen() {
                 val args = backStackEntry.toRoute<ChatRoute>()
                 DummyScreen(
                     titleRes = R.string.placeholder_chat,
-                    formatArg = args.userId
+                    formatArg = args.userId,
                 )
             }
         }
@@ -99,7 +181,7 @@ private fun DummyScreen(
                 stringResource(titleRes, formatArg)
             } else {
                 stringResource(titleRes)
-            }
+            },
         )
     }
 }

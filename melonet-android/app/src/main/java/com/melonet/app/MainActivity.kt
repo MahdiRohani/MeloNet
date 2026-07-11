@@ -1,23 +1,18 @@
 package com.melonet.app
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
 import com.melonet.app.core.designsystem.ProvideAppLocale
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.core.navigation.MelonetMainScreen
 import com.melonet.app.data.local.SettingsRepository
 import org.koin.android.ext.android.inject
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 class MainActivity : ComponentActivity() {
 
     private val settingsRepository: SettingsRepository by inject()
@@ -32,9 +27,7 @@ class MainActivity : ComponentActivity() {
 
             ProvideAppLocale(language = language) {
                 MeloNetTheme(darkTheme = isDarkTheme) {
-                    Scaffold(modifier = Modifier.fillMaxSize()) {
-                        MelonetMainScreen()
-                    }
+                    MelonetMainScreen()
                 }
             }
         }
