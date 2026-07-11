@@ -3,13 +3,15 @@ package api
 import "time"
 
 type MessageResponse struct {
-	ID         uint      `json:"id"`
-	SenderID   uint      `json:"sender_id"`
-	ReceiverID uint      `json:"receiver_id"`
-	Content    string    `json:"content"`
-	MsgType    string    `json:"msg_type"`
-	Status     string    `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID             uint      `json:"id"`
+	ConversationID uint      `json:"conversation_id,omitempty"`
+	SenderID       uint      `json:"sender_id"`
+	ReceiverID     uint      `json:"receiver_id"`
+	Content        string    `json:"content"`
+	MsgType        string    `json:"msg_type"`
+	SongID         uint      `json:"song_id,omitempty"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type UserResponse struct {

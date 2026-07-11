@@ -116,6 +116,13 @@ func NewRouter(deps Dependencies) *gin.Engine {
 		api.GET("/genres/:id/songs", deps.Catalog.ListGenreSongs)
 
 		api.GET("/chat/history", deps.Chat.History)
+
+		api.GET("/conversations", deps.Chat.ListConversations)
+		api.POST("/conversations", deps.Chat.CreateConversation)
+		api.GET("/conversations/unread-count", deps.Chat.UnreadCount)
+		api.GET("/conversations/:id", deps.Chat.GetConversation)
+		api.GET("/conversations/:id/messages", deps.Chat.ConversationMessages)
+		api.POST("/conversations/:id/read", deps.Chat.MarkRead)
 	}
 
 	router.GET("/ws/chat", middleware.AuthRequired(deps.TokenMgr), deps.Chat.WebSocket)

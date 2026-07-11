@@ -6,9 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"melonet-backend/internal/auth"
 	"melonet-backend/internal/http/response"
-	"melonet-backend/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -74,52 +72,6 @@ func (h *HealthHandler) Ready(c *gin.Context) {
 		},
 		Error: nil,
 	})
-}
-
-type ChatHandler struct {
-	chat *service.ChatService
-	hub  ChatHub
-}
-
-type ChatHub interface {
-	HandleConnection(c *gin.Context, userID uint)
-}
-
-func NewChatHandler(chat *service.ChatService, hub ChatHub) *ChatHandler {
-	return &ChatHandler{chat: chat, hub: hub}
-}
-
-func (h *ChatHandler) History(c *gin.Context) {
-	userID, err := auth.UserIDFromGin(c)
-	if err != nil {
-		response.Error(c, http.StatusUnauthorized, "unauthorized", "authentication required")
-		return
-	}
-
-	withID, err := parseUintQuery(c, "with_id")
-	if err != nil {
-		response.BadRequest(c, "invalid_with_id", "with_id is required")
-		return
-	}
-
-	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 50)
-	messages, meta, err := h.chat.History(c.Request.Context(), userID, withID, page, limit)
-	if err != nil {
-		response.BadRequest(c, "invalid_request", err.Error())
-		return
-	}
-
-	response.OKWithMeta(c, messages, meta)
-}
-
-func (h *ChatHandler) WebSocket(c *gin.Context) {
-	userID, err := auth.UserIDFromGin(c)
-	if err != nil {
-		response.Error(c, http.StatusUnauthorized, "unauthorized", "authentication required")
-		return
-	}
-
-	h.hub.HandleConnection(c, userID)
 }
 
 func parseUintQuery(c *gin.Context, key string) (uint, error) {

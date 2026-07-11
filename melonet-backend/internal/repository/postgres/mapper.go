@@ -134,15 +134,20 @@ func SongsToAPI(songs []db.Song) []api.SongResponse {
 }
 
 func MessageToAPI(message db.Message) api.MessageResponse {
-	return api.MessageResponse{
-		ID:         uint(message.ID),
-		SenderID:   uint(message.SenderID),
-		ReceiverID: uint(message.ReceiverID),
-		Content:    message.Content,
-		MsgType:    string(message.MsgType),
-		Status:     string(message.DeliveryStatus),
-		CreatedAt:  message.CreatedAt,
+	resp := api.MessageResponse{
+		ID:             uint(message.ID),
+		ConversationID: uint(message.ConversationID),
+		SenderID:       uint(message.SenderID),
+		ReceiverID:     uint(message.ReceiverID),
+		Content:        message.Content,
+		MsgType:        string(message.MsgType),
+		Status:         string(message.DeliveryStatus),
+		CreatedAt:      message.CreatedAt,
 	}
+	if message.SongID != nil {
+		resp.SongID = uint(*message.SongID)
+	}
+	return resp
 }
 
 func MessagesToAPI(messages []db.Message) []api.MessageResponse {

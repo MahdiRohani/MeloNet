@@ -123,6 +123,23 @@ func (r *MessageRepository) Create(ctx context.Context, senderID, receiverID uin
 	}
 
 	message.ReceiverID = int64(receiverID)
+
+	_, err = r.db.Pool.Exec(ctx, `
+		UPDATE conversations SET updated_at = NOW() WHERE id = $1
+	`, conversationID)
+	if err != nil {
+		return db.Message{}, fmt.Errorf("touch conversation: %w", err)
+	}
+
+	_, err = r.db.Pool.Exec(ctx, `
+		INSERT INTO message_receipts (message_id, user_id, status, updated_at)
+		VALUES ($1, $2, 'sent', NOW())
+		ON CONFLICT (message_id, user_id) DO NOTHING
+	`, message.ID, receiverID)
+	if err != nil {
+		return db.Message{}, fmt.Errorf("create receipt: %w", err)
+	}
+
 	return message, nil
 }
 
@@ -200,4 +217,256 @@ func (r *MessageRepository) ListBetweenUsers(ctx context.Context, userID, withID
 	}
 
 	return messages, total, nil
+}
+
+func (r *MessageRepository) GetByID(ctx context.Context, messageID int64) (db.Message, error) {
+	var message db.Message
+	err := r.db.Pool.QueryRow(ctx, `
+		SELECT
+			m.id,
+			m.conversation_id,
+			m.sender_id,
+			m.msg_type,
+			m.content,
+			m.song_id,
+			m.delivery_status,
+			m.created_at,
+			m.updated_at,
+			(
+				SELECT cm.user_id
+				FROM conversation_members AS cm
+				WHERE cm.conversation_id = m.conversation_id
+				  AND cm.user_id <> m.sender_id
+				LIMIT 1
+			) AS receiver_id
+		FROM messages AS m
+		WHERE m.id = $1
+	`, messageID).Scan(
+		&message.ID,
+		&message.ConversationID,
+		&message.SenderID,
+		&message.MsgType,
+		&message.Content,
+		&message.SongID,
+		&message.DeliveryStatus,
+		&message.CreatedAt,
+		&message.UpdatedAt,
+		&message.ReceiverID,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.Message{}, ErrNotFound
+		}
+		return db.Message{}, fmt.Errorf("get message: %w", err)
+	}
+	return message, nil
+}
+
+func (r *MessageRepository) ListByConversation(ctx context.Context, userID, conversationID int64, page, limit int) ([]db.Message, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
+	var total int
+	if err := r.db.Pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM messages WHERE conversation_id = $1
+	`, conversationID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count messages: %w", err)
+	}
+
+	rows, err := r.db.Pool.Query(ctx, `
+		SELECT
+			m.id,
+			m.conversation_id,
+			m.sender_id,
+			m.msg_type,
+			m.content,
+			m.song_id,
+			m.delivery_status,
+			m.created_at,
+			m.updated_at,
+			CASE
+				WHEN m.sender_id = $2 THEN (
+					SELECT cm.user_id
+					FROM conversation_members AS cm
+					WHERE cm.conversation_id = m.conversation_id
+					  AND cm.user_id <> m.sender_id
+					LIMIT 1
+				)
+				ELSE $2
+			END AS receiver_id
+		FROM messages AS m
+		WHERE m.conversation_id = $1
+		ORDER BY m.created_at ASC, m.id ASC
+		LIMIT $3 OFFSET $4
+	`, conversationID, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list conversation messages: %w", err)
+	}
+	defer rows.Close()
+
+	messages, err := scanMessageRows(rows)
+	return messages, total, err
+}
+
+func (r *MessageRepository) ListPendingForUser(ctx context.Context, userID int64, limit int) ([]db.Message, error) {
+	rows, err := r.db.Pool.Query(ctx, `
+		SELECT
+			m.id,
+			m.conversation_id,
+			m.sender_id,
+			m.msg_type,
+			m.content,
+			m.song_id,
+			m.delivery_status,
+			m.created_at,
+			m.updated_at,
+			$1::bigint AS receiver_id
+		FROM messages AS m
+		INNER JOIN conversation_members AS cm ON cm.conversation_id = m.conversation_id
+		LEFT JOIN message_receipts AS mr
+			ON mr.message_id = m.id AND mr.user_id = $1
+		WHERE cm.user_id = $1
+		  AND m.sender_id <> $1
+		  AND COALESCE(mr.status, 'sent'::message_delivery_status) = 'sent'::message_delivery_status
+		ORDER BY m.created_at ASC, m.id ASC
+		LIMIT $2
+	`, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list pending messages: %w", err)
+	}
+	defer rows.Close()
+
+	messages, err := scanMessageRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func (r *MessageRepository) UpsertReceipt(ctx context.Context, messageID, userID int64, status domain.MessageDeliveryStatus) error {
+	_, err := r.db.Pool.Exec(ctx, `
+		INSERT INTO message_receipts (message_id, user_id, status, updated_at)
+		VALUES ($1, $2, $3, NOW())
+		ON CONFLICT (message_id, user_id)
+		DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
+	`, messageID, userID, status)
+	if err != nil {
+		return fmt.Errorf("upsert receipt: %w", err)
+	}
+	return nil
+}
+
+func (r *MessageRepository) MarkConversationRead(ctx context.Context, userID, conversationID int64, messageIDs []int64) (int, error) {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var rows pgx.Rows
+	if len(messageIDs) > 0 {
+		rows, err = tx.Query(ctx, `
+			INSERT INTO message_receipts (message_id, user_id, status, updated_at)
+			SELECT m.id, $2, 'read'::message_delivery_status, NOW()
+			FROM messages AS m
+			WHERE m.conversation_id = $1
+			  AND m.id = ANY($3)
+			  AND m.sender_id <> $2
+			ON CONFLICT (message_id, user_id)
+			DO UPDATE SET status = 'read'::message_delivery_status, updated_at = NOW()
+			RETURNING message_id
+		`, conversationID, userID, messageIDs)
+	} else {
+		rows, err = tx.Query(ctx, `
+			INSERT INTO message_receipts (message_id, user_id, status, updated_at)
+			SELECT m.id, $2, 'read'::message_delivery_status, NOW()
+			FROM messages AS m
+			WHERE m.conversation_id = $1
+			  AND m.sender_id <> $2
+			ON CONFLICT (message_id, user_id)
+			DO UPDATE SET status = 'read'::message_delivery_status, updated_at = NOW()
+			RETURNING message_id
+		`, conversationID, userID)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("mark read: %w", err)
+	}
+	defer rows.Close()
+
+	updated := 0
+	for rows.Next() {
+		updated++
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate read receipts: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit read receipts: %w", err)
+	}
+	return updated, nil
+}
+
+func (r *MessageRepository) MarkDelivered(ctx context.Context, messageID, receiverID int64) error {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO message_receipts (message_id, user_id, status, updated_at)
+		VALUES ($1, $2, 'delivered'::message_delivery_status, NOW())
+		ON CONFLICT (message_id, user_id)
+		DO UPDATE SET status = 'delivered'::message_delivery_status, updated_at = NOW()
+	`, messageID, receiverID)
+	if err != nil {
+		return fmt.Errorf("upsert delivered receipt: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE messages
+		SET delivery_status = CASE
+			WHEN delivery_status = 'read'::message_delivery_status THEN delivery_status
+			ELSE 'delivered'::message_delivery_status
+		END,
+		updated_at = NOW()
+		WHERE id = $1
+	`, messageID)
+	if err != nil {
+		return fmt.Errorf("update message delivered: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func scanMessageRows(rows pgx.Rows) ([]db.Message, error) {
+	messages := make([]db.Message, 0)
+	for rows.Next() {
+		var message db.Message
+		if err := rows.Scan(
+			&message.ID,
+			&message.ConversationID,
+			&message.SenderID,
+			&message.MsgType,
+			&message.Content,
+			&message.SongID,
+			&message.DeliveryStatus,
+			&message.CreatedAt,
+			&message.UpdatedAt,
+			&message.ReceiverID,
+		); err != nil {
+			return nil, fmt.Errorf("scan message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate messages: %w", err)
+	}
+	return messages, nil
 }
