@@ -11,7 +11,6 @@ import (
 
 	"melonet-backend/internal/domain"
 	"melonet-backend/internal/domain/db"
-	"melonet-backend/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -27,7 +26,7 @@ const (
 
 type Hub struct {
 	logger   *slog.Logger
-	chat     *service.ChatService
+	chat     ChatPort
 	presence *Presence
 	clients  map[uint]*clientConn
 	mu       sync.RWMutex
@@ -38,7 +37,7 @@ type clientConn struct {
 	send chan WSEnvelope
 }
 
-func NewHub(logger *slog.Logger, chat *service.ChatService, presence *Presence) *Hub {
+func NewHub(logger *slog.Logger, chat ChatPort, presence *Presence) *Hub {
 	return &Hub{
 		logger:   logger,
 		chat:     chat,
@@ -73,13 +72,17 @@ func (h *Hub) HandleConnection(c *gin.Context, userID uint) {
 	h.flushPending(ctx, userID)
 
 	pubsub := h.presence.Subscribe(ctx, userID)
-	defer pubsub.Close()
+	if pubsub != nil {
+		defer pubsub.Close()
+	}
 
 	h.logger.Info("chat client connected", "user_id", userID)
 
 	done := make(chan struct{})
 	go h.writePump(userID, client, done)
-	go h.redisPump(userID, client, pubsub, done)
+	if pubsub != nil {
+		go h.redisPump(userID, client, pubsub, done)
+	}
 
 	h.readPump(ctx, userID, client, conn)
 

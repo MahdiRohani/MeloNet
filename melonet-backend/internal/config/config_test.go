@@ -26,6 +26,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.HTTP.ReadTimeout != 15*time.Second {
 		t.Errorf("HTTP.ReadTimeout = %v, want 15s", cfg.HTTP.ReadTimeout)
 	}
+	if !cfg.RateLimit.Enabled {
+		t.Error("expected rate limiting enabled by default")
+	}
 }
 
 func TestLoadMissingDatabaseURL(t *testing.T) {
@@ -41,6 +44,7 @@ func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://custom:custom@db:5432/melonet?sslmode=disable")
 	t.Setenv("APP_ENV", "staging")
 	t.Setenv("HTTP_PORT", "9090")
+	t.Setenv("JWT_SECRET", "staging-secret-value-32chars-minimum")
 	t.Setenv("STORAGE_USE_SSL", "true")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com, https://admin.example.com")
 
@@ -60,6 +64,20 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if len(cfg.CORS.AllowedOrigins) != 2 {
 		t.Fatalf("len(CORS.AllowedOrigins) = %d, want 2", len(cfg.CORS.AllowedOrigins))
+	}
+}
+
+func TestValidateProductionRejectsDefaultJWT(t *testing.T) {
+	cfg := &Config{
+		AppEnv:      "production",
+		DatabaseURL: "postgres://melonet:melonet@localhost:5432/melonet?sslmode=disable",
+		JWTSecret:   "dev-jwt-secret-change-in-production",
+		CORS: CORSConfig{
+			AllowedOrigins: []string{"https://app.example.com"},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected production validation error for default JWT secret")
 	}
 }
 

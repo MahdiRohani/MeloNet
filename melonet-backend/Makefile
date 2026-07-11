@@ -1,10 +1,13 @@
-.PHONY: run test tidy migrate-up migrate-down docker-up docker-down seed
+.PHONY: run test test-integration tidy migrate-up migrate-down docker-up docker-down seed
 
 run:
 	go run ./cmd/api
 
 test:
 	go test ./...
+
+test-integration:
+	INTEGRATION_TEST=1 go test -tags=integration ./internal/integration/...
 
 tidy:
 	go mod tidy

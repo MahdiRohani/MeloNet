@@ -19,6 +19,16 @@ type Config struct {
 	Storage       StorageConfig
 	HTTP          HTTPConfig
 	CORS          CORSConfig
+	RateLimit     RateLimitConfig
+	TrustedProxies []string
+}
+
+type RateLimitConfig struct {
+	Enabled           bool
+	LoginPerMinute    int
+	RegisterPerMinute int
+	SearchPerMinute   int
+	ChatPerMinute     int
 }
 
 type StorageConfig struct {
@@ -78,9 +88,69 @@ func Load() (*Config, error) {
 				"http://10.0.2.2:8080",
 			}),
 		},
+		RateLimit: RateLimitConfig{
+			Enabled:           getEnvBool("RATE_LIMIT_ENABLED", true),
+			LoginPerMinute:    getEnvInt("RATE_LIMIT_LOGIN_PER_MIN", 10),
+			RegisterPerMinute: getEnvInt("RATE_LIMIT_REGISTER_PER_MIN", 5),
+			SearchPerMinute:   getEnvInt("RATE_LIMIT_SEARCH_PER_MIN", 60),
+			ChatPerMinute:     getEnvInt("RATE_LIMIT_CHAT_PER_MIN", 120),
+		},
+		TrustedProxies: getEnvSlice("TRUSTED_PROXIES", nil),
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil
+}
+
+func (c *Config) Validate() error {
+	if c.DatabaseURL == "" {
+		return fmt.Errorf("DATABASE_URL is required")
+	}
+	if !c.IsDevelopment() {
+		if c.JWTSecret == "" || c.JWTSecret == "dev-jwt-secret-change-in-production" {
+			return fmt.Errorf("JWT_SECRET must be set to a strong value in production")
+		}
+		if len(c.CORS.AllowedOrigins) == 0 || containsWildcardOrigin(c.CORS.AllowedOrigins) {
+			return fmt.Errorf("CORS_ALLOWED_ORIGINS must be explicitly configured in production")
+		}
+	}
+	if c.RateLimit.LoginPerMinute < 1 {
+		c.RateLimit.LoginPerMinute = 10
+	}
+	if c.RateLimit.RegisterPerMinute < 1 {
+		c.RateLimit.RegisterPerMinute = 5
+	}
+	if c.RateLimit.SearchPerMinute < 1 {
+		c.RateLimit.SearchPerMinute = 60
+	}
+	if c.RateLimit.ChatPerMinute < 1 {
+		c.RateLimit.ChatPerMinute = 120
+	}
+	return nil
+}
+
+func containsWildcardOrigin(origins []string) bool {
+	for _, origin := range origins {
+		if origin == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+func getEnvInt(key string, fallback int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 1 {
+		return fallback
+	}
+	return parsed
 }
 
 func (c *Config) IsDevelopment() bool {

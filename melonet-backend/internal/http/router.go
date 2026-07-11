@@ -2,6 +2,7 @@ package http
 
 import (
 	"log/slog"
+	"time"
 
 	"melonet-backend/internal/auth"
 	"melonet-backend/internal/config"
@@ -12,10 +13,11 @@ import (
 )
 
 type Dependencies struct {
-	Config     *config.Config
-	Logger     *slog.Logger
-	TokenMgr   *auth.TokenManager
-	Health     *handler.HealthHandler
+	Config        *config.Config
+	Logger        *slog.Logger
+	TokenMgr      *auth.TokenManager
+	RateLimit     middleware.RateLimitStore
+	Health        *handler.HealthHandler
 	Auth       *handler.AuthHandler
 	Media      *handler.MediaHandler
 	Catalog    *handler.CatalogHandler
@@ -33,24 +35,36 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	}
 
 	router := gin.New()
+	if len(deps.Config.TrustedProxies) > 0 {
+		_ = router.SetTrustedProxies(deps.Config.TrustedProxies)
+	}
 	router.Use(
 		middleware.RequestID(),
 		middleware.RequestLogger(deps.Logger),
 		middleware.Recovery(deps.Logger),
+		middleware.SecureHeaders(deps.Config),
 		middleware.Timeout(deps.Config.HTTP.ReadTimeout),
 		middleware.CORS(deps.Config.CORS),
 	)
+
+	rateLimit := deps.RateLimit
+	loginLimit := middleware.RateLimit(rateLimit, "login", deps.Config.RateLimit.LoginPerMinute, time.Minute, middleware.ClientIPKey)
+	registerLimit := middleware.RateLimit(rateLimit, "register", deps.Config.RateLimit.RegisterPerMinute, time.Minute, middleware.ClientIPKey)
+	searchLimit := middleware.RateLimit(rateLimit, "search", deps.Config.RateLimit.SearchPerMinute, time.Minute, middleware.UserIDKey)
+	chatLimit := middleware.RateLimit(rateLimit, "chat", deps.Config.RateLimit.ChatPerMinute, time.Minute, middleware.UserIDKey)
 
 	router.Static("/static", "./data")
 
 	router.GET("/health/live", deps.Health.Live)
 	router.GET("/health/ready", deps.Health.Ready)
-	router.GET("/api/media/*object_path", deps.Media.Serve)
+	if deps.Media != nil {
+		router.GET("/api/media/*object_path", deps.Media.Serve)
+	}
 
 	authGroup := router.Group("/api/auth")
 	{
-		authGroup.POST("/register", deps.Auth.Register)
-		authGroup.POST("/login", deps.Auth.Login)
+		authGroup.POST("/register", registerLimit, deps.Auth.Register)
+		authGroup.POST("/login", loginLimit, deps.Auth.Login)
 		authGroup.POST("/refresh", deps.Auth.Refresh)
 		authGroup.POST("/logout", deps.Auth.Logout)
 
@@ -73,7 +87,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 		api.POST("/songs/:id/play", deps.Library.RecordPlay)
 		api.POST("/songs/:id/like", deps.Library.LikeSong)
 		api.DELETE("/songs/:id/like", deps.Library.UnlikeSong)
-		api.GET("/search", deps.Search.Search)
+		api.GET("/search", searchLimit, deps.Search.Search)
 
 		api.GET("/users/search", deps.Social.SearchUsers)
 		api.GET("/users/:id", deps.Social.GetProfile)
@@ -125,7 +139,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 		api.POST("/conversations/:id/read", deps.Chat.MarkRead)
 	}
 
-	router.GET("/ws/chat", middleware.AuthRequired(deps.TokenMgr), deps.Chat.WebSocket)
+	router.GET("/ws/chat", middleware.AuthRequired(deps.TokenMgr), chatLimit, deps.Chat.WebSocket)
 
 	return router
 }

@@ -15,6 +15,7 @@ import (
 	apphttp "melonet-backend/internal/http"
 	"melonet-backend/internal/config"
 	"melonet-backend/internal/http/handler"
+	"melonet-backend/internal/http/middleware"
 	"melonet-backend/internal/migrate"
 	"melonet-backend/internal/realtime"
 	"melonet-backend/internal/repository/postgres"
@@ -96,10 +97,13 @@ func run(logger *slog.Logger) error {
 	chatPresence := realtime.NewPresence(redisClient)
 	chatHub := realtime.NewHub(logger, chatService, chatPresence)
 
+	rateLimitStore := middleware.NewRateLimitStore(redisClient.Raw(), cfg.RateLimit)
+
 	router := apphttp.NewRouter(apphttp.Dependencies{
-		Config:   cfg,
-		Logger:   logger,
-		TokenMgr: tokenMgr,
+		Config:    cfg,
+		Logger:    logger,
+		TokenMgr:  tokenMgr,
+		RateLimit: rateLimitStore,
 		Health:   handler.NewHealthHandler(db, redisClient, storageClient),
 		Auth:     handler.NewAuthHandler(authService),
 		Media:    handler.NewMediaHandler(mediaStorage),

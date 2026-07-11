@@ -45,10 +45,11 @@ func RequestLogger(logger *slog.Logger) gin.HandlerFunc {
 		logger.Info("request completed",
 			"request_id", requestID,
 			"method", c.Request.Method,
-			"path", path,
+			"path", SanitizePath(path),
 			"status", status,
 			"latency_ms", latency.Milliseconds(),
 			"client_ip", c.ClientIP(),
+			"has_auth", SanitizeAuthHeader(c.GetHeader("Authorization")) != "",
 		)
 	}
 }
