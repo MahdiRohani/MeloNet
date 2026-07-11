@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"melonet-backend/internal/auth"
 	"melonet-backend/internal/http/response"
 	"melonet-backend/internal/service"
 
@@ -125,9 +126,9 @@ func NewChatHandler(chat *service.ChatService, hub ChatHub) *ChatHandler {
 }
 
 func (h *ChatHandler) History(c *gin.Context) {
-	userID, err := parseUintQuery(c, "user_id")
+	userID, err := auth.UserIDFromGin(c)
 	if err != nil {
-		response.BadRequest(c, "invalid_user_id", "user_id is required")
+		response.Error(c, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -148,9 +149,9 @@ func (h *ChatHandler) History(c *gin.Context) {
 }
 
 func (h *ChatHandler) WebSocket(c *gin.Context) {
-	userID, err := parseUintQuery(c, "user_id")
+	userID, err := auth.UserIDFromGin(c)
 	if err != nil {
-		response.BadRequest(c, "invalid_user_id", "user_id is required")
+		response.Error(c, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 

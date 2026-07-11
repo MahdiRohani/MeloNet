@@ -62,3 +62,33 @@ func MessagesToAPI(messages []db.Message) []api.MessageResponse {
 	}
 	return result
 }
+
+func UserToAPI(user db.User, premium db.PremiumEntitlement, active bool) api.UserResponse {
+	email := ""
+	if user.Email != nil {
+		email = *user.Email
+	}
+
+	resp := api.UserResponse{
+		ID:          uint(user.ID),
+		Username:    user.Username,
+		Email:       email,
+		DisplayName: user.DisplayName,
+		AvatarURL:   user.AvatarURL,
+		Bio:         user.Bio,
+		IsPremium:   active,
+		Premium: api.PremiumDTO{
+			Active:    active,
+			ExpiresAt: user.PremiumUntil,
+		},
+	}
+
+	if premium.Source != "" {
+		resp.Premium.Source = premium.Source
+		if premium.ExpiresAt != nil {
+			resp.Premium.ExpiresAt = premium.ExpiresAt
+		}
+	}
+
+	return resp
+}

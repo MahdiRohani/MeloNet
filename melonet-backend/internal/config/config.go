@@ -13,6 +13,8 @@ type Config struct {
 	DatabaseURL   string
 	RedisURL      string
 	JWTSecret     string
+	JWTAccessTTL  time.Duration
+	JWTRefreshTTL time.Duration
 	PublicBaseURL string
 	Storage       StorageConfig
 	HTTP          HTTPConfig
@@ -53,6 +55,8 @@ func Load() (*Config, error) {
 		DatabaseURL:   databaseURL,
 		RedisURL:      getEnv("REDIS_URL", "redis://localhost:6379/0"),
 		JWTSecret:     getEnv("JWT_SECRET", "dev-jwt-secret-change-in-production"),
+		JWTAccessTTL:  getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
+		JWTRefreshTTL: getEnvDuration("JWT_REFRESH_TTL", 7*24*time.Hour),
 		PublicBaseURL: getEnv("PUBLIC_BASE_URL", "http://localhost:8080"),
 		Storage: StorageConfig{
 			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),

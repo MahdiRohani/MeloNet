@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"melonet-backend/internal/auth"
 	apphttp "melonet-backend/internal/http"
 	"melonet-backend/internal/config"
 	"melonet-backend/internal/http/handler"
@@ -68,19 +69,28 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 
+	tokenMgr := auth.NewTokenManager(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	avatarStorage := minioStorage.NewAvatarStorage(storageClient, cfg.PublicBaseURL)
+
+	userRepo := postgres.NewUserRepository(db)
+	tokenRepo := postgres.NewTokenRepository(db)
 	songRepo := postgres.NewSongRepository(db)
 	messageRepo := postgres.NewMessageRepository(db)
 
+	authService := service.NewAuthService(userRepo, tokenRepo, tokenMgr, avatarStorage, cfg.PublicBaseURL)
 	songService := service.NewSongService(songRepo)
 	chatService := service.NewChatService(messageRepo)
 	chatHub := realtime.NewHub(logger, chatService)
 
 	router := apphttp.NewRouter(apphttp.Dependencies{
-		Config: cfg,
-		Logger: logger,
-		Health: handler.NewHealthHandler(db, redisClient, storageClient),
-		Songs:  handler.NewSongHandler(songService),
-		Chat:   handler.NewChatHandler(chatService, chatHub),
+		Config:   cfg,
+		Logger:   logger,
+		TokenMgr: tokenMgr,
+		Health:   handler.NewHealthHandler(db, redisClient, storageClient),
+		Auth:     handler.NewAuthHandler(authService),
+		Media:    handler.NewMediaHandler(avatarStorage),
+		Songs:    handler.NewSongHandler(songService),
+		Chat:     handler.NewChatHandler(chatService, chatHub),
 	})
 
 	server := &http.Server{
