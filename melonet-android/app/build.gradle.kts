@@ -2,22 +2,38 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("org.jetbrains.kotlin.kapt")
+    alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinSerialization)
 }
 
 android {
-    namespace = "com.example.melonet"
+    namespace = "com.melonet.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.melonet"
+        applicationId = "com.melonet.app"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+        }
+        create("staging") {
+            dimension = "environment"
+            buildConfigField("String", "API_BASE_URL", "\"https://staging.melonet.app/\"")
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField("String", "API_BASE_URL", "\"https://api.melonet.app/\"")
+        }
     }
 
     buildTypes {
@@ -38,11 +54,11 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -56,7 +72,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.koin.android)
@@ -69,7 +85,6 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.logging.interceptor)
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.kotlinx.coroutines.android.v181)
     implementation(libs.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
@@ -80,13 +95,9 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation(libs.androidx.navigation.compose.v283)
-    implementation(libs.androidx.material3)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.ui)
     implementation(libs.coil.compose)
     implementation(libs.androidx.work.runtime.ktx)
-
-
 }
