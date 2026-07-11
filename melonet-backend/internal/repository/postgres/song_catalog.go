@@ -16,6 +16,16 @@ func paginationPlaceholders(argCount int) (limitPos, offsetPos int) {
 	return argCount + 1, argCount + 2
 }
 
+// buildSongListQuery assembles the paginated song list query. It keeps the
+// WHERE and ORDER BY fragments separated by spaces so they never fuse into
+// invalid SQL (e.g. "$1ORDER BY").
+func buildSongListQuery(whereClause, orderClause string, limitPos, offsetPos int) string {
+	return fmt.Sprintf(`
+		SELECT%s%s %s %s
+		LIMIT $%d OFFSET $%d
+	`, songSelectColumns, songFromClause, whereClause, orderClause, limitPos, offsetPos)
+}
+
 func (r *SongRepository) ListFiltered(ctx context.Context, filter SongFilter) ([]db.Song, int, error) {
 	filter = filter.normalized()
 	offset := (filter.Page - 1) * filter.Limit
@@ -30,10 +40,7 @@ func (r *SongRepository) ListFiltered(ctx context.Context, filter SongFilter) ([
 
 	listArgs := append(args, filter.Limit, offset)
 	limitPos, offsetPos := paginationPlaceholders(len(args))
-	listQuery := fmt.Sprintf(`
-		SELECT%s%s%s
-		LIMIT $%d OFFSET $%d
-	`, songSelectColumns, songFromClause, whereClause+filter.orderClause(), limitPos, offsetPos)
+	listQuery := buildSongListQuery(whereClause, filter.orderClause(), limitPos, offsetPos)
 
 	rows, err := r.db.Pool.Query(ctx, listQuery, listArgs...)
 	if err != nil {
