@@ -1,64 +1,187 @@
 # MeloNet Backend
 
-بک‌اند Go/Gin برای اپ استریم موسیقی MeloNet — شامل auth، catalog، library، social، chat real-time و media storage.
+Go/Gin backend for the MeloNet music streaming app. It provides authentication, catalog, library, playlists, social graph, real-time chat, and media storage.
 
-## پیش‌نیازها
+## Prerequisites
 
-- Go 1.22+
-- Docker & Docker Compose (پیشنهادی)
-- `curl` و `jq` (برای smoke test)
+| Tool | Required for | Install |
+|------|----------------|---------|
+| **Go 1.22+** | Running the API | [go.dev/dl](https://go.dev/dl/) |
+| **Docker & Compose** | Easiest full stack (optional) | See [Docker setup](#option-a-docker-recommended) below |
+| **PostgreSQL 16** | Database | `sudo apt install postgresql` |
+| **Redis** | Cache, chat presence, rate limits | `sudo apt install redis-server` |
+| **MinIO** | Audio/cover file storage | See [native setup](#option-b-native-linux-no-docker) |
+| **curl + jq** | Smoke tests | `sudo apt install curl jq` |
 
-## راه‌اندازی سریع (Docker)
+---
+
+## `make docker-up` fails: `docker: No such file or directory`
+
+Docker is **not installed** on your machine. You have two choices:
+
+### Choice 1 — Install Docker (recommended if you want the simplest workflow)
+
+On Ubuntu / Linux Mint / Pop!_OS:
+
+```bash
+# Official Docker install script (or use your distro's package manager)
+curl -fsSL https://get.docker.com | sh
+
+# Allow your user to run docker without sudo (log out/in after this)
+sudo usermod -aG docker $USER
+
+# Install Compose plugin (often included with Docker Desktop / modern docker.io)
+sudo apt install docker-compose-plugin
+
+# Verify
+docker --version
+docker compose version
+```
+
+Then retry:
+
+```bash
+cd ~/AndroidStudioProjects/MeloNet/melonet-backend
+make docker-up
+make docker-seed   # optional: 50 real royalty-free tracks
+make smoke
+```
+
+### Choice 2 — Run without Docker (works on your machine right now)
+
+Install and start PostgreSQL, Redis, and MinIO locally, then run the Go API directly. Full steps are in [Option B: Native Linux](#option-b-native-linux-no-docker) below.
+
+You can still run unit tests **without any services**:
+
+```bash
+cd ~/AndroidStudioProjects/MeloNet/melonet-backend
+make test
+```
+
+---
+
+## Quick start
+
+### Option A: Docker (recommended)
 
 ```bash
 cd melonet-backend
 
-# 1. سرویس‌ها را بالا بیاور
-make docker-up
-
-# 2. صبر کن تا healthy شوند، بعد seed واقعی ۵۰ آهنگ (اختیاری ولی توصیه می‌شود)
-make docker-seed
-
-# 3. تست خودکار end-to-end
-chmod +x scripts/smoke-test.sh
-./scripts/smoke-test.sh
+make docker-up      # PostgreSQL, Redis, MinIO, API
+make docker-seed    # optional: download & upload 50 real tracks (needs internet)
+make smoke          # end-to-end API smoke test
 ```
 
-API روی `http://localhost:8080` در دسترس است.
+- API: `http://localhost:8080`
+- MinIO console: `http://localhost:9001` (user `melonet`, password `melonetsecret`)
 
-MinIO console: `http://localhost:9001` (user/pass: `melonet` / `melonetsecret`)
+### Option B: Native Linux (no Docker)
 
-## راه‌اندازی بدون Docker
-
-PostgreSQL، Redis و MinIO باید جداگانه در حال اجرا باشند.
+#### 1. Install services
 
 ```bash
-cp .env.example .env
-# DATABASE_URL را به localhost تغییر بده:
-# postgres://melonet:melonet@localhost:5432/melonet?sslmode=disable
-# REDIS_URL=redis://localhost:6379/0
-# STORAGE_ENDPOINT=localhost:9000
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib redis-server curl jq
 
-make migrate-up
-make run          # در یک ترمینال
-make seed         # در ترمینال دیگر (دانلود آهنگ‌ها — نیاز به اینترنت)
+# Start services
+sudo systemctl enable --now postgresql redis-server
 ```
 
-## تست‌ها
+#### 2. Create the database
 
-### 1. Unit tests (همیشه — بدون Docker)
+```bash
+sudo -u postgres psql -c "CREATE USER melonet WITH PASSWORD 'melonet';"
+sudo -u postgres psql -c "CREATE DATABASE melonet OWNER melonet;"
+```
+
+#### 3. Install and run MinIO
+
+```bash
+# Download MinIO server binary
+curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio -o /tmp/minio
+chmod +x /tmp/minio
+mkdir -p ~/melonet-minio-data
+
+# Run in a separate terminal (keep it open)
+/tmp/minio server ~/melonet-minio-data --console-address ":9001"
+```
+
+Default MinIO credentials are `minioadmin` / `minioadmin`. Create a bucket named `melonet-media` via the console at `http://localhost:9001`, **or** let the API create it on first connect (the client usually auto-creates the bucket).
+
+To match the project's expected credentials, you can start MinIO with:
+
+```bash
+MINIO_ROOT_USER=melonet MINIO_ROOT_PASSWORD=melonetsecret \
+  /tmp/minio server ~/melonet-minio-data --console-address ":9001"
+```
+
+#### 4. Configure environment
+
+```bash
+cd ~/AndroidStudioProjects/MeloNet/melonet-backend
+cp .env.example .env
+```
+
+Edit `.env` and point everything to `localhost`:
+
+```env
+DATABASE_URL=postgres://melonet:melonet@localhost:5432/melonet?sslmode=disable
+REDIS_URL=redis://localhost:6379/0
+STORAGE_ENDPOINT=localhost:9000
+STORAGE_ACCESS_KEY=melonet
+STORAGE_SECRET_KEY=melonetsecret
+MIGRATIONS_PATH=migrations
+SEED_CACHE_DIR=./data/.cache
+```
+
+Load env vars before running commands:
+
+```bash
+set -a && source .env && set +a
+```
+
+#### 5. Migrate, run, seed
+
+```bash
+# Terminal 1 — API
+make migrate-up
+make run
+
+# Terminal 2 — optional real media seed (needs internet)
+make seed
+```
+
+#### 6. Verify
+
+```bash
+make smoke
+```
+
+---
+
+## Testing
+
+### 1. Unit tests (no Docker, no database)
 
 ```bash
 make test
-# یا
-go test ./...
 ```
 
-### 2. Integration tests (نیاز به PostgreSQL + Redis)
+Runs all Go unit tests. Safe to run anytime.
+
+### 2. Smoke test (API must be running)
 
 ```bash
-make docker-up   # اگر هنوز بالا نیست
+make smoke
+# or
+./scripts/smoke-test.sh
+```
 
+Checks health, auth, catalog, library, playlists, social, and chat in one pass.
+
+### 3. Integration tests (PostgreSQL + Redis required)
+
+```bash
 export INTEGRATION_TEST=1
 export DATABASE_URL=postgres://melonet:melonet@localhost:5432/melonet?sslmode=disable
 export REDIS_URL=redis://localhost:6379/0
@@ -66,90 +189,111 @@ export REDIS_URL=redis://localhost:6379/0
 make test-integration
 ```
 
-پوشش: auth، IDOR playlist، دسترسی مکالمه چت.
+Covers auth flows, playlist IDOR protection, and chat conversation permissions.
 
-### 3. Smoke test دستی (توصیه‌شده بعد از هر deploy)
-
-```bash
-./scripts/smoke-test.sh
-```
-
-این اسکریپت health، login، catalog، library، playlist، social و chat را یکجا تست می‌کند.
-
-### 4. تست WebSocket
-
-بعد از login، token بگیر:
+### 4. WebSocket (manual)
 
 ```bash
 TOKEN=$(curl -sS -X POST http://localhost:8080/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"login":"mahdi","password":"melonet123"}' | jq -r '.data.access_token')
 
-# با wscat (npm i -g wscat)
+# Install wscat once: npm i -g wscat
 wscat -c "ws://localhost:8080/ws/chat?token=${TOKEN}"
 ```
 
-بفرست:
+Send:
 
 ```json
 {"event":"ping"}
 ```
 
-باید `pong` برگردد.
+You should receive `pong`.
 
-برای ارسال پیام (به `student_test` با id از API):
-
-```json
-{"event":"message.send","data":{"receiver_id":2,"content":"سلام","msg_type":"text","client_id":"test-1"}}
-```
-
-### 5. تست Media / Streaming
-
-بعد از `make docker-seed`:
+### 5. Media streaming (after `make seed` or `make docker-seed`)
 
 ```bash
-curl -I -H "Range: bytes=0-1023" "http://localhost:8080/api/media/catalog/audio/1/..."
+curl -I -H "Range: bytes=0-1023" \
+  "http://localhost:8080/api/media/catalog/audio/1/<slug>.mp3"
 ```
 
-باید `206 Partial Content` و `Accept-Ranges: bytes` ببینی.
+Expect `206 Partial Content` and `Accept-Ranges: bytes`.
 
-## کاربران Demo
+---
+
+## Demo users
+
+Created by migrations (`000005_auth_premium`):
 
 | Username | Password | Premium |
 |----------|----------|---------|
-| `mahdi` | `melonet123` | بله |
-| `student_test` | `melonet123` | خیر |
+| `mahdi` | `melonet123` | Yes |
+| `student_test` | `melonet123` | No |
 
-## وضعیت فازهای بک‌اند
+---
 
-| فاز | موضوع | وضعیت |
-|-----|-------|--------|
-| 1 | زیرساخت، Docker، health | ✅ |
-| 2 | Schema و migration | ✅ |
-| 3 | Auth، JWT، premium | ✅ |
-| 4 | Catalog، search، home | ✅ |
-| 5 | Media storage، seed ۵۰ آهنگ | ✅ |
-| 6 | Playlist، like، history | ✅ |
-| 7 | Social، follow، notifications | ✅ |
-| 8 | Chat WebSocket | ✅ |
-| 9 | امنیت، rate limit، تست | ✅ |
-| 10 | مستندات API، smoke test | ✅ |
+## Android client base URLs
 
-**خارج از scope فعلی بک‌اند:** API دانلود آفلاین (جدول DB هست، endpoint نیست)، اتصال Google Play/Bazaar billing، deploy production.
+| Environment | Base URL |
+|-------------|----------|
+| Emulator | `http://10.0.2.2:8080` |
+| Physical device (same Wi‑Fi) | `http://<your-pc-ip>:8080` |
+| Local API on host | `http://localhost:8080` |
 
-## مستندات
+---
+
+## Backend roadmap status
+
+| Phase | Topic | Status |
+|-------|-------|--------|
+| 1 | Infrastructure, Docker, health | Done |
+| 2 | Schema & migrations | Done |
+| 3 | Auth, JWT, premium | Done |
+| 4 | Catalog, search, home | Done |
+| 5 | Media storage, 50-track seed | Done |
+| 6 | Playlists, likes, history | Done |
+| 7 | Social graph, notifications | Done |
+| 8 | Real-time WebSocket chat | Done |
+| 9 | Security, rate limits, tests | Done |
+| 10 | API docs, smoke test | Done |
+
+**Not in current backend scope:** offline download API (DB table exists, no REST endpoint yet), Google Play / Bazaar billing, production deployment.
+
+---
+
+## Documentation
 
 - [API Reference](docs/API.md)
-- [`.env.example`](.env.example) — متغیرهای محیطی
+- [Environment variables](.env.example)
 
-## دستورات Makefile
+---
 
-| دستور | کار |
-|-------|-----|
-| `make docker-up` | بالا آوردن همه سرویس‌ها |
-| `make docker-down` | خاموش کردن |
-| `make docker-seed` | seed ۵۰ آهنگ واقعی |
-| `make test` | unit tests |
-| `make test-integration` | integration tests |
-| `make smoke` | smoke test end-to-end |
-| `make run` | اجرای API لوکال |
+## Makefile commands
+
+| Command | Description |
+|---------|-------------|
+| `make docker-up` | Start all services via Docker Compose |
+| `make docker-down` | Stop Docker stack |
+| `make docker-seed` | Seed 50 real tracks (Docker profile) |
+| `make migrate-up` | Apply database migrations |
+| `make migrate-down` | Roll back last migration |
+| `make run` | Run API locally with Go |
+| `make seed` | Seed media locally (needs DB + MinIO) |
+| `make test` | Unit tests |
+| `make test-integration` | Integration tests (`INTEGRATION_TEST=1`) |
+| `make smoke` | End-to-end smoke test |
+| `make tidy` | `go mod tidy` |
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `docker: No such file or directory` | Install Docker ([Choice 1](#choice-1--install-docker-recommended-if-you-want-the-simplest-workflow)) or use [native setup](#option-b-native-linux-no-docker) |
+| `connection refused` on `:8080` | API not running — `make run` or `make docker-up` |
+| Login fails / empty users | Run migrations: `make migrate-up` |
+| Media 404 | Run seed: `make seed` or `make docker-seed` |
+| `jq: command not found` | `sudo apt install jq` |
+| PostgreSQL auth failed | Check `DATABASE_URL` user/password and that DB exists |
+| MinIO connection failed | Ensure MinIO is running on port 9000 and credentials match `.env` |
