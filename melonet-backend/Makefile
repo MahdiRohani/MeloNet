@@ -38,9 +38,11 @@ docker-down:
 	docker compose down
 
 docker-seed:
+	docker compose --profile seed build seed
 	docker compose --profile seed run --rm seed
 
 # Generates valid silent audio locally without any downloads.
 # Use this when GitHub / SoundHelix are blocked or too slow.
 docker-seed-offline:
+	docker compose --profile seed build seed
 	docker compose --profile seed run --rm -e SEED_AUDIO_MODE=synthetic seed

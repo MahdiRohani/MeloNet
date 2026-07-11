@@ -328,6 +328,7 @@ Created by migrations (`000005_auth_premium`):
 | Login fails / empty users | Run migrations: `make migrate-up` |
 | Media 404 | Run seed: `make seed` or `make docker-seed` |
 | Seed `context deadline exceeded` / download blocked | Use offline seed: `make docker-seed-offline` (or `make seed-offline`) |
+| Seed still downloads after switching to synthetic | The seed image is stale. Rebuild it: `docker compose --profile seed build seed` (the `make docker-seed*` targets now do this automatically). |
 | `jq: command not found` | `sudo apt install jq` |
 | PostgreSQL auth failed | Check `DATABASE_URL` user/password and that DB exists |
 | MinIO connection failed | Ensure MinIO is running on port 9000 and credentials match `.env` |
