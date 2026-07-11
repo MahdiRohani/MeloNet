@@ -3,3 +3,4 @@ melonet.db
 melonet.db-journal
 /bin/
 /tmp/
+data/.cache/

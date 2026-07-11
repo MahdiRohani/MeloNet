@@ -70,6 +70,7 @@ func run(logger *slog.Logger) error {
 	}
 
 	tokenMgr := auth.NewTokenManager(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	mediaStorage := minioStorage.NewMediaStorage(storageClient, cfg.PublicBaseURL)
 	avatarStorage := minioStorage.NewAvatarStorage(storageClient, cfg.PublicBaseURL)
 
 	userRepo := postgres.NewUserRepository(db)
@@ -91,7 +92,7 @@ func run(logger *slog.Logger) error {
 		TokenMgr: tokenMgr,
 		Health:   handler.NewHealthHandler(db, redisClient, storageClient),
 		Auth:     handler.NewAuthHandler(authService),
-		Media:    handler.NewMediaHandler(avatarStorage),
+		Media:    handler.NewMediaHandler(mediaStorage),
 		Catalog:  handler.NewCatalogHandler(catalogService),
 		Search:   handler.NewSearchHandler(searchService),
 		Home:     handler.NewHomeHandler(homeService),

@@ -30,15 +30,17 @@ func (c *Client) Open(ctx context.Context, objectKey string) (*minio.Object, err
 }
 
 type AvatarStorage struct {
-	client     *Client
-	publicBase string
+	media *MediaStorage
 }
 
 func NewAvatarStorage(client *Client, publicBase string) *AvatarStorage {
 	return &AvatarStorage{
-		client:     client,
-		publicBase: strings.TrimRight(publicBase, "/"),
+		media: NewMediaStorage(client, publicBase),
 	}
+}
+
+func (s *AvatarStorage) Media() *MediaStorage {
+	return s.media
 }
 
 func (s *AvatarStorage) UploadAvatar(
@@ -55,14 +57,17 @@ func (s *AvatarStorage) UploadAvatar(
 	}
 
 	objectKey := fmt.Sprintf("avatars/%d/%s%s", userID, uuid.NewString(), ext)
-	if err := s.client.Upload(ctx, objectKey, reader, size, contentType); err != nil {
+	if err := s.media.Upload(ctx, objectKey, reader, size, contentType); err != nil {
 		return "", "", err
 	}
 
-	publicURL := fmt.Sprintf("%s/api/media/%s", s.publicBase, objectKey)
-	return objectKey, publicURL, nil
+	return objectKey, s.media.PublicURL(objectKey), nil
 }
 
 func (s *AvatarStorage) Open(ctx context.Context, objectKey string) (*minio.Object, error) {
-	return s.client.Open(ctx, objectKey)
+	return s.media.Open(ctx, objectKey, minio.GetObjectOptions{})
+}
+
+func (s *AvatarStorage) Stat(ctx context.Context, objectKey string) (minio.ObjectInfo, error) {
+	return s.media.Stat(ctx, objectKey)
 }
