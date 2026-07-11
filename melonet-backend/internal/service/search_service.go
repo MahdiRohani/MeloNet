@@ -13,10 +13,11 @@ import (
 type SearchService struct {
 	songs   *postgres.SongRepository
 	catalog *postgres.CatalogRepository
+	users   *postgres.UserRepository
 }
 
-func NewSearchService(songs *postgres.SongRepository, catalog *postgres.CatalogRepository) *SearchService {
-	return &SearchService{songs: songs, catalog: catalog}
+func NewSearchService(songs *postgres.SongRepository, catalog *postgres.CatalogRepository, users *postgres.UserRepository) *SearchService {
+	return &SearchService{songs: songs, catalog: catalog, users: users}
 }
 
 func NormalizeSearchType(searchType string) string {
@@ -29,6 +30,8 @@ func NormalizeSearchType(searchType string) string {
 		return "album"
 	case "genre", "genres":
 		return "genre"
+	case "user", "users":
+		return "user"
 	default:
 		return "all"
 	}
@@ -73,6 +76,13 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 		}
 		result.Genres = postgres.GenresToAPI(genres)
 		meta.Total = total
+	case "user":
+		users, total, err := s.users.Search(ctx, query, page, limit)
+		if err != nil {
+			return api.SearchResponse{}, domain.Pagination{}, err
+		}
+		result.Users = postgres.UserSummariesToSearchResults(users)
+		meta.Total = total
 	default:
 		songs, songTotal, err := s.songs.SearchSongs(ctx, query, page, limit)
 		if err != nil {
@@ -88,9 +98,11 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 		artists, _, _ := s.catalog.SearchArtists(ctx, query, 1, previewLimit)
 		albums, _, _ := s.catalog.SearchAlbums(ctx, query, 1, previewLimit)
 		genres, _, _ := s.catalog.SearchGenres(ctx, query, 1, previewLimit)
+		users, _, _ := s.users.Search(ctx, query, 1, previewLimit)
 		result.Artists = postgres.ArtistsToAPI(artists)
 		result.Albums = postgres.AlbumsToAPI(albums)
 		result.Genres = postgres.GenresToAPI(genres)
+		result.Users = postgres.UserSummariesToSearchResults(users)
 	}
 
 	return result, meta, nil

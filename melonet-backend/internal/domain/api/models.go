@@ -66,11 +66,14 @@ type UpdateProfileRequest struct {
 
 type PlaylistResponse struct {
 	ID          uint   `json:"id"`
+	OwnerID     uint   `json:"owner_id"`
+	OwnerName   string `json:"owner_name,omitempty"`
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
 	Visibility  string `json:"visibility"`
 	CoverURL    string `json:"cover_url"`
 	IsSystem    bool   `json:"is_system"`
+	IsOwner     bool   `json:"is_owner,omitempty"`
 	SongCount   int    `json:"song_count,omitempty"`
 }
 

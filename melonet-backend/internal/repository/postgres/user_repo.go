@@ -269,4 +269,81 @@ func (r *UserRepository) GrantPremium(ctx context.Context, userID int64, source 
 	return tx.Commit(ctx)
 }
 
+func (r *UserRepository) Search(ctx context.Context, query string, page, limit int) ([]db.UserSummary, int, error) {
+	offset := (page - 1) * limit
+	pattern := "%" + query + "%"
+	prefix := query + "%"
+
+	var total int
+	if err := r.db.Pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM users
+		WHERE username ILIKE $1 OR display_name ILIKE $1
+	`, pattern).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
+
+	rows, err := r.db.Pool.Query(ctx, `
+		SELECT id, username, display_name, avatar_url, bio, is_premium
+		FROM users
+		WHERE username ILIKE $1 OR display_name ILIKE $1
+		ORDER BY
+			CASE
+				WHEN username ILIKE $2 THEN 0
+				WHEN display_name ILIKE $2 THEN 1
+				ELSE 2
+			END,
+			username ASC
+		LIMIT $3 OFFSET $4
+	`, pattern, prefix, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("search users: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]db.UserSummary, 0)
+	for rows.Next() {
+		var user db.UserSummary
+		if err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.DisplayName,
+			&user.AvatarURL,
+			&user.Bio,
+			&user.IsPremium,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate users: %w", err)
+	}
+
+	return users, total, nil
+}
+
+func (r *UserRepository) GetPublicSummary(ctx context.Context, userID int64) (db.UserSummary, error) {
+	var user db.UserSummary
+	err := r.db.Pool.QueryRow(ctx, `
+		SELECT id, username, display_name, avatar_url, bio, is_premium
+		FROM users
+		WHERE id = $1
+	`, userID).Scan(
+		&user.ID,
+		&user.Username,
+		&user.DisplayName,
+		&user.AvatarURL,
+		&user.Bio,
+		&user.IsPremium,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.UserSummary{}, ErrNotFound
+		}
+		return db.UserSummary{}, fmt.Errorf("get public user: %w", err)
+	}
+	return user, nil
+}
+
 var ErrNotFound = errors.New("not found")

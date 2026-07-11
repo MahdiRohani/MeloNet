@@ -9,6 +9,9 @@ func TestNormalizeSearchType(t *testing.T) {
 	if NormalizeSearchType("artists") != "artist" {
 		t.Fatal("expected artist")
 	}
+	if NormalizeSearchType("users") != "user" {
+		t.Fatal("expected user")
+	}
 	if NormalizeSearchType("") != "all" {
 		t.Fatal("expected all")
 	}

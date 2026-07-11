@@ -22,6 +22,9 @@ type Dependencies struct {
 	Search     *handler.SearchHandler
 	Home       *handler.HomeHandler
 	Chat       *handler.ChatHandler
+	Library    *handler.LibraryHandler
+	Playlist   *handler.PlaylistHandler
+	Social     *handler.SocialHandler
 }
 
 func NewRouter(deps Dependencies) *gin.Engine {
@@ -67,7 +70,35 @@ func NewRouter(deps Dependencies) *gin.Engine {
 
 		api.GET("/songs", deps.Catalog.ListSongs)
 		api.GET("/songs/:id", deps.Catalog.GetSong)
+		api.POST("/songs/:id/play", deps.Library.RecordPlay)
+		api.POST("/songs/:id/like", deps.Library.LikeSong)
+		api.DELETE("/songs/:id/like", deps.Library.UnlikeSong)
 		api.GET("/search", deps.Search.Search)
+
+		api.GET("/users/search", deps.Social.SearchUsers)
+		api.GET("/users/:id", deps.Social.GetProfile)
+		api.GET("/users/:id/playlists", deps.Social.ListPlaylists)
+		api.GET("/users/:id/followers", deps.Social.ListFollowers)
+		api.GET("/users/:id/following", deps.Social.ListFollowing)
+		api.POST("/users/:id/follow", deps.Social.Follow)
+		api.DELETE("/users/:id/follow", deps.Social.Unfollow)
+
+		api.GET("/notifications", deps.Social.ListNotifications)
+		api.POST("/notifications/read-all", deps.Social.MarkAllNotificationsRead)
+		api.PATCH("/notifications/:id/read", deps.Social.MarkNotificationRead)
+
+		api.GET("/library/liked", deps.Library.ListLiked)
+		api.GET("/library/recent", deps.Library.ListRecent)
+
+		api.GET("/playlists", deps.Playlist.List)
+		api.POST("/playlists", deps.Playlist.Create)
+		api.GET("/playlists/:id", deps.Playlist.Get)
+		api.PATCH("/playlists/:id", deps.Playlist.Update)
+		api.DELETE("/playlists/:id", deps.Playlist.Delete)
+		api.GET("/playlists/:id/songs", deps.Playlist.ListSongs)
+		api.POST("/playlists/:id/songs", deps.Playlist.AddSong)
+		api.PUT("/playlists/:id/songs/reorder", deps.Playlist.ReorderSongs)
+		api.DELETE("/playlists/:id/songs/:songId", deps.Playlist.RemoveSong)
 
 		api.GET("/catalog/popular", deps.Catalog.Popular)
 		api.GET("/catalog/new", deps.Catalog.Newest)

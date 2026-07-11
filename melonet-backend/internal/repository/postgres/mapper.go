@@ -85,6 +85,29 @@ func AlbumsToAPI(albums []db.Album) []api.AlbumResponse {
 	return result
 }
 
+func PlaylistToAPI(playlist db.Playlist, viewerID int64) api.PlaylistResponse {
+	return api.PlaylistResponse{
+		ID:          uint(playlist.ID),
+		OwnerID:     uint(playlist.OwnerID),
+		OwnerName:   playlist.OwnerName,
+		Title:       playlist.Title,
+		Description: playlist.Description,
+		Visibility:  string(playlist.Visibility),
+		CoverURL:    playlist.CoverURL,
+		IsSystem:    playlist.IsSystem,
+		IsOwner:     viewerID > 0 && playlist.OwnerID == viewerID,
+		SongCount:   playlist.SongCount,
+	}
+}
+
+func PlaylistsToAPI(playlists []db.Playlist, viewerID int64) []api.PlaylistResponse {
+	result := make([]api.PlaylistResponse, 0, len(playlists))
+	for _, playlist := range playlists {
+		result = append(result, PlaylistToAPI(playlist, viewerID))
+	}
+	return result
+}
+
 func GenreToAPI(genre db.Genre) api.GenreResponse {
 	return api.GenreResponse{
 		ID:        uint(genre.ID),
@@ -158,4 +181,71 @@ func UserToAPI(user db.User, premium db.PremiumEntitlement, active bool) api.Use
 	}
 
 	return resp
+}
+
+func UserSummaryToSearchResult(user db.UserSummary) api.UserSearchResult {
+	return api.UserSearchResult{
+		ID:          uint(user.ID),
+		Username:    user.Username,
+		DisplayName: user.DisplayName,
+		AvatarURL:   user.AvatarURL,
+		IsPremium:   user.IsPremium,
+	}
+}
+
+func UserSummariesToSearchResults(users []db.UserSummary) []api.UserSearchResult {
+	result := make([]api.UserSearchResult, 0, len(users))
+	for _, user := range users {
+		result = append(result, UserSummaryToSearchResult(user))
+	}
+	return result
+}
+
+func PublicUserToAPI(profile db.PublicUserProfile, viewerID int64) api.PublicUserResponse {
+	return api.PublicUserResponse{
+		ID:             uint(profile.ID),
+		Username:       profile.Username,
+		DisplayName:    profile.DisplayName,
+		AvatarURL:      profile.AvatarURL,
+		Bio:            profile.Bio,
+		IsPremium:      profile.IsPremium,
+		FollowerCount:  profile.FollowerCount,
+		FollowingCount: profile.FollowingCount,
+		IsFollowing:    profile.IsFollowing,
+		IsSelf:         viewerID > 0 && profile.ID == viewerID,
+	}
+}
+
+func UserSummariesToPublicAPI(users []db.UserSummary) []api.PublicUserResponse {
+	result := make([]api.PublicUserResponse, 0, len(users))
+	for _, user := range users {
+		result = append(result, api.PublicUserResponse{
+			ID:          uint(user.ID),
+			Username:    user.Username,
+			DisplayName: user.DisplayName,
+			AvatarURL:   user.AvatarURL,
+			Bio:         user.Bio,
+			IsPremium:   user.IsPremium,
+		})
+	}
+	return result
+}
+
+func NotificationToAPI(notification db.Notification) api.NotificationResponse {
+	return api.NotificationResponse{
+		ID:        uint(notification.ID),
+		Type:      string(notification.Type),
+		Title:     notification.Title,
+		Body:      notification.Body,
+		Read:      notification.ReadAt != nil,
+		CreatedAt: notification.CreatedAt,
+	}
+}
+
+func NotificationsToAPI(notifications []db.Notification) []api.NotificationResponse {
+	result := make([]api.NotificationResponse, 0, len(notifications))
+	for _, notification := range notifications {
+		result = append(result, NotificationToAPI(notification))
+	}
+	return result
 }

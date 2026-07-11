@@ -98,6 +98,8 @@ type Playlist struct {
 	IsSystem        bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	OwnerName       string
+	SongCount       int
 }
 
 type PlaylistSong struct {
@@ -179,4 +181,20 @@ type Notification struct {
 	Payload   []byte
 	ReadAt    *time.Time
 	CreatedAt time.Time
+}
+
+type UserSummary struct {
+	ID          int64
+	Username    string
+	DisplayName string
+	AvatarURL   string
+	Bio         string
+	IsPremium   bool
+}
+
+type PublicUserProfile struct {
+	UserSummary
+	FollowerCount  int
+	FollowingCount int
+	IsFollowing    bool
 }

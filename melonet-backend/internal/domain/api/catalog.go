@@ -49,12 +49,13 @@ type GenreResponse struct {
 }
 
 type SearchResponse struct {
-	Query   string           `json:"query"`
-	Type    string           `json:"type"`
-	Songs   []SongResponse   `json:"songs,omitempty"`
-	Artists []ArtistResponse `json:"artists,omitempty"`
-	Albums  []AlbumResponse  `json:"albums,omitempty"`
-	Genres  []GenreResponse  `json:"genres,omitempty"`
+	Query   string             `json:"query"`
+	Type    string             `json:"type"`
+	Songs   []SongResponse     `json:"songs,omitempty"`
+	Artists []ArtistResponse   `json:"artists,omitempty"`
+	Albums  []AlbumResponse    `json:"albums,omitempty"`
+	Genres  []GenreResponse    `json:"genres,omitempty"`
+	Users   []UserSearchResult `json:"users,omitempty"`
 }
 
 type QuickActionResponse struct {

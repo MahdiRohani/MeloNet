@@ -78,11 +78,19 @@ func run(logger *slog.Logger) error {
 	songRepo := postgres.NewSongRepository(db)
 	catalogRepo := postgres.NewCatalogRepository(db)
 	messageRepo := postgres.NewMessageRepository(db)
+	likeRepo := postgres.NewLikeRepository(db)
+	historyRepo := postgres.NewHistoryRepository(db)
+	playlistRepo := postgres.NewPlaylistRepository(db)
+	followRepo := postgres.NewFollowRepository(db)
+	notificationRepo := postgres.NewNotificationRepository(db)
 
 	authService := service.NewAuthService(userRepo, tokenRepo, tokenMgr, avatarStorage, cfg.PublicBaseURL)
 	catalogService := service.NewCatalogService(songRepo, catalogRepo)
-	searchService := service.NewSearchService(songRepo, catalogRepo)
+	searchService := service.NewSearchService(songRepo, catalogRepo, userRepo)
 	homeService := service.NewHomeService(catalogService)
+	libraryService := service.NewLibraryService(likeRepo, historyRepo, songRepo)
+	playlistService := service.NewPlaylistService(playlistRepo, songRepo)
+	socialService := service.NewSocialService(userRepo, followRepo, playlistRepo, notificationRepo)
 	chatService := service.NewChatService(messageRepo)
 	chatHub := realtime.NewHub(logger, chatService)
 
@@ -96,6 +104,9 @@ func run(logger *slog.Logger) error {
 		Catalog:  handler.NewCatalogHandler(catalogService),
 		Search:   handler.NewSearchHandler(searchService),
 		Home:     handler.NewHomeHandler(homeService),
+		Library:  handler.NewLibraryHandler(libraryService),
+		Playlist: handler.NewPlaylistHandler(playlistService),
+		Social:   handler.NewSocialHandler(socialService),
 		Chat:     handler.NewChatHandler(chatService, chatHub),
 	})
 
