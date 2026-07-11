@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"melonet-backend/internal/domain"
+	"melonet-backend/internal/domain/api"
 	"melonet-backend/internal/repository/postgres"
 )
 
@@ -17,20 +18,20 @@ func NewSongService(repo *postgres.SongRepository) *SongService {
 	return &SongService{repo: repo}
 }
 
-func (s *SongService) List(ctx context.Context, category string, page, limit int) ([]domain.Song, domain.Pagination, error) {
+func (s *SongService) List(ctx context.Context, category string, page, limit int) ([]api.SongResponse, domain.Pagination, error) {
 	songs, total, err := s.repo.List(ctx, category, page, limit)
 	if err != nil {
 		return nil, domain.Pagination{}, err
 	}
 
-	return songs, domain.Pagination{
+	return postgres.SongsToAPI(songs), domain.Pagination{
 		Page:  page,
 		Limit: limit,
 		Total: total,
 	}, nil
 }
 
-func (s *SongService) Search(ctx context.Context, query string, page, limit int) ([]domain.Song, domain.Pagination, error) {
+func (s *SongService) Search(ctx context.Context, query string, page, limit int) ([]api.SongResponse, domain.Pagination, error) {
 	if query == "" {
 		return nil, domain.Pagination{}, fmt.Errorf("empty query")
 	}
@@ -40,7 +41,7 @@ func (s *SongService) Search(ctx context.Context, query string, page, limit int)
 		return nil, domain.Pagination{}, err
 	}
 
-	return songs, domain.Pagination{
+	return postgres.SongsToAPI(songs), domain.Pagination{
 		Page:  page,
 		Limit: limit,
 		Total: total,

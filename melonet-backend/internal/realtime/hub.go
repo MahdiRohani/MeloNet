@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"melonet-backend/internal/domain"
+	"melonet-backend/internal/domain/api"
+	"melonet-backend/internal/domain/db"
 	"melonet-backend/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -67,15 +69,16 @@ func (h *Hub) HandleConnection(c *gin.Context, userID uint) {
 			break
 		}
 
-		message := domain.Message{
-			SenderID:   userID,
-			ReceiverID: wsMsg.ReceiverID,
-			Content:    wsMsg.Content,
-			MsgType:    wsMsg.MsgType,
-			CreatedAt:  time.Now().UTC(),
+		msgType := domain.MessageContentType(wsMsg.MsgType)
+		if !msgType.Valid() {
+			msgType = domain.MessageTypeText
 		}
 
-		saved, err := h.chat.SaveMessage(c.Request.Context(), message)
+		saved, err := h.chat.SaveMessage(c.Request.Context(), userID, wsMsg.ReceiverID, db.Message{
+			Content:   wsMsg.Content,
+			MsgType:   msgType,
+			CreatedAt: time.Now().UTC(),
+		})
 		if err != nil {
 			h.logger.Error("failed to persist chat message", "user_id", userID, "error", err)
 			continue
@@ -101,7 +104,7 @@ func (h *Hub) unregister(userID uint, conn *websocket.Conn) {
 	}
 }
 
-func (h *Hub) deliver(message domain.Message) {
+func (h *Hub) deliver(message api.MessageResponse) {
 	h.mu.RLock()
 	receiverConn, ok := h.clients[message.ReceiverID]
 	h.mu.RUnlock()

@@ -1,0 +1,57 @@
+package api
+
+import "time"
+
+type SongResponse struct {
+	ID            uint   `json:"id"`
+	Title         string `json:"title"`
+	Artist        string `json:"artist"`
+	ArtistName    string `json:"artist_name"`
+	CoverURL      string `json:"cover_url"`
+	CoverImageURL string `json:"cover_image_url"`
+	AudioURL      string `json:"audio_url"`
+	Category      string `json:"category"`
+	Genre         string `json:"genre,omitempty"`
+	AlbumTitle    string `json:"album_title,omitempty"`
+	Lyrics        string `json:"lyrics"`
+	DurationSec   int    `json:"duration_sec"`
+	PlayCount     int    `json:"play_count,omitempty"`
+}
+
+type MessageResponse struct {
+	ID         uint      `json:"id"`
+	SenderID   uint      `json:"sender_id"`
+	ReceiverID uint      `json:"receiver_id"`
+	Content    string    `json:"content"`
+	MsgType    string    `json:"msg_type"`
+	Status     string    `json:"status"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type UserResponse struct {
+	ID          uint   `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url"`
+	Bio         string `json:"bio,omitempty"`
+	IsPremium   bool   `json:"is_premium"`
+}
+
+type PlaylistResponse struct {
+	ID          uint   `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Visibility  string `json:"visibility"`
+	CoverURL    string `json:"cover_url"`
+	IsSystem    bool   `json:"is_system"`
+	SongCount   int    `json:"song_count,omitempty"`
+}
+
+type NotificationResponse struct {
+	ID        uint      `json:"id"`
+	Type      string    `json:"type"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	Read      bool      `json:"read"`
+	CreatedAt time.Time `json:"created_at"`
+}
