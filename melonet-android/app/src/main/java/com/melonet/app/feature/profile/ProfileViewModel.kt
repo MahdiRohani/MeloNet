@@ -4,7 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
-import com.melonet.app.domain.repository.UserRepository
+import com.melonet.app.data.repository.UserRepository
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch

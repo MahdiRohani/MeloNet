@@ -3,8 +3,8 @@ package com.melonet.app.feature.home
 import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
-import com.melonet.app.domain.model.HomeFeed
-import com.melonet.app.domain.model.QuickAction
+import com.melonet.app.data.model.HomeFeed
+import com.melonet.app.data.model.QuickAction
 
 object HomeContract {
 

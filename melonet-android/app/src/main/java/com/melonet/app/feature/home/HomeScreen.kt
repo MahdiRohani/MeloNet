@@ -38,9 +38,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.melonet.app.core.ui.shimmerEffect
-import com.melonet.app.domain.model.QuickAction
-import com.melonet.app.domain.model.Song
+import com.melonet.app.core.theme.shimmerEffect
+import com.melonet.app.data.model.QuickAction
+import com.melonet.app.data.model.Song
 
 @Composable
 fun HomeScreen(

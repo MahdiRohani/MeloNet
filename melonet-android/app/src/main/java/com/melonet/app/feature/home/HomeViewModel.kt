@@ -4,7 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
-import com.melonet.app.domain.repository.HomeRepository
+import com.melonet.app.data.repository.HomeRepository
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
@@ -25,7 +25,7 @@ class HomeViewModel(
                 setEffect { HomeContract.Effect.NavigateToPlayer(event.songId) }
             }
             is HomeContract.Event.QuickActionClicked -> {
-                // Navigation handled in A3/A4
+                // Navigation handled in a later phase
             }
         }
     }

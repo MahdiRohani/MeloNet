@@ -3,17 +3,15 @@ package com.melonet.app.di
 import com.melonet.app.BuildConfig
 import com.melonet.app.core.common.DefaultDispatchersProvider
 import com.melonet.app.core.common.DispatchersProvider
-import com.melonet.app.core.datastore.SettingsRepository
 import com.melonet.app.core.network.AuthInterceptor
-import com.melonet.app.core.network.TokenManager
-import com.melonet.app.domain.repository.HomeRepository
-import com.melonet.app.domain.repository.UserRepository
+import com.melonet.app.data.local.SettingsRepository
+import com.melonet.app.data.local.TokenManager
+import com.melonet.app.data.remote.AuthApi
+import com.melonet.app.data.remote.HomeApi
+import com.melonet.app.data.repository.HomeRepository
+import com.melonet.app.data.repository.UserRepository
 import com.melonet.app.feature.home.HomeViewModel
-import com.melonet.app.feature.home.data.HomeRepositoryImpl
-import com.melonet.app.feature.home.data.remote.HomeApi
 import com.melonet.app.feature.profile.ProfileViewModel
-import com.melonet.app.feature.profile.data.UserRepositoryImpl
-import com.melonet.app.feature.profile.data.remote.AuthApi
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
@@ -49,9 +47,9 @@ val appModule = module {
     single { get<Retrofit>().create(HomeApi::class.java) }
     single { get<Retrofit>().create(AuthApi::class.java) }
 
-    single<HomeRepository> { HomeRepositoryImpl(homeApi = get(), dispatchers = get()) }
-    single<UserRepository> {
-        UserRepositoryImpl(
+    single { HomeRepository(homeApi = get(), dispatchers = get()) }
+    single {
+        UserRepository(
             authApi = get(),
             settingsRepository = get(),
             tokenManager = get(),
