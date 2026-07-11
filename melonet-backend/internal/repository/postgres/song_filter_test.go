@@ -28,3 +28,24 @@ func TestSongFilterWhereClause(t *testing.T) {
 		t.Fatalf("where=%q args=%v", where, args)
 	}
 }
+
+func TestPaginationPlaceholders(t *testing.T) {
+	cases := []struct {
+		argCount           int
+		wantLimit, wantOff int
+	}{
+		{0, 1, 2}, // no WHERE filters — the case that previously produced $-1/$0
+		{1, 2, 3},
+		{3, 4, 5},
+	}
+	for _, tc := range cases {
+		limitPos, offsetPos := paginationPlaceholders(tc.argCount)
+		if limitPos != tc.wantLimit || offsetPos != tc.wantOff {
+			t.Fatalf("paginationPlaceholders(%d) = ($%d, $%d), want ($%d, $%d)",
+				tc.argCount, limitPos, offsetPos, tc.wantLimit, tc.wantOff)
+		}
+		if limitPos < 1 || offsetPos < 1 {
+			t.Fatalf("placeholders must be >= 1, got ($%d, $%d)", limitPos, offsetPos)
+		}
+	}
+}

@@ -10,6 +10,12 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// paginationPlaceholders returns the 1-based positional placeholder numbers for
+// the LIMIT and OFFSET arguments that are appended after argCount WHERE args.
+func paginationPlaceholders(argCount int) (limitPos, offsetPos int) {
+	return argCount + 1, argCount + 2
+}
+
 func (r *SongRepository) ListFiltered(ctx context.Context, filter SongFilter) ([]db.Song, int, error) {
 	filter = filter.normalized()
 	offset := (filter.Page - 1) * filter.Limit
@@ -23,8 +29,7 @@ func (r *SongRepository) ListFiltered(ctx context.Context, filter SongFilter) ([
 	}
 
 	listArgs := append(args, filter.Limit, offset)
-	limitPos := len(args) - 1
-	offsetPos := len(args)
+	limitPos, offsetPos := paginationPlaceholders(len(args))
 	listQuery := fmt.Sprintf(`
 		SELECT%s%s%s
 		LIMIT $%d OFFSET $%d
