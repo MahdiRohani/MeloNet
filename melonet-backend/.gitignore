@@ -1,0 +1,5 @@
+.env
+melonet.db
+melonet.db-journal
+/bin/
+/tmp/
