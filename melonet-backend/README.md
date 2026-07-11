@@ -291,6 +291,7 @@ Created by migrations (`000005_auth_premium`):
 | Problem | Fix |
 |---------|-----|
 | `docker: No such file or directory` | Install Docker ([Choice 1](#choice-1--install-docker-recommended-if-you-want-the-simplest-workflow)) or use [native setup](#option-b-native-linux-no-docker) |
+| `go mod download ... 403 Forbidden` from `proxy.golang.org` | The default Go proxy is blocked in your region. The Dockerfiles now default to `GOPROXY=https://goproxy.cn,https://goproxy.io,direct`. For native builds run `go env -w GOPROXY=https://goproxy.cn,direct GOSUMDB=off` once, then retry. Override the Docker proxy with `docker compose build --build-arg GOPROXY=<url>`. |
 | `connection refused` on `:8080` | API not running — `make run` or `make docker-up` |
 | Login fails / empty users | Run migrations: `make migrate-up` |
 | Media 404 | Run seed: `make seed` or `make docker-seed` |

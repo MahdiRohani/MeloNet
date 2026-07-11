@@ -4,6 +4,12 @@ WORKDIR /src
 
 RUN apk add --no-cache git ca-certificates
 
+# Use a reachable Go module proxy (proxy.golang.org is often blocked in some regions).
+# Override at build time with: --build-arg GOPROXY=...
+ARG GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+ENV GOPROXY=${GOPROXY}
+ENV GOSUMDB=off
+
 COPY go.mod go.sum ./
 RUN go mod download
 

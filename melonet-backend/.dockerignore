@@ -5,3 +5,8 @@ tmp/
 bin/
 melonet.db
 melonet.db-journal
+data/audio/*
+data/covers/*
+data/.cache/
+!data/audio/.gitkeep
+!data/covers/.gitkeep
