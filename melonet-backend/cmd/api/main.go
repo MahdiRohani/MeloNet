@@ -75,10 +75,13 @@ func run(logger *slog.Logger) error {
 	userRepo := postgres.NewUserRepository(db)
 	tokenRepo := postgres.NewTokenRepository(db)
 	songRepo := postgres.NewSongRepository(db)
+	catalogRepo := postgres.NewCatalogRepository(db)
 	messageRepo := postgres.NewMessageRepository(db)
 
 	authService := service.NewAuthService(userRepo, tokenRepo, tokenMgr, avatarStorage, cfg.PublicBaseURL)
-	songService := service.NewSongService(songRepo)
+	catalogService := service.NewCatalogService(songRepo, catalogRepo)
+	searchService := service.NewSearchService(songRepo, catalogRepo)
+	homeService := service.NewHomeService(catalogService)
 	chatService := service.NewChatService(messageRepo)
 	chatHub := realtime.NewHub(logger, chatService)
 
@@ -89,7 +92,9 @@ func run(logger *slog.Logger) error {
 		Health:   handler.NewHealthHandler(db, redisClient, storageClient),
 		Auth:     handler.NewAuthHandler(authService),
 		Media:    handler.NewMediaHandler(avatarStorage),
-		Songs:    handler.NewSongHandler(songService),
+		Catalog:  handler.NewCatalogHandler(catalogService),
+		Search:   handler.NewSearchHandler(searchService),
+		Home:     handler.NewHomeHandler(homeService),
 		Chat:     handler.NewChatHandler(chatService, chatHub),
 	})
 

@@ -39,6 +39,7 @@ type Artist struct {
 	ImageURL        string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	SongCount       int
 }
 
 type Genre struct {
@@ -46,6 +47,7 @@ type Genre struct {
 	Name      string
 	Slug      string
 	CreatedAt time.Time
+	SongCount int
 }
 
 type Album struct {
@@ -58,6 +60,8 @@ type Album struct {
 	ReleaseDate     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	ArtistName      string
+	SongCount       int
 }
 
 type Song struct {

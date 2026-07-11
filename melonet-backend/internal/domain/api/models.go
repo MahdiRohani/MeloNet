@@ -2,22 +2,6 @@ package api
 
 import "time"
 
-type SongResponse struct {
-	ID            uint   `json:"id"`
-	Title         string `json:"title"`
-	Artist        string `json:"artist"`
-	ArtistName    string `json:"artist_name"`
-	CoverURL      string `json:"cover_url"`
-	CoverImageURL string `json:"cover_image_url"`
-	AudioURL      string `json:"audio_url"`
-	Category      string `json:"category"`
-	Genre         string `json:"genre,omitempty"`
-	AlbumTitle    string `json:"album_title,omitempty"`
-	Lyrics        string `json:"lyrics"`
-	DurationSec   int    `json:"duration_sec"`
-	PlayCount     int    `json:"play_count,omitempty"`
-}
-
 type MessageResponse struct {
 	ID         uint      `json:"id"`
 	SenderID   uint      `json:"sender_id"`

@@ -18,7 +18,9 @@ type Dependencies struct {
 	Health     *handler.HealthHandler
 	Auth       *handler.AuthHandler
 	Media      *handler.MediaHandler
-	Songs      *handler.SongHandler
+	Catalog    *handler.CatalogHandler
+	Search     *handler.SearchHandler
+	Home       *handler.HomeHandler
 	Chat       *handler.ChatHandler
 }
 
@@ -61,8 +63,27 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	api := router.Group("/api")
 	api.Use(middleware.AuthRequired(deps.TokenMgr))
 	{
-		api.GET("/songs", deps.Songs.List)
-		api.GET("/search", deps.Songs.Search)
+		api.GET("/home", deps.Home.Feed)
+
+		api.GET("/songs", deps.Catalog.ListSongs)
+		api.GET("/songs/:id", deps.Catalog.GetSong)
+		api.GET("/search", deps.Search.Search)
+
+		api.GET("/catalog/popular", deps.Catalog.Popular)
+		api.GET("/catalog/new", deps.Catalog.Newest)
+		api.GET("/catalog/trending", deps.Catalog.Trending)
+
+		api.GET("/artists", deps.Catalog.ListArtists)
+		api.GET("/artists/:id", deps.Catalog.GetArtist)
+		api.GET("/artists/:id/songs", deps.Catalog.ListArtistSongs)
+
+		api.GET("/albums/:id", deps.Catalog.GetAlbum)
+		api.GET("/albums/:id/songs", deps.Catalog.ListAlbumSongs)
+
+		api.GET("/genres", deps.Catalog.ListGenres)
+		api.GET("/genres/:id", deps.Catalog.GetGenre)
+		api.GET("/genres/:id/songs", deps.Catalog.ListGenreSongs)
+
 		api.GET("/chat/history", deps.Chat.History)
 	}
 

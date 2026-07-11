@@ -46,84 +46,16 @@ func NewSongRepository(db *DB) *SongRepository {
 }
 
 func (r *SongRepository) List(ctx context.Context, category string, page, limit int) ([]db.Song, int, error) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 20
-	}
-	offset := (page - 1) * limit
-
-	whereClause := ""
-	countArgs := []any{}
-	if category != "" {
-		whereClause = " WHERE s.category = $1"
-		countArgs = append(countArgs, category)
-	}
-
-	var total int
-	countQuery := "SELECT COUNT(*) " + songFromClause + whereClause
-	if err := r.db.Pool.QueryRow(ctx, countQuery, countArgs...).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count songs: %w", err)
-	}
-
-	listArgs := append(countArgs, limit, offset)
-	listQuery := `
-		SELECT` + songSelectColumns + songFromClause + whereClause + `
-		ORDER BY s.id ASC
-		LIMIT $` + fmt.Sprintf("%d", len(countArgs)+1) + `
-		OFFSET $` + fmt.Sprintf("%d", len(countArgs)+2)
-
-	rows, err := r.db.Pool.Query(ctx, listQuery, listArgs...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list songs: %w", err)
-	}
-	defer rows.Close()
-
-	songs, err := scanSongs(rows)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return songs, total, nil
+	return r.ListFiltered(ctx, SongFilter{
+		Category: category,
+		Sort:     "newest",
+		Page:     page,
+		Limit:    limit,
+	})
 }
 
 func (r *SongRepository) Search(ctx context.Context, query string, page, limit int) ([]db.Song, int, error) {
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 20
-	}
-	offset := (page - 1) * limit
-	pattern := "%" + query + "%"
-
-	var total int
-	if err := r.db.Pool.QueryRow(ctx, `
-		SELECT COUNT(*)
-	`+songFromClause+`
-		WHERE s.title ILIKE $1 OR a.name ILIKE $1
-	`, pattern).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count search results: %w", err)
-	}
-
-	rows, err := r.db.Pool.Query(ctx, `
-		SELECT`+songSelectColumns+ songFromClause+ `
-		WHERE s.title ILIKE $1 OR a.name ILIKE $1
-		ORDER BY s.id ASC
-		LIMIT $2 OFFSET $3
-	`, pattern, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("search songs: %w", err)
-	}
-	defer rows.Close()
-
-	songs, err := scanSongs(rows)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return songs, total, nil
+	return r.SearchSongs(ctx, query, page, limit)
 }
 
 type songScanner interface {

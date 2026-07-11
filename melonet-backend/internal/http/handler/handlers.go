@@ -76,42 +76,6 @@ func (h *HealthHandler) Ready(c *gin.Context) {
 	})
 }
 
-type SongHandler struct {
-	songs *service.SongService
-}
-
-func NewSongHandler(songs *service.SongService) *SongHandler {
-	return &SongHandler{songs: songs}
-}
-
-func (h *SongHandler) List(c *gin.Context) {
-	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 20)
-	songs, meta, err := h.songs.List(c.Request.Context(), c.Query("category"), page, limit)
-	if err != nil {
-		response.InternalError(c, "failed to list songs")
-		return
-	}
-
-	response.OKWithMeta(c, songs, meta)
-}
-
-func (h *SongHandler) Search(c *gin.Context) {
-	query := c.Query("q")
-	if query == "" {
-		response.BadRequest(c, "invalid_query", "search query is required")
-		return
-	}
-
-	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 20)
-	songs, meta, err := h.songs.Search(c.Request.Context(), query, page, limit)
-	if err != nil {
-		response.InternalError(c, "failed to search songs")
-		return
-	}
-
-	response.OKWithMeta(c, songs, meta)
-}
-
 type ChatHandler struct {
 	chat *service.ChatService
 	hub  ChatHub
