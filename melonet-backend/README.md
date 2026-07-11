@@ -67,13 +67,43 @@ make test
 ```bash
 cd melonet-backend
 
-make docker-up      # PostgreSQL, Redis, MinIO, API
-make docker-seed    # optional: download & upload 50 real tracks (needs internet)
-make smoke          # end-to-end API smoke test
+make docker-up             # PostgreSQL, Redis, MinIO, API
+make docker-seed           # 50 tracks (tries real audio, falls back to synthetic)
+make smoke                 # end-to-end API smoke test
 ```
 
 - API: `http://localhost:8080`
 - MinIO console: `http://localhost:9001` (user `melonet`, password `melonetsecret`)
+
+### Seeding audio when downloads are blocked/slow
+
+The seeder downloads real royalty-free tracks (GitHub Open Lo-Fi + SoundHelix).
+If those hosts are blocked or throttled in your region the download can time out
+with an error like:
+
+```
+seed failed error="... download open-lofi archive: read body: context deadline exceeded"
+```
+
+There are three audio modes (default `auto`):
+
+| Mode | Behaviour |
+|------|-----------|
+| `auto` (default) | Try real download per track; on failure generate valid silent audio locally. Never hard-fails. |
+| `download` | Only real sources; fail on any error. |
+| `synthetic` | No network at all; generate valid silent MP3s of realistic length. Fast and guaranteed. |
+
+Recommended when downloads fail — fully offline seed:
+
+```bash
+make docker-seed-offline
+# native equivalent:
+make seed-offline
+```
+
+`synthetic` mode produces structurally valid, seekable MP3 files (silent audio)
+so you can fully test streaming, HTTP Range, and ExoPlayer playback/seek without
+any internet access.
 
 ### Option B: Native Linux (no Docker)
 
@@ -274,11 +304,13 @@ Created by migrations (`000005_auth_premium`):
 |---------|-------------|
 | `make docker-up` | Start all services via Docker Compose |
 | `make docker-down` | Stop Docker stack |
-| `make docker-seed` | Seed 50 real tracks (Docker profile) |
+| `make docker-seed` | Seed 50 tracks via Docker (auto mode) |
+| `make docker-seed-offline` | Seed 50 tracks via Docker, synthetic audio (no downloads) |
 | `make migrate-up` | Apply database migrations |
 | `make migrate-down` | Roll back last migration |
 | `make run` | Run API locally with Go |
 | `make seed` | Seed media locally (needs DB + MinIO) |
+| `make seed-offline` | Seed media locally with synthetic audio (no downloads) |
 | `make test` | Unit tests |
 | `make test-integration` | Integration tests (`INTEGRATION_TEST=1`) |
 | `make smoke` | End-to-end smoke test |
@@ -295,6 +327,7 @@ Created by migrations (`000005_auth_premium`):
 | `connection refused` on `:8080` | API not running — `make run` or `make docker-up` |
 | Login fails / empty users | Run migrations: `make migrate-up` |
 | Media 404 | Run seed: `make seed` or `make docker-seed` |
+| Seed `context deadline exceeded` / download blocked | Use offline seed: `make docker-seed-offline` (or `make seed-offline`) |
 | `jq: command not found` | `sudo apt install jq` |
 | PostgreSQL auth failed | Check `DATABASE_URL` user/password and that DB exists |
 | MinIO connection failed | Ensure MinIO is running on port 9000 and credentials match `.env` |

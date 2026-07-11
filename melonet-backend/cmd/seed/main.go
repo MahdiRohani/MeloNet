@@ -17,17 +17,23 @@ import (
 
 func main() {
 	force := flag.Bool("force", false, "re-seed tracks even if already uploaded")
+	audioMode := flag.String("audio", "", "audio source mode: auto (default), download, or synthetic")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	if err := run(logger, *force); err != nil {
+	mode := *audioMode
+	if mode == "" {
+		mode = os.Getenv("SEED_AUDIO_MODE")
+	}
+
+	if err := run(logger, *force, seed.ParseAudioMode(mode)); err != nil {
 		logger.Error("seed failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger, force bool) error {
+func run(logger *slog.Logger, force bool, audioMode seed.AudioMode) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -59,7 +65,10 @@ func run(logger *slog.Logger, force bool) error {
 	seedRepo := postgres.NewSeedRepository(db)
 	cacheDir := resolveCacheDir()
 
-	runner := seed.NewRunner(logger, seedRepo, mediaStorage, cacheDir, seed.Options{Force: force})
+	runner := seed.NewRunner(logger, seedRepo, mediaStorage, cacheDir, seed.Options{
+		Force:     force,
+		AudioMode: audioMode,
+	})
 	return runner.Run(ctx)
 }
 

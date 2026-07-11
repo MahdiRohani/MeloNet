@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/tcolgate/mp3"
 
@@ -21,7 +22,8 @@ type Runner struct {
 }
 
 type Options struct {
-	Force bool
+	Force     bool
+	AudioMode AudioMode
 }
 
 func NewRunner(
@@ -31,11 +33,15 @@ func NewRunner(
 	cacheDir string,
 	opts Options,
 ) *Runner {
+	mode := opts.AudioMode
+	if mode == "" {
+		mode = AudioModeAuto
+	}
 	return &Runner{
 		logger:  logger,
 		repo:    repo,
 		storage: storage,
-		audio:   NewAudioSource(cacheDir),
+		audio:   NewAudioSource(cacheDir, mode, logger),
 		force:   opts.Force,
 	}
 }
@@ -148,14 +154,14 @@ func mp3Duration(data []byte) int {
 	decoder := mp3.NewDecoder(bytes.NewReader(data))
 	var frame mp3.Frame
 	var skipped int
-	total := 0
+	var total time.Duration
 
 	for {
 		if err := decoder.Decode(&frame, &skipped); err != nil {
 			break
 		}
-		total += int(frame.Duration().Seconds())
+		total += frame.Duration()
 	}
 
-	return total
+	return int(total.Seconds())
 }

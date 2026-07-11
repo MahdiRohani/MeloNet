@@ -12,21 +12,76 @@ import (
 	"time"
 )
 
+// AudioMode controls how track audio is obtained.
+type AudioMode string
+
+const (
+	// AudioModeDownload only uses the real remote sources and fails on error.
+	AudioModeDownload AudioMode = "download"
+	// AudioModeSynthetic never touches the network and always generates audio.
+	AudioModeSynthetic AudioMode = "synthetic"
+	// AudioModeAuto tries the real source first and falls back to synthetic audio.
+	AudioModeAuto AudioMode = "auto"
+)
+
+func ParseAudioMode(value string) AudioMode {
+	switch AudioMode(value) {
+	case AudioModeDownload:
+		return AudioModeDownload
+	case AudioModeSynthetic:
+		return AudioModeSynthetic
+	default:
+		return AudioModeAuto
+	}
+}
+
 type AudioSource struct {
 	httpClient *http.Client
 	cacheDir   string
 	zipPath    string
+	mode       AudioMode
+	logger     Logger
+
+	zipUnavailable bool
 }
 
-func NewAudioSource(cacheDir string) *AudioSource {
+// Logger is the minimal logging surface the audio source needs.
+type Logger interface {
+	Warn(msg string, args ...any)
+}
+
+func NewAudioSource(cacheDir string, mode AudioMode, logger Logger) *AudioSource {
 	return &AudioSource{
-		httpClient: &http.Client{Timeout: 5 * time.Minute},
+		httpClient: &http.Client{Timeout: 8 * time.Minute},
 		cacheDir:   cacheDir,
 		zipPath:    filepath.Join(cacheDir, "openlofi.zip"),
+		mode:       mode,
+		logger:     logger,
 	}
 }
 
 func (s *AudioSource) Fetch(ctx context.Context, track Track) ([]byte, error) {
+	if s.mode == AudioModeSynthetic {
+		return SyntheticMP3(syntheticDurationForTrack(track)), nil
+	}
+
+	data, err := s.fetchRemote(ctx, track)
+	if err == nil {
+		return data, nil
+	}
+
+	if s.mode == AudioModeAuto {
+		if s.logger != nil {
+			s.logger.Warn("real audio unavailable, using synthetic fallback",
+				"track_id", track.ID, "title", track.Title, "error", err.Error())
+		}
+		return SyntheticMP3(syntheticDurationForTrack(track)), nil
+	}
+
+	return nil, err
+}
+
+func (s *AudioSource) fetchRemote(ctx context.Context, track Track) ([]byte, error) {
 	switch track.Source {
 	case SourceSoundHelix:
 		if track.URL == "" {
@@ -37,13 +92,28 @@ func (s *AudioSource) Fetch(ctx context.Context, track Track) ([]byte, error) {
 		if track.ZipPath == "" {
 			return nil, fmt.Errorf("track %d missing zip_path", track.ID)
 		}
+		if s.zipUnavailable {
+			return nil, fmt.Errorf("open-lofi archive previously unavailable")
+		}
 		return s.fetchFromZip(ctx, track.ZipPath)
 	default:
 		return nil, fmt.Errorf("unsupported source %q", track.Source)
 	}
 }
 
+const (
+	trackDownloadTimeout = 45 * time.Second
+	zipDownloadTimeout   = 2 * time.Minute
+)
+
 func (s *AudioSource) downloadURL(ctx context.Context, url string) ([]byte, error) {
+	return s.downloadURLWithTimeout(ctx, url, trackDownloadTimeout)
+}
+
+func (s *AudioSource) downloadURLWithTimeout(ctx context.Context, url string, timeout time.Duration) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -112,8 +182,11 @@ func (s *AudioSource) ensureZip(ctx context.Context) error {
 		return fmt.Errorf("create cache dir: %w", err)
 	}
 
-	data, err := s.downloadURL(ctx, OpenLoFiZipURL)
+	data, err := s.downloadURLWithTimeout(ctx, OpenLoFiZipURL, zipDownloadTimeout)
 	if err != nil {
+		// Remember the failure so subsequent open-lofi tracks fall back
+		// immediately instead of re-attempting the slow download each time.
+		s.zipUnavailable = true
 		return fmt.Errorf("download open-lofi archive: %w", err)
 	}
 

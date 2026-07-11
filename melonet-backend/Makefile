@@ -1,4 +1,4 @@
-.PHONY: run test test-integration smoke tidy migrate-up migrate-down docker-up docker-down seed
+.PHONY: run test test-integration smoke tidy migrate-up migrate-down docker-up docker-down seed seed-offline docker-seed docker-seed-offline
 
 run:
 	go run ./cmd/api
@@ -28,6 +28,9 @@ seed:
 seed-force:
 	go run ./cmd/seed -force
 
+seed-offline:
+	go run ./cmd/seed -audio synthetic
+
 docker-up:
 	docker compose up --build -d
 
@@ -36,3 +39,8 @@ docker-down:
 
 docker-seed:
 	docker compose --profile seed run --rm seed
+
+# Generates valid silent audio locally without any downloads.
+# Use this when GitHub / SoundHelix are blocked or too slow.
+docker-seed-offline:
+	docker compose --profile seed run --rm -e SEED_AUDIO_MODE=synthetic seed
