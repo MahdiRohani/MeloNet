@@ -1,4 +1,4 @@
-.PHONY: run test test-integration tidy migrate-up migrate-down docker-up docker-down seed
+.PHONY: run test test-integration smoke tidy migrate-up migrate-down docker-up docker-down seed
 
 run:
 	go run ./cmd/api
@@ -8,6 +8,10 @@ test:
 
 test-integration:
 	INTEGRATION_TEST=1 go test -tags=integration ./internal/integration/...
+
+smoke:
+	@chmod +x scripts/smoke-test.sh
+	@./scripts/smoke-test.sh
 
 tidy:
 	go mod tidy
