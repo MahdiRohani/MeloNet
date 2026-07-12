@@ -31,6 +31,9 @@ data class ArtistDetailRoute(val artistId: Int)
 data class PlaylistDetailRoute(val playlistId: Int)
 
 @Serializable
+data class UserProfileRoute(val userId: Int)
+
+@Serializable
 data class PlayerRoute(val songId: Int)
 
 @Serializable

@@ -28,6 +28,8 @@ import com.melonet.app.feature.auth.RegisterScreen
 import com.melonet.app.feature.auth.RegisterViewModel
 import com.melonet.app.feature.home.HomeScreen
 import com.melonet.app.feature.home.HomeViewModel
+import com.melonet.app.feature.search.SearchScreen
+import com.melonet.app.feature.search.SearchViewModel
 import com.melonet.app.feature.profile.ProfileScreen
 import com.melonet.app.feature.profile.ProfileViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -136,7 +138,19 @@ fun MelonetMainScreen() {
             }
 
             composable<SearchRoute> {
-                DummyScreen(titleRes = R.string.placeholder_search_tab)
+                val searchViewModel: SearchViewModel = koinViewModel()
+                SearchScreen(
+                    viewModel = searchViewModel,
+                    onNavigateToSong = { songId ->
+                        navController.navigate(SongDetailRoute(songId = songId))
+                    },
+                    onNavigateToArtist = { artistId ->
+                        navController.navigate(ArtistDetailRoute(artistId = artistId))
+                    },
+                    onNavigateToUser = { userId ->
+                        navController.navigate(UserProfileRoute(userId = userId))
+                    },
+                )
             }
             composable<DownloadsRoute> {
                 DummyScreen(titleRes = R.string.placeholder_downloads_tab)
@@ -184,6 +198,14 @@ fun MelonetMainScreen() {
                 DummyScreen(
                     titleRes = R.string.placeholder_playlist_detail,
                     formatArg = args.playlistId,
+                )
+            }
+
+            composable<UserProfileRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<UserProfileRoute>()
+                DummyScreen(
+                    titleRes = R.string.placeholder_user_profile,
+                    formatArg = args.userId,
                 )
             }
 

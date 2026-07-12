@@ -5,18 +5,23 @@ import com.melonet.app.core.common.DefaultDispatchersProvider
 import com.melonet.app.core.common.DispatchersProvider
 import com.melonet.app.core.network.AuthInterceptor
 import com.melonet.app.core.network.TokenAuthenticator
+import com.melonet.app.data.local.MeloNetDatabase
 import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.local.TokenManager
 import com.melonet.app.data.remote.AuthApi
 import com.melonet.app.data.remote.HomeApi
+import com.melonet.app.data.remote.SearchApi
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.HomeRepository
+import com.melonet.app.data.repository.SearchRepository
 import com.melonet.app.data.repository.UserRepository
 import com.melonet.app.feature.auth.AuthViewModel
 import com.melonet.app.feature.auth.LoginViewModel
 import com.melonet.app.feature.auth.RegisterViewModel
 import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.profile.ProfileViewModel
+import com.melonet.app.feature.search.SearchViewModel
+import androidx.room.Room
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
@@ -76,8 +81,23 @@ val appModule = module {
 
     single { get<Retrofit>().create(HomeApi::class.java) }
     single { get<Retrofit>().create(AuthApi::class.java) }
+    single { get<Retrofit>().create(SearchApi::class.java) }
+
+    single {
+        Room.databaseBuilder(androidContext(), MeloNetDatabase::class.java, "melonet.db")
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+    single { get<MeloNetDatabase>().searchHistoryDao() }
 
     single { HomeRepository(homeApi = get(), dispatchers = get()) }
+    single {
+        SearchRepository(
+            searchApi = get(),
+            searchHistoryDao = get(),
+            dispatchers = get(),
+        )
+    }
     single {
         AuthRepository(
             authApi = get(),
@@ -100,4 +120,5 @@ val appModule = module {
     viewModel { RegisterViewModel(authRepository = get()) }
     viewModel { HomeViewModel(homeRepository = get()) }
     viewModel { ProfileViewModel(userRepository = get()) }
+    viewModel { SearchViewModel(searchRepository = get()) }
 }
