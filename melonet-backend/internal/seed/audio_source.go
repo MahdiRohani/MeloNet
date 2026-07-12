@@ -22,6 +22,9 @@ const (
 	AudioModeSynthetic AudioMode = "synthetic"
 	// AudioModeAuto tries the real source first and falls back to synthetic audio.
 	AudioModeAuto AudioMode = "auto"
+	// AudioModeAudius seeds real, streamable tracks from the Audius network and
+	// re-hosts audio + artwork in local object storage.
+	AudioModeAudius AudioMode = "audius"
 )
 
 func ParseAudioMode(value string) AudioMode {
@@ -30,6 +33,8 @@ func ParseAudioMode(value string) AudioMode {
 		return AudioModeDownload
 	case AudioModeSynthetic:
 		return AudioModeSynthetic
+	case AudioModeAudius:
+		return AudioModeAudius
 	default:
 		return AudioModeAuto
 	}
@@ -38,6 +43,7 @@ func ParseAudioMode(value string) AudioMode {
 type AudioSource struct {
 	httpClient *http.Client
 	cacheDir   string
+	localDir   string
 	zipPath    string
 	mode       AudioMode
 	logger     Logger
@@ -54,13 +60,35 @@ func NewAudioSource(cacheDir string, mode AudioMode, logger Logger) *AudioSource
 	return &AudioSource{
 		httpClient: &http.Client{Timeout: 8 * time.Minute},
 		cacheDir:   cacheDir,
+		localDir:   filepath.Join(filepath.Dir(cacheDir), "audio"),
 		zipPath:    filepath.Join(cacheDir, "openlofi.zip"),
 		mode:       mode,
 		logger:     logger,
 	}
 }
 
+// fetchLocal returns bundled real audio for a track when a matching file
+// exists under the local audio directory (data/audio/song{ID}.mp3). These
+// files contain actual sound, unlike the silent synthetic fallback.
+func (s *AudioSource) fetchLocal(track Track) ([]byte, bool) {
+	if s.localDir == "" {
+		return nil, false
+	}
+	path := filepath.Join(s.localDir, fmt.Sprintf("song%d.mp3", track.ID))
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) == 0 {
+		return nil, false
+	}
+	return data, true
+}
+
 func (s *AudioSource) Fetch(ctx context.Context, track Track) ([]byte, error) {
+	// Prefer real bundled audio when available so playback has actual sound,
+	// regardless of network reachability or mode.
+	if data, ok := s.fetchLocal(track); ok {
+		return data, nil
+	}
+
 	if s.mode == AudioModeSynthetic {
 		return SyntheticMP3(syntheticDurationForTrack(track)), nil
 	}

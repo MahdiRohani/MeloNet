@@ -1,7 +1,5 @@
 package com.melonet.app.core.navigation
 
-import androidx.activity.compose.LocalActivity
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -51,9 +50,9 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun MelonetMainScreen() {
     val navController = rememberNavController()
-    val activity = LocalActivity.current as ComponentActivity
+    val viewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current)
     val authViewModel: AuthViewModel = koinViewModel()
-    val playerViewModel: PlayerViewModel = koinViewModel(viewModelStoreOwner = activity)
+    val playerViewModel: PlayerViewModel = koinViewModel(viewModelStoreOwner = viewModelStoreOwner)
     val authState by authViewModel.authState.collectAsState()
     val playerState by playerViewModel.uiState.collectAsState()
 

@@ -11,19 +11,11 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 class MelonetPlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
-    private lateinit var player: Player
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var crossfadeJob: Job? = null
+    private lateinit var player: ExoPlayer
 
     override fun onCreate() {
         super.onCreate()
@@ -40,6 +32,7 @@ class MelonetPlaybackService : MediaSessionService() {
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
+            .setHandleAudioBecomingNoisy(true)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -48,33 +41,10 @@ class MelonetPlaybackService : MediaSessionService() {
                 true,
             )
             .build()
-
-        player.addListener(object : Player.Listener {
-            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
-                ) {
-                    crossfadeIn()
-                }
-            }
-        })
+        player.volume = 1f
 
         mediaSession = MediaSession.Builder(this, player).build()
         setMediaNotificationProvider(DefaultMediaNotificationProvider(this))
-    }
-
-    private fun crossfadeIn() {
-        crossfadeJob?.cancel()
-        player.volume = 0f
-        crossfadeJob = serviceScope.launch {
-            val steps = CROSSFADE_STEPS
-            val stepDelay = CROSSFADE_MS / steps
-            for (step in 1..steps) {
-                player.volume = step / steps.toFloat()
-                delay(stepDelay)
-            }
-            player.volume = 1f
-        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
@@ -82,17 +52,11 @@ class MelonetPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        crossfadeJob?.cancel()
         mediaSession?.run {
             player.release()
             release()
             mediaSession = null
         }
         super.onDestroy()
-    }
-
-    companion object {
-        private const val CROSSFADE_MS = 1500L
-        private const val CROSSFADE_STEPS = 15
     }
 }

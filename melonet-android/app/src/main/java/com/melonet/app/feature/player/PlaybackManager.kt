@@ -141,19 +141,11 @@ class PlaybackManager(
     }
 
     fun skipNext() {
-        scope.launch {
-            fadeVolume(from = 1f, to = 0f)
-            controller?.seekToNextMediaItem()
-            fadeVolume(from = 0f, to = 1f)
-        }
+        controller?.seekToNextMediaItem()
     }
 
     fun skipPrevious() {
-        scope.launch {
-            fadeVolume(from = 1f, to = 0f)
-            controller?.seekToPreviousMediaItem()
-            fadeVolume(from = 0f, to = 1f)
-        }
+        controller?.seekToPreviousMediaItem()
     }
 
     fun seekTo(positionMs: Long) {
@@ -182,15 +174,6 @@ class PlaybackManager(
             }
             controller?.pause()
             _state.update { it.copy(sleepTimerMinutesLeft = null) }
-        }
-    }
-
-    private suspend fun fadeVolume(from: Float, to: Float) {
-        val c = controller ?: return
-        val steps = 8
-        for (step in 0..steps) {
-            c.volume = from + (to - from) * (step / steps.toFloat())
-            delay(50L)
         }
     }
 
