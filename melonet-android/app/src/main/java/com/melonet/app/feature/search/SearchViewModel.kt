@@ -71,15 +71,15 @@ class SearchViewModel(
             is SearchContract.Event.ResultClicked -> {
                 when (val item = event.item) {
                     is SearchResultItem.SongItem -> {
-                        viewModelScope.launch { searchRepository.saveHistory(currentState.query.trim()) }
-                        setEffect { SearchContract.Effect.NavigateToSong(item.song.id) }
+                        viewModelScope.launch { searchRepository.saveHistory(uiState.value.query.trim()) }
+                        setEffect { SearchContract.Effect.PlaySong(item.song) }
                     }
                     is SearchResultItem.ArtistItem -> {
-                        viewModelScope.launch { searchRepository.saveHistory(currentState.query.trim()) }
+                        viewModelScope.launch { searchRepository.saveHistory(uiState.value.query.trim()) }
                         setEffect { SearchContract.Effect.NavigateToArtist(item.artist.id) }
                     }
                     is SearchResultItem.UserItem -> {
-                        viewModelScope.launch { searchRepository.saveHistory(currentState.query.trim()) }
+                        viewModelScope.launch { searchRepository.saveHistory(uiState.value.query.trim()) }
                         setEffect { SearchContract.Effect.NavigateToUser(item.user.id) }
                     }
                 }
