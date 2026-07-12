@@ -38,8 +38,8 @@ import com.melonet.app.data.model.Song
 fun PlaylistDetailScreen(
     playlistId: Int,
     viewModel: PlaylistDetailViewModel,
-    onNavigateToPlayer: (Int) -> Unit,
-    onPlayQueue: (startSongId: Int, songs: List<Song>, shuffle: Boolean) -> Unit,
+    onNavigateToPlayer: (String) -> Unit,
+    onPlayQueue: (startSongId: String, songs: List<Song>, shuffle: Boolean) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     val songs = viewModel.songs.collectAsLazyPagingItems()

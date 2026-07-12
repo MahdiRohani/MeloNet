@@ -110,6 +110,22 @@
     <string name="cd_toggle_password">نمایش/مخفی کردن رمز عبور</string>
     <string name="cd_delete_history">حذف از تاریخچه جستجو</string>
 
+    <!-- Downloads -->
+    <string name="downloads_title">دانلودها</string>
+    <string name="downloads_sort_newest">جدیدترین</string>
+    <string name="downloads_sort_title">عنوان</string>
+    <string name="downloads_empty_title">هنوز دانلودی ندارید</string>
+    <string name="downloads_empty_description">از صفحه پخش، آهنگ‌ها را برای گوش دادن آفلاین دانلود کنید.</string>
+    <string name="downloads_premium_required_title">نیاز به اشتراک ویژه</string>
+    <string name="downloads_premium_required_description">برای دانلود آهنگ و پخش آفلاین، حساب خود را ارتقا دهید.</string>
+    <string name="downloads_status_downloading">در حال دانلود… %1$d%%</string>
+    <string name="downloads_status_completed">دانلود شده</string>
+    <string name="downloads_status_failed">دانلود ناموفق</string>
+    <string name="downloads_retry">تلاش مجدد</string>
+    <string name="downloads_play">پخش</string>
+    <string name="cd_download_song">دانلود آهنگ</string>
+    <string name="cd_delete_download">حذف دانلود</string>
+
     <!-- Placeholder screens -->
     <string name="placeholder_search_tab">تب جستجو</string>
     <string name="placeholder_downloads_tab">تب دانلودها</string>

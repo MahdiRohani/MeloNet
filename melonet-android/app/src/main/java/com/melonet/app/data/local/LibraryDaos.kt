@@ -18,7 +18,7 @@ interface LikedSongDao {
     suspend fun insertAll(songs: List<LikedSongEntity>)
 
     @Query("DELETE FROM liked_songs WHERE songId = :songId")
-    suspend fun delete(songId: Int)
+    suspend fun delete(songId: String)
 
     @Query("DELETE FROM liked_songs")
     suspend fun clear()
@@ -36,7 +36,7 @@ interface PlayHistoryDao {
     suspend fun insertAll(songs: List<PlayHistoryEntity>)
 
     @Query("DELETE FROM play_history WHERE songId = :songId")
-    suspend fun delete(songId: Int)
+    suspend fun delete(songId: String)
 
     @Query("DELETE FROM play_history")
     suspend fun clear()

@@ -60,7 +60,7 @@ class LibrarySongsViewModel(
 
     fun getCachedSongs(): List<Song> = cachedSongs.toList()
 
-    private fun dismissSong(songId: Int) {
+    private fun dismissSong(songId: String) {
         viewModelScope.launch {
             when (uiState.value.listType) {
                 LibraryListType.LIKED -> libraryRepository.unlikeSong(songId)

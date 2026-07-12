@@ -7,5 +7,5 @@ import retrofit2.http.Path
 
 interface CatalogApi {
     @GET("api/songs/{id}")
-    suspend fun getSong(@Path("id") id: Int): ApiResponse<SongDto>
+    suspend fun getSong(@Path("id") id: String): ApiResponse<SongDto>
 }

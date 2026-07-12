@@ -29,6 +29,8 @@ import com.melonet.app.feature.auth.LoginScreen
 import com.melonet.app.feature.auth.LoginViewModel
 import com.melonet.app.feature.auth.RegisterScreen
 import com.melonet.app.feature.auth.RegisterViewModel
+import com.melonet.app.feature.downloads.DownloadsScreen
+import com.melonet.app.feature.downloads.DownloadsViewModel
 import com.melonet.app.feature.home.HomeScreen
 import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.player.PlayerContract
@@ -191,7 +193,12 @@ fun MelonetMainScreen() {
                 )
             }
             composable<DownloadsRoute> {
-                DummyScreen(titleRes = R.string.placeholder_downloads_tab)
+                val downloadsViewModel: DownloadsViewModel = koinViewModel()
+                DownloadsScreen(
+                    viewModel = downloadsViewModel,
+                    onPlaySong = { song -> playSong(song) },
+                    onNavigateToProfile = { navController.navigate(ProfileRoute) },
+                )
             }
             composable<PlaylistsRoute> {
                 val playlistsViewModel: PlaylistsViewModel = koinViewModel()

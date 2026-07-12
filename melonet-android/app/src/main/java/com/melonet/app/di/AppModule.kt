@@ -17,8 +17,12 @@ import com.melonet.app.data.remote.SearchApi
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.HomeRepository
 import com.melonet.app.data.repository.LibraryRepository
-import com.melonet.app.data.repository.NoOpOfflineSongResolver
+import androidx.work.WorkManager
+import com.melonet.app.data.local.DownloadStorage
+import com.melonet.app.data.repository.DownloadRepository
 import com.melonet.app.data.repository.OfflineSongResolver
+import com.melonet.app.data.repository.RoomOfflineSongResolver
+import com.melonet.app.feature.downloads.DownloadsViewModel
 import com.melonet.app.data.repository.PlayerRepository
 import com.melonet.app.data.repository.PlaylistRepository
 import com.melonet.app.data.repository.SearchRepository
@@ -107,8 +111,9 @@ val appModule = module {
     single { get<MeloNetDatabase>().searchHistoryDao() }
     single { get<MeloNetDatabase>().likedSongDao() }
     single { get<MeloNetDatabase>().playHistoryDao() }
-
-    single<OfflineSongResolver> { NoOpOfflineSongResolver() }
+    single { get<MeloNetDatabase>().downloadDao() }
+    single { DownloadStorage(androidContext()) }
+    single { WorkManager.getInstance(androidContext()) }
 
     single { HomeRepository(homeApi = get(), dispatchers = get()) }
     single {
@@ -151,6 +156,15 @@ val appModule = module {
             dispatchers = get(),
         )
     }
+    single {
+        DownloadRepository(
+            downloadDao = get(),
+            downloadStorage = get(),
+            workManager = get(),
+            dispatchers = get(),
+        )
+    }
+    single<OfflineSongResolver> { RoomOfflineSongResolver(downloadRepository = get()) }
     single { PlaybackManager(context = androidContext(), playerRepository = get()) }
 
     viewModel { AuthViewModel(authRepository = get()) }
@@ -159,8 +173,9 @@ val appModule = module {
     viewModel { HomeViewModel(homeRepository = get()) }
     viewModel { ProfileViewModel(userRepository = get()) }
     viewModel { SearchViewModel(searchRepository = get()) }
-    viewModel { PlayerViewModel(playbackManager = get()) }
+    viewModel { PlayerViewModel(playbackManager = get(), downloadRepository = get(), userRepository = get()) }
     viewModel { PlaylistsViewModel(playlistRepository = get()) }
     viewModel { PlaylistDetailViewModel(playlistRepository = get()) }
     viewModel { LibrarySongsViewModel(libraryRepository = get()) }
+    viewModel { DownloadsViewModel(downloadRepository = get(), userRepository = get()) }
 }

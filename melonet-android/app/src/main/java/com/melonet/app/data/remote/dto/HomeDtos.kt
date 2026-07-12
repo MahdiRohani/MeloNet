@@ -3,7 +3,7 @@ package com.melonet.app.data.remote.dto
 import com.google.gson.annotations.SerializedName
 
 data class SongDto(
-    @SerializedName("id") val id: Int,
+    @SerializedName("id") val id: String,
     @SerializedName("title") val title: String,
     @SerializedName("artist") val artist: String?,
     @SerializedName("artist_name") val artistName: String?,

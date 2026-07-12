@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
@@ -44,6 +46,7 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.data.model.DownloadStatus
 import com.melonet.app.feature.player.component.AudioVisualizer
 import com.melonet.app.feature.player.component.DynamicPlayerBackground
 import com.melonet.app.feature.player.component.RotatingCover
@@ -54,7 +57,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel,
-    songId: Int,
+    songId: String,
     onNavigateBack: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -82,7 +85,6 @@ fun PlayerScreen(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onNavigateBack) {
@@ -100,14 +102,51 @@ fun PlayerScreen(
                         ),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
                     )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-                IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.ShowSleepTimerDialog) }) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = stringResource(R.string.cd_sleep_timer),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.ShowSleepTimerDialog) }) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = stringResource(R.string.cd_sleep_timer),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    }
+                    val isDownloading = state.downloadStatus == DownloadStatus.DOWNLOADING ||
+                        state.downloadStatus == DownloadStatus.PENDING
+                    val downloadEnabled = state.downloadStatus != DownloadStatus.COMPLETED && !isDownloading
+                    IconButton(
+                        onClick = { viewModel.handleEvent(PlayerContract.Event.DownloadClicked) },
+                        enabled = downloadEnabled,
+                    ) {
+                        when {
+                            isDownloading -> {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(dimensions.iconSm),
+                                    strokeWidth = dimensions.iconSm / 8,
+                                )
+                            }
+                            state.downloadStatus == DownloadStatus.COMPLETED -> {
+                                Icon(
+                                    imageVector = Icons.Default.DownloadDone,
+                                    contentDescription = stringResource(R.string.cd_download_song),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            else -> {
+                                Icon(
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = stringResource(R.string.cd_download_song),
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -249,6 +288,13 @@ fun PlayerScreen(
             onDismiss = { viewModel.handleEvent(PlayerContract.Event.HideSleepTimerDialog) },
         )
     }
+
+    if (state.showUpgradeDialog) {
+        UpgradeDialog(
+            onUpgrade = { viewModel.upgradePremium() },
+            onDismiss = { viewModel.handleEvent(PlayerContract.Event.DismissUpgradeDialog) },
+        )
+    }
 }
 
 @Composable
@@ -318,6 +364,28 @@ private fun SleepTimerDialog(
             }
         },
         confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun UpgradeDialog(
+    onUpgrade: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.premium_upgrade_title)) },
+        text = { Text(stringResource(R.string.premium_upgrade_description)) },
+        confirmButton = {
+            TextButton(onClick = onUpgrade) {
+                Text(stringResource(R.string.premium_upgrade_button))
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.action_cancel))
             }

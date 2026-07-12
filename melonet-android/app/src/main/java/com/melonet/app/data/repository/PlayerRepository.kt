@@ -17,14 +17,14 @@ class PlayerRepository(
     private val offlineSongResolver: OfflineSongResolver,
     private val dispatchers: DispatchersProvider,
 ) {
-    suspend fun getSong(id: Int): Result<Song> = withContext(dispatchers.io) {
+    suspend fun getSong(id: String): Result<Song> = withContext(dispatchers.io) {
         when (val result = safeApiCall { catalogApi.getSong(id) }) {
             is Result.Success -> Result.Success(SongMapper.toModel(result.data))
             is Result.Error -> result
         }
     }
 
-    suspend fun recordPlay(songId: Int, durationSec: Int, source: String): Result<Unit> =
+    suspend fun recordPlay(songId: String, durationSec: Int, source: String): Result<Unit> =
         withContext(dispatchers.io) {
             when (
                 val result = safeApiCall {
@@ -42,7 +42,7 @@ class PlayerRepository(
             }
         }
 
-    fun resolveAudioUri(song: Song): String {
+    suspend fun resolveAudioUri(song: Song): String {
         val localPath = offlineSongResolver.localPathFor(song.id)
         if (!localPath.isNullOrBlank() && File(localPath).exists()) {
             return localPath

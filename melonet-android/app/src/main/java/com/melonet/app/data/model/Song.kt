@@ -1,7 +1,7 @@
 package com.melonet.app.data.model
 
 data class Song(
-    val id: Int,
+    val id: String,
     val title: String,
     val artistName: String,
     val coverUrl: String,

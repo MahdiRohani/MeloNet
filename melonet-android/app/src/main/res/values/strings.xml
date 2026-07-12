@@ -110,6 +110,22 @@
     <string name="cd_toggle_password">Toggle password visibility</string>
     <string name="cd_delete_history">Delete search history</string>
 
+    <!-- Downloads -->
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_sort_newest">Newest</string>
+    <string name="downloads_sort_title">Title</string>
+    <string name="downloads_empty_title">No downloads yet</string>
+    <string name="downloads_empty_description">Download songs from the player to listen offline.</string>
+    <string name="downloads_premium_required_title">Premium required</string>
+    <string name="downloads_premium_required_description">Upgrade to Premium to download songs for offline listening.</string>
+    <string name="downloads_status_downloading">Downloading… %1$d%%</string>
+    <string name="downloads_status_completed">Downloaded</string>
+    <string name="downloads_status_failed">Download failed</string>
+    <string name="downloads_retry">Retry</string>
+    <string name="downloads_play">Play</string>
+    <string name="cd_download_song">Download song</string>
+    <string name="cd_delete_download">Delete download</string>
+
     <!-- Placeholder screens -->
     <string name="placeholder_search_tab">Search tab</string>
     <string name="placeholder_downloads_tab">Downloads tab</string>

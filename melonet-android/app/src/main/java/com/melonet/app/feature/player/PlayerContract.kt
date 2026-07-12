@@ -3,6 +3,7 @@ package com.melonet.app.feature.player
 import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
+import com.melonet.app.data.model.DownloadStatus
 import com.melonet.app.data.model.Song
 
 object PlayerContract {
@@ -19,11 +20,14 @@ object PlayerContract {
         val showSpeedDialog: Boolean = false,
         val showSleepTimerDialog: Boolean = false,
         val gradientColors: List<Long> = emptyList(),
+        val isPremium: Boolean = false,
+        val downloadStatus: DownloadStatus? = null,
+        val showUpgradeDialog: Boolean = false,
     ) : UiState
 
     sealed interface Event : UiEvent {
         data class PlaySong(val song: Song, val queue: List<Song> = listOf()) : Event
-        data class PlaySongId(val songId: Int, val queue: List<Song> = emptyList()) : Event
+        data class PlaySongId(val songId: String, val queue: List<Song> = emptyList()) : Event
         data object TogglePlayPause : Event
         data object SkipNext : Event
         data object SkipPrevious : Event
@@ -35,6 +39,8 @@ object PlayerContract {
         data object ShowSleepTimerDialog : Event
         data object HideSleepTimerDialog : Event
         data class UpdateGradient(val colors: List<Long>) : Event
+        data object DownloadClicked : Event
+        data object DismissUpgradeDialog : Event
     }
 
     sealed interface Effect : UiEffect {

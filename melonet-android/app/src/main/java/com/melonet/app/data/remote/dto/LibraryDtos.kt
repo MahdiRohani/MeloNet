@@ -8,6 +8,6 @@ data class PlayEventRequestDto(
 )
 
 data class PlayEventResponseDto(
-    @SerializedName("song_id") val songId: Int,
+    @SerializedName("song_id") val songId: String,
     @SerializedName("play_count") val playCount: Int,
 )

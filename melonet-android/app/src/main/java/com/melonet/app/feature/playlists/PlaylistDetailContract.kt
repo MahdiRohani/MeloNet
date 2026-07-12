@@ -16,14 +16,14 @@ object PlaylistDetailContract {
 
     sealed interface Event : UiEvent {
         data class Load(val playlistId: Int) : Event
-        data class SongClicked(val songId: Int) : Event
+        data class SongClicked(val songId: String) : Event
         data object PlayAll : Event
         data object ShuffleAll : Event
     }
 
     sealed interface Effect : UiEffect {
-        data class NavigateToPlayer(val songId: Int) : Effect
-        data class PlayQueue(val startSongId: Int, val shuffle: Boolean) : Effect
+        data class NavigateToPlayer(val songId: String) : Effect
+        data class PlayQueue(val startSongId: String, val shuffle: Boolean) : Effect
         data class ShowError(val error: AppError) : Effect
     }
 }

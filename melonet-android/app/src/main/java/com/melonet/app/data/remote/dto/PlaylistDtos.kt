@@ -22,5 +22,5 @@ data class CreatePlaylistRequestDto(
 )
 
 data class AddPlaylistSongRequestDto(
-    @SerializedName("song_id") val songId: Int,
+    @SerializedName("song_id") val songId: String,
 )

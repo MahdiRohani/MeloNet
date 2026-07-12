@@ -52,7 +52,7 @@ class PlaybackManager(
     private var controller: MediaController? = null
     private var progressJob: Job? = null
     private var sleepTimerJob: Job? = null
-    private var playRecordedForSongId: Int? = null
+    private var playRecordedForSongId: String? = null
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -115,14 +115,14 @@ class PlaybackManager(
             val c = controller ?: return@launch
             val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
             playRecordedForSongId = null
-            c.setMediaItems(queue.map(::buildMediaItem), startIndex, 0L)
+            c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
             c.prepare()
             c.play()
             _state.update { it.copy(currentSong = song, queue = queue) }
         }
     }
 
-    fun playSongId(songId: Int, queue: List<Song> = emptyList()) {
+    fun playSongId(songId: String, queue: List<Song> = emptyList()) {
         scope.launch {
             val existing = _state.value.queue.find { it.id == songId }
                 ?: _state.value.currentSong?.takeIf { it.id == songId }
@@ -177,11 +177,11 @@ class PlaybackManager(
         }
     }
 
-    private fun buildMediaItem(song: Song): MediaItem {
+    private suspend fun buildMediaItem(song: Song): MediaItem {
         val uri = playerRepository.resolveAudioUri(song)
         return MediaItem.Builder()
             .setUri(uri)
-            .setMediaId(song.id.toString())
+            .setMediaId(song.id)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(song.title)
@@ -225,7 +225,7 @@ class PlaybackManager(
     }
 
     private fun updateCurrentSongFromPlayer() {
-        val songId = controller?.currentMediaItem?.mediaId?.toIntOrNull() ?: return
+        val songId = controller?.currentMediaItem?.mediaId ?: return
         val song = _state.value.queue.find { it.id == songId }
             ?: _state.value.currentSong?.takeIf { it.id == songId }
         if (song != null) {

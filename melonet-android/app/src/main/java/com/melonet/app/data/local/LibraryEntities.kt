@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "liked_songs")
 data class LikedSongEntity(
-    @PrimaryKey val songId: Int,
+    @PrimaryKey val songId: String,
     val title: String,
     val artistName: String,
     val coverUrl: String,
@@ -16,7 +16,7 @@ data class LikedSongEntity(
 
 @Entity(tableName = "play_history")
 data class PlayHistoryEntity(
-    @PrimaryKey val songId: Int,
+    @PrimaryKey val songId: String,
     val title: String,
     val artistName: String,
     val coverUrl: String,

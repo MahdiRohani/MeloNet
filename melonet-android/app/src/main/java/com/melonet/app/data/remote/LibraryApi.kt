@@ -25,11 +25,11 @@ interface LibraryApi {
     ): ApiResponse<List<SongDto>>
 
     @DELETE("api/songs/{id}/like")
-    suspend fun unlikeSong(@Path("id") id: Int): ApiResponse<Unit>
+    suspend fun unlikeSong(@Path("id") id: String): ApiResponse<Unit>
 
     @POST("api/songs/{id}/play")
     suspend fun recordPlay(
-        @Path("id") id: Int,
+        @Path("id") id: String,
         @Body request: PlayEventRequestDto,
     ): ApiResponse<PlayEventResponseDto>
 }

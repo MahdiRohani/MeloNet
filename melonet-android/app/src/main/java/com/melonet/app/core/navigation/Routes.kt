@@ -22,7 +22,7 @@ data class CatalogRoute(
 )
 
 @Serializable
-data class SongDetailRoute(val songId: Int)
+data class SongDetailRoute(val songId: String)
 
 @Serializable
 data class ArtistDetailRoute(val artistId: Int)
@@ -34,7 +34,7 @@ data class PlaylistDetailRoute(val playlistId: Int)
 data class UserProfileRoute(val userId: Int)
 
 @Serializable
-data class PlayerRoute(val songId: Int)
+data class PlayerRoute(val songId: String)
 
 @Serializable
 data class ChatRoute(val userId: Int)

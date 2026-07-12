@@ -92,7 +92,7 @@ class LibraryRepository(
         },
     ).flow
 
-    suspend fun unlikeSong(songId: Int): Result<Unit> = withContext(dispatchers.io) {
+    suspend fun unlikeSong(songId: String): Result<Unit> = withContext(dispatchers.io) {
         when (val result = safeApiCall { libraryApi.unlikeSong(songId) }) {
             is Result.Success -> {
                 likedSongDao.delete(songId)
@@ -102,7 +102,7 @@ class LibraryRepository(
         }
     }
 
-    suspend fun dismissRecentSong(songId: Int) = withContext(dispatchers.io) {
+    suspend fun dismissRecentSong(songId: String) = withContext(dispatchers.io) {
         playHistoryDao.delete(songId)
     }
 }
