@@ -13,6 +13,7 @@ import (
 
 	"melonet-backend/internal/auth"
 	apphttp "melonet-backend/internal/http"
+	"melonet-backend/internal/audius"
 	"melonet-backend/internal/config"
 	"melonet-backend/internal/http/handler"
 	"melonet-backend/internal/http/middleware"
@@ -76,8 +77,7 @@ func run(logger *slog.Logger) error {
 
 	userRepo := postgres.NewUserRepository(db)
 	tokenRepo := postgres.NewTokenRepository(db)
-	songRepo := postgres.NewSongRepository(db)
-	catalogRepo := postgres.NewCatalogRepository(db)
+	songCacheRepo := postgres.NewSongCacheRepository(db)
 	messageRepo := postgres.NewMessageRepository(db)
 	conversationRepo := postgres.NewConversationRepository(db)
 	likeRepo := postgres.NewLikeRepository(db)
@@ -86,12 +86,14 @@ func run(logger *slog.Logger) error {
 	followRepo := postgres.NewFollowRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
 
+	audiusClient := audius.NewClient(cfg.Audius.AppName, cfg.PublicBaseURL)
+
 	authService := service.NewAuthService(userRepo, tokenRepo, tokenMgr, avatarStorage, cfg.PublicBaseURL)
-	catalogService := service.NewCatalogService(songRepo, catalogRepo)
-	searchService := service.NewSearchService(songRepo, catalogRepo, userRepo)
+	catalogService := service.NewCatalogService(audiusClient)
+	searchService := service.NewSearchService(audiusClient, userRepo)
 	homeService := service.NewHomeService(catalogService)
-	libraryService := service.NewLibraryService(likeRepo, historyRepo, songRepo)
-	playlistService := service.NewPlaylistService(playlistRepo, songRepo)
+	libraryService := service.NewLibraryService(likeRepo, historyRepo, songCacheRepo, audiusClient)
+	playlistService := service.NewPlaylistService(playlistRepo, songCacheRepo, audiusClient)
 	socialService := service.NewSocialService(userRepo, followRepo, playlistRepo, notificationRepo)
 	chatService := service.NewChatService(messageRepo, conversationRepo)
 	chatPresence := realtime.NewPresence(redisClient)
@@ -107,6 +109,7 @@ func run(logger *slog.Logger) error {
 		Health:   handler.NewHealthHandler(db, redisClient, storageClient),
 		Auth:     handler.NewAuthHandler(authService),
 		Media:    handler.NewMediaHandler(mediaStorage),
+		Stream:   handler.NewStreamHandler(audiusClient),
 		Catalog:  handler.NewCatalogHandler(catalogService),
 		Search:   handler.NewSearchHandler(searchService),
 		Home:     handler.NewHomeHandler(homeService),

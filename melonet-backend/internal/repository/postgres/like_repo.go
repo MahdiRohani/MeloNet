@@ -3,8 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-
-	"melonet-backend/internal/domain/db"
 )
 
 type LikeRepository struct {
@@ -15,7 +13,7 @@ func NewLikeRepository(db *DB) *LikeRepository {
 	return &LikeRepository{db: db}
 }
 
-func (r *LikeRepository) Like(ctx context.Context, userID, songID int64) error {
+func (r *LikeRepository) Like(ctx context.Context, userID int64, songID string) error {
 	_, err := r.db.Pool.Exec(ctx, `
 		INSERT INTO likes (user_id, song_id)
 		VALUES ($1, $2)
@@ -27,7 +25,7 @@ func (r *LikeRepository) Like(ctx context.Context, userID, songID int64) error {
 	return nil
 }
 
-func (r *LikeRepository) Unlike(ctx context.Context, userID, songID int64) error {
+func (r *LikeRepository) Unlike(ctx context.Context, userID int64, songID string) error {
 	_, err := r.db.Pool.Exec(ctx, `
 		DELETE FROM likes
 		WHERE user_id = $1 AND song_id = $2
@@ -38,7 +36,7 @@ func (r *LikeRepository) Unlike(ctx context.Context, userID, songID int64) error
 	return nil
 }
 
-func (r *LikeRepository) IsLiked(ctx context.Context, userID, songID int64) (bool, error) {
+func (r *LikeRepository) IsLiked(ctx context.Context, userID int64, songID string) (bool, error) {
 	var exists bool
 	err := r.db.Pool.QueryRow(ctx, `
 		SELECT EXISTS(
@@ -51,27 +49,25 @@ func (r *LikeRepository) IsLiked(ctx context.Context, userID, songID int64) (boo
 	return exists, nil
 }
 
-func (r *LikeRepository) ListLikedSongs(ctx context.Context, userID int64, page, limit int) ([]db.Song, int, error) {
+func (r *LikeRepository) ListLikedSongs(ctx context.Context, userID int64, page, limit int) ([]CachedSong, int, error) {
 	offset := (page - 1) * limit
 
 	var total int
 	if err := r.db.Pool.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM likes AS l
+		INNER JOIN song_cache AS sc ON sc.audius_id = l.song_id
 		WHERE l.user_id = $1
 	`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count liked songs: %w", err)
 	}
 
 	rows, err := r.db.Pool.Query(ctx, `
-		SELECT`+songSelectColumns+`
+		SELECT`+cachedSongSelectColumns+`
 		FROM likes AS l
-		INNER JOIN songs AS s ON s.id = l.song_id
-		INNER JOIN artists AS a ON a.id = s.artist_id
-		LEFT JOIN genres AS g ON g.id = s.genre_id
-		LEFT JOIN albums AS al ON al.id = s.album_id
+		INNER JOIN song_cache AS sc ON sc.audius_id = l.song_id
 		WHERE l.user_id = $1
-		ORDER BY l.created_at DESC, s.id ASC
+		ORDER BY l.created_at DESC, sc.audius_id ASC
 		LIMIT $2 OFFSET $3
 	`, userID, limit, offset)
 	if err != nil {
@@ -79,7 +75,7 @@ func (r *LikeRepository) ListLikedSongs(ctx context.Context, userID int64, page,
 	}
 	defer rows.Close()
 
-	songs, err := scanSongs(rows)
+	songs, err := scanCachedSongs(rows)
 	if err != nil {
 		return nil, 0, err
 	}

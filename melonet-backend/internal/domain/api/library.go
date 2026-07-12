@@ -8,14 +8,14 @@ type PlayEventRequest struct {
 }
 
 type PlayEventResponse struct {
-	SongID    uint      `json:"song_id"`
+	SongID    string    `json:"song_id"`
 	PlayCount int       `json:"play_count"`
 	PlayedAt  time.Time `json:"played_at"`
 }
 
 type LikeResponse struct {
-	SongID  uint `json:"song_id"`
-	Liked   bool `json:"liked"`
+	SongID string `json:"song_id"`
+	Liked  bool   `json:"liked"`
 }
 
 type PlaylistDetailResponse struct {
@@ -36,9 +36,9 @@ type UpdatePlaylistRequest struct {
 }
 
 type AddPlaylistSongRequest struct {
-	SongID uint `json:"song_id"`
+	SongID string `json:"song_id"`
 }
 
 type ReorderPlaylistSongsRequest struct {
-	SongIDs []uint `json:"song_ids"`
+	SongIDs []string `json:"song_ids"`
 }

@@ -20,6 +20,7 @@ type Dependencies struct {
 	Health        *handler.HealthHandler
 	Auth       *handler.AuthHandler
 	Media      *handler.MediaHandler
+	Stream     *handler.StreamHandler
 	Catalog    *handler.CatalogHandler
 	Search     *handler.SearchHandler
 	Home       *handler.HomeHandler
@@ -59,6 +60,10 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	router.GET("/health/ready", deps.Health.Ready)
 	if deps.Media != nil {
 		router.GET("/api/media/*object_path", deps.Media.Serve)
+	}
+	if deps.Stream != nil {
+		router.GET("/api/stream/:id", deps.Stream.Stream)
+		router.GET("/api/art/:id", deps.Stream.Artwork)
 	}
 
 	authGroup := router.Group("/api/auth")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"melonet-backend/internal/audius"
 	"melonet-backend/internal/domain"
 	"melonet-backend/internal/domain/api"
 	"melonet-backend/internal/repository/postgres"
@@ -13,13 +14,19 @@ import (
 
 type PlaylistService struct {
 	playlists *postgres.PlaylistRepository
-	songs     *postgres.SongRepository
+	cache     *postgres.SongCacheRepository
+	audius    *audius.Client
 }
 
-func NewPlaylistService(playlists *postgres.PlaylistRepository, songs *postgres.SongRepository) *PlaylistService {
+func NewPlaylistService(
+	playlists *postgres.PlaylistRepository,
+	cache *postgres.SongCacheRepository,
+	client *audius.Client,
+) *PlaylistService {
 	return &PlaylistService{
 		playlists: playlists,
-		songs:     songs,
+		cache:     cache,
+		audius:    client,
 	}
 }
 
@@ -55,7 +62,7 @@ func (s *PlaylistService) Get(ctx context.Context, userID, playlistID int64) (ap
 
 	return api.PlaylistDetailResponse{
 		PlaylistResponse: postgres.PlaylistToAPI(playlist, userID),
-		Songs:          postgres.SongsToAPI(songs),
+		Songs:            cachedSongsToAPI(songs),
 	}, nil
 }
 
@@ -80,7 +87,7 @@ func (s *PlaylistService) ListSongs(ctx context.Context, userID, playlistID int6
 	if err != nil {
 		return nil, domain.Pagination{}, err
 	}
-	return postgres.SongsToAPI(songs), domain.Pagination{Page: page, Limit: limit, Total: total}, nil
+	return cachedSongsToAPI(songs), domain.Pagination{Page: page, Limit: limit, Total: total}, nil
 }
 
 func (s *PlaylistService) Create(ctx context.Context, userID int64, req api.CreatePlaylistRequest) (api.PlaylistResponse, error) {
@@ -178,7 +185,7 @@ func (s *PlaylistService) Delete(ctx context.Context, userID, playlistID int64) 
 	return nil
 }
 
-func (s *PlaylistService) AddSong(ctx context.Context, userID, playlistID int64, songID int64) error {
+func (s *PlaylistService) AddSong(ctx context.Context, userID, playlistID int64, songID string) error {
 	playlist, err := s.playlists.GetByID(ctx, playlistID)
 	if err != nil {
 		if errors.Is(err, postgres.ErrNotFound) {
@@ -190,11 +197,8 @@ func (s *PlaylistService) AddSong(ctx context.Context, userID, playlistID int64,
 		return ErrForbidden
 	}
 
-	if _, err := s.songs.GetByID(ctx, songID); err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return ErrNotFound
-		}
-		return err
+	if err := cacheTrackFromAudius(ctx, s.audius, s.cache, songID); err != nil {
+		return ErrNotFound
 	}
 
 	if err := s.playlists.AddSong(ctx, playlistID, songID); err != nil {
@@ -209,7 +213,7 @@ func (s *PlaylistService) AddSong(ctx context.Context, userID, playlistID int64,
 	return nil
 }
 
-func (s *PlaylistService) RemoveSong(ctx context.Context, userID, playlistID, songID int64) error {
+func (s *PlaylistService) RemoveSong(ctx context.Context, userID, playlistID int64, songID string) error {
 	playlist, err := s.playlists.GetByID(ctx, playlistID)
 	if err != nil {
 		if errors.Is(err, postgres.ErrNotFound) {
@@ -233,7 +237,7 @@ func (s *PlaylistService) RemoveSong(ctx context.Context, userID, playlistID, so
 	return nil
 }
 
-func (s *PlaylistService) ReorderSongs(ctx context.Context, userID, playlistID int64, songIDs []uint) error {
+func (s *PlaylistService) ReorderSongs(ctx context.Context, userID, playlistID int64, songIDs []string) error {
 	playlist, err := s.playlists.GetByID(ctx, playlistID)
 	if err != nil {
 		if errors.Is(err, postgres.ErrNotFound) {
@@ -245,15 +249,7 @@ func (s *PlaylistService) ReorderSongs(ctx context.Context, userID, playlistID i
 		return ErrForbidden
 	}
 
-	ids := make([]int64, 0, len(songIDs))
-	for _, id := range songIDs {
-		if id == 0 {
-			return fmt.Errorf("invalid song id")
-		}
-		ids = append(ids, int64(id))
-	}
-
-	if err := s.playlists.ReorderSongs(ctx, playlistID, ids); err != nil {
+	if err := s.playlists.ReorderSongs(ctx, playlistID, songIDs); err != nil {
 		if errors.Is(err, postgres.ErrNotFound) {
 			return ErrNotFound
 		}

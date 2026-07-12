@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"strings"
 
+	"melonet-backend/internal/audius"
 	"melonet-backend/internal/domain"
 	"melonet-backend/internal/domain/api"
 	"melonet-backend/internal/repository/postgres"
 )
 
 type SearchService struct {
-	songs   *postgres.SongRepository
-	catalog *postgres.CatalogRepository
-	users   *postgres.UserRepository
+	audius *audius.Client
+	users  *postgres.UserRepository
 }
 
-func NewSearchService(songs *postgres.SongRepository, catalog *postgres.CatalogRepository, users *postgres.UserRepository) *SearchService {
-	return &SearchService{songs: songs, catalog: catalog, users: users}
+func NewSearchService(client *audius.Client, users *postgres.UserRepository) *SearchService {
+	return &SearchService{audius: client, users: users}
 }
 
 func NormalizeSearchType(searchType string) string {
@@ -49,32 +49,19 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 
 	switch searchType {
 	case "song":
-		songs, total, err := s.songs.SearchSongs(ctx, query, page, limit)
+		fetchLimit := page * limit
+		if fetchLimit < 50 {
+			fetchLimit = 50
+		}
+		if fetchLimit > 100 {
+			fetchLimit = 100
+		}
+		tracks, err := s.audius.SearchTracks(ctx, query, fetchLimit)
 		if err != nil {
 			return api.SearchResponse{}, domain.Pagination{}, err
 		}
-		result.Songs = postgres.SongsToAPI(songs)
-		meta.Total = total
-	case "artist":
-		artists, total, err := s.catalog.SearchArtists(ctx, query, page, limit)
-		if err != nil {
-			return api.SearchResponse{}, domain.Pagination{}, err
-		}
-		result.Artists = postgres.ArtistsToAPI(artists)
-		meta.Total = total
-	case "album":
-		albums, total, err := s.catalog.SearchAlbums(ctx, query, page, limit)
-		if err != nil {
-			return api.SearchResponse{}, domain.Pagination{}, err
-		}
-		result.Albums = postgres.AlbumsToAPI(albums)
-		meta.Total = total
-	case "genre":
-		genres, total, err := s.catalog.SearchGenres(ctx, query, page, limit)
-		if err != nil {
-			return api.SearchResponse{}, domain.Pagination{}, err
-		}
-		result.Genres = postgres.GenresToAPI(genres)
+		pageTracks, total := audius.Paginate(tracks, page, limit)
+		result.Songs = audius.TracksToAPI(s.audius.PublicBase(), pageTracks)
 		meta.Total = total
 	case "user":
 		users, total, err := s.users.Search(ctx, query, page, limit)
@@ -84,24 +71,26 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 		result.Users = postgres.UserSummariesToSearchResults(users)
 		meta.Total = total
 	default:
-		songs, songTotal, err := s.songs.SearchSongs(ctx, query, page, limit)
+		fetchLimit := page * limit
+		if fetchLimit < 50 {
+			fetchLimit = 50
+		}
+		if fetchLimit > 100 {
+			fetchLimit = 100
+		}
+		tracks, err := s.audius.SearchTracks(ctx, query, fetchLimit)
 		if err != nil {
 			return api.SearchResponse{}, domain.Pagination{}, err
 		}
-		result.Songs = postgres.SongsToAPI(songs)
-		meta.Total = songTotal
+		pageTracks, total := audius.Paginate(tracks, page, limit)
+		result.Songs = audius.TracksToAPI(s.audius.PublicBase(), pageTracks)
+		meta.Total = total
 
 		previewLimit := 5
 		if limit < previewLimit {
 			previewLimit = limit
 		}
-		artists, _, _ := s.catalog.SearchArtists(ctx, query, 1, previewLimit)
-		albums, _, _ := s.catalog.SearchAlbums(ctx, query, 1, previewLimit)
-		genres, _, _ := s.catalog.SearchGenres(ctx, query, 1, previewLimit)
 		users, _, _ := s.users.Search(ctx, query, 1, previewLimit)
-		result.Artists = postgres.ArtistsToAPI(artists)
-		result.Albums = postgres.AlbumsToAPI(albums)
-		result.Genres = postgres.GenresToAPI(genres)
 		result.Users = postgres.UserSummariesToSearchResults(users)
 	}
 

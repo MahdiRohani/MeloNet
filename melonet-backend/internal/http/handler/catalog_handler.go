@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"strconv"
+	"strings"
 
 	"melonet-backend/internal/http/response"
 	"melonet-backend/internal/service"
@@ -37,7 +38,7 @@ func (h *CatalogHandler) ListSongs(c *gin.Context) {
 }
 
 func (h *CatalogHandler) GetSong(c *gin.Context) {
-	songID, err := parsePathID(c, "id")
+	songID, err := parsePathSongID(c, "id")
 	if err != nil {
 		response.BadRequest(c, "invalid_id", "invalid song id")
 		return
@@ -234,6 +235,14 @@ func (h *HomeHandler) Feed(c *gin.Context) {
 		return
 	}
 	response.OK(c, feed)
+}
+
+func parsePathSongID(c *gin.Context, key string) (string, error) {
+	value := strings.TrimSpace(c.Param(key))
+	if value == "" {
+		return "", errors.New("missing path parameter")
+	}
+	return value, nil
 }
 
 func parsePathID(c *gin.Context, key string) (int64, error) {

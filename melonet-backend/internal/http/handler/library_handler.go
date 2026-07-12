@@ -59,7 +59,7 @@ func (h *LibraryHandler) LikeSong(c *gin.Context) {
 		return
 	}
 
-	songID, err := parsePathID(c, "id")
+	songID, err := parsePathSongID(c, "id")
 	if err != nil {
 		response.BadRequest(c, "invalid_id", "invalid song id")
 		return
@@ -80,7 +80,7 @@ func (h *LibraryHandler) UnlikeSong(c *gin.Context) {
 		return
 	}
 
-	songID, err := parsePathID(c, "id")
+	songID, err := parsePathSongID(c, "id")
 	if err != nil {
 		response.BadRequest(c, "invalid_id", "invalid song id")
 		return
@@ -101,7 +101,7 @@ func (h *LibraryHandler) RecordPlay(c *gin.Context) {
 		return
 	}
 
-	songID, err := parsePathID(c, "id")
+	songID, err := parsePathSongID(c, "id")
 	if err != nil {
 		response.BadRequest(c, "invalid_id", "invalid song id")
 		return
@@ -278,12 +278,12 @@ func (h *PlaylistHandler) AddSong(c *gin.Context) {
 	}
 
 	var req api.AddPlaylistSongRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.SongID == 0 {
+	if err := c.ShouldBindJSON(&req); err != nil || req.SongID == "" {
 		response.BadRequest(c, "invalid_body", "song_id is required")
 		return
 	}
 
-	if err := h.playlists.AddSong(c.Request.Context(), int64(userID), playlistID, int64(req.SongID)); err != nil {
+	if err := h.playlists.AddSong(c.Request.Context(), int64(userID), playlistID, req.SongID); err != nil {
 		mapPlaylistError(c, err)
 		return
 	}
@@ -303,7 +303,7 @@ func (h *PlaylistHandler) RemoveSong(c *gin.Context) {
 		return
 	}
 
-	songID, err := parsePathID(c, "songId")
+	songID, err := parsePathSongID(c, "songId")
 	if err != nil {
 		response.BadRequest(c, "invalid_id", "invalid song id")
 		return

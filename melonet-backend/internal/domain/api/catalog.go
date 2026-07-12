@@ -3,7 +3,7 @@ package api
 import "time"
 
 type SongResponse struct {
-	ID            uint   `json:"id"`
+	ID            string `json:"id"`
 	Title         string `json:"title"`
 	Artist        string `json:"artist"`
 	ArtistName    string `json:"artist_name"`

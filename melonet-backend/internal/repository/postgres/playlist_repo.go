@@ -235,7 +235,7 @@ func (r *PlaylistRepository) Delete(ctx context.Context, playlistID, ownerID int
 	return nil
 }
 
-func (r *PlaylistRepository) ListSongs(ctx context.Context, playlistID int64, page, limit int) ([]db.Song, int, error) {
+func (r *PlaylistRepository) ListSongs(ctx context.Context, playlistID int64, page, limit int) ([]CachedSong, int, error) {
 	offset := (page - 1) * limit
 
 	var total int
@@ -248,12 +248,9 @@ func (r *PlaylistRepository) ListSongs(ctx context.Context, playlistID int64, pa
 	}
 
 	rows, err := r.db.Pool.Query(ctx, `
-		SELECT`+songSelectColumns+`
+		SELECT`+cachedSongSelectColumns+`
 		FROM playlist_songs AS ps
-		INNER JOIN songs AS s ON s.id = ps.song_id
-		INNER JOIN artists AS a ON a.id = s.artist_id
-		LEFT JOIN genres AS g ON g.id = s.genre_id
-		LEFT JOIN albums AS al ON al.id = s.album_id
+		INNER JOIN song_cache AS sc ON sc.audius_id = ps.song_id
 		WHERE ps.playlist_id = $1
 		ORDER BY ps.position ASC, ps.added_at ASC
 		LIMIT $2 OFFSET $3
@@ -263,14 +260,14 @@ func (r *PlaylistRepository) ListSongs(ctx context.Context, playlistID int64, pa
 	}
 	defer rows.Close()
 
-	songs, err := scanSongs(rows)
+	songs, err := scanCachedSongs(rows)
 	if err != nil {
 		return nil, 0, err
 	}
 	return songs, total, nil
 }
 
-func (r *PlaylistRepository) AddSong(ctx context.Context, playlistID, songID int64) error {
+func (r *PlaylistRepository) AddSong(ctx context.Context, playlistID int64, songID string) error {
 	tx, err := r.db.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -318,7 +315,7 @@ func (r *PlaylistRepository) AddSong(ctx context.Context, playlistID, songID int
 	return tx.Commit(ctx)
 }
 
-func (r *PlaylistRepository) RemoveSong(ctx context.Context, playlistID, songID int64) error {
+func (r *PlaylistRepository) RemoveSong(ctx context.Context, playlistID int64, songID string) error {
 	tx, err := r.db.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -362,7 +359,7 @@ func (r *PlaylistRepository) RemoveSong(ctx context.Context, playlistID, songID 
 	return tx.Commit(ctx)
 }
 
-func (r *PlaylistRepository) ReorderSongs(ctx context.Context, playlistID int64, songIDs []int64) error {
+func (r *PlaylistRepository) ReorderSongs(ctx context.Context, playlistID int64, songIDs []string) error {
 	if len(songIDs) == 0 {
 		return fmt.Errorf("song_ids required")
 	}
@@ -447,7 +444,7 @@ func (r *PlaylistRepository) compactPositions(ctx context.Context, tx pgx.Tx, pl
 
 	position := 1
 	for rows.Next() {
-		var songID int64
+		var songID string
 		if err := rows.Scan(&songID); err != nil {
 			return fmt.Errorf("scan song id: %w", err)
 		}

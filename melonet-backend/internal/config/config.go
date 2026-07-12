@@ -16,11 +16,16 @@ type Config struct {
 	JWTAccessTTL  time.Duration
 	JWTRefreshTTL time.Duration
 	PublicBaseURL string
+	Audius        AudiusConfig
 	Storage       StorageConfig
 	HTTP          HTTPConfig
 	CORS          CORSConfig
 	RateLimit     RateLimitConfig
 	TrustedProxies []string
+}
+
+type AudiusConfig struct {
+	AppName string
 }
 
 type RateLimitConfig struct {
@@ -68,6 +73,9 @@ func Load() (*Config, error) {
 		JWTAccessTTL:  getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL: getEnvDuration("JWT_REFRESH_TTL", 7*24*time.Hour),
 		PublicBaseURL: getEnv("PUBLIC_BASE_URL", "http://localhost:8080"),
+		Audius: AudiusConfig{
+			AppName: getEnv("AUDIUS_APP_NAME", "MeloNet"),
+		},
 		Storage: StorageConfig{
 			Endpoint:  getEnv("STORAGE_ENDPOINT", "localhost:9000"),
 			AccessKey: getEnv("STORAGE_ACCESS_KEY", "melonet"),

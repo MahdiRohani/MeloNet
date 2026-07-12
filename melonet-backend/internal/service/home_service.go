@@ -30,17 +30,17 @@ func (s *HomeService) Feed(ctx context.Context) (api.HomeFeedResponse, error) {
 		return api.HomeFeedResponse{}, err
 	}
 
-	global, _, err := s.catalog.CategorySongs(ctx, "Global", "popular", 1, 10)
+	electronic, _, err := s.catalog.CategorySongs(ctx, "Global", "popular", 1, 10)
 	if err != nil {
 		return api.HomeFeedResponse{}, err
 	}
 
-	local, _, err := s.catalog.CategorySongs(ctx, "Iranian", "newest", 1, 10)
+	hiphop, _, err := s.catalog.CategorySongs(ctx, "Popular", "newest", 1, 10)
 	if err != nil {
 		return api.HomeFeedResponse{}, err
 	}
 
-	nostalgia, _, err := s.catalog.CategorySongs(ctx, "Nostalgia", "popular", 1, 10)
+	ambient, _, err := s.catalog.CategorySongs(ctx, "Nostalgia", "popular", 1, 10)
 	if err != nil {
 		return api.HomeFeedResponse{}, err
 	}
@@ -56,9 +56,9 @@ func (s *HomeService) Feed(ctx context.Context) (api.HomeFeedResponse, error) {
 		Rows: []api.HomeRowResponse{
 			{ID: "popular", Title: "Popular", RowType: "songs", SeeAllPath: "/api/catalog/popular", Items: popular},
 			{ID: "new", Title: "New Releases", RowType: "songs", SeeAllPath: "/api/catalog/new", Items: newest},
-			{ID: "global", Title: "Global Hits", RowType: "songs", SeeAllPath: "/api/songs?category=Global", Items: global},
-			{ID: "local", Title: "Iranian", RowType: "songs", SeeAllPath: "/api/songs?category=Iranian", Items: local},
-			{ID: "nostalgia", Title: "Nostalgia", RowType: "songs", SeeAllPath: "/api/songs?category=Nostalgia", Items: nostalgia},
+			{ID: "global", Title: "Electronic", RowType: "songs", SeeAllPath: "/api/songs?category=Global", Items: electronic},
+			{ID: "local", Title: "Hip-Hop", RowType: "songs", SeeAllPath: "/api/songs?category=Popular", Items: hiphop},
+			{ID: "nostalgia", Title: "Ambient", RowType: "songs", SeeAllPath: "/api/songs?category=Nostalgia", Items: ambient},
 		},
 	}, nil
 }

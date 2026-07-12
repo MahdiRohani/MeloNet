@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"strconv"
+
 	"melonet-backend/internal/domain/api"
 	"melonet-backend/internal/domain/db"
 )
@@ -19,7 +21,7 @@ func SongToAPI(song db.Song) api.SongResponse {
 	}
 
 	return api.SongResponse{
-		ID:            uint(song.ID),
+		ID:            strconv.FormatInt(song.ID, 10),
 		Title:         song.Title,
 		Artist:        artistName,
 		ArtistName:    artistName,
