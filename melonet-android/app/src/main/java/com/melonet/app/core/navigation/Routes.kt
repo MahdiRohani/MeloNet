@@ -44,5 +44,11 @@ data class UserProfileRoute(val userId: Int)
 @Serializable
 data class PlayerRoute(val songId: String)
 
+@Serializable data object ConversationsRoute
+
 @Serializable
-data class ChatRoute(val userId: Int)
+data class ChatRoute(
+    val otherUserId: Int,
+    val conversationId: Int = 0,
+    val shareSongId: String? = null,
+)

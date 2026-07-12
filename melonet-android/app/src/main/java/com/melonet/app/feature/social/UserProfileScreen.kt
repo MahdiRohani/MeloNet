@@ -53,6 +53,7 @@ fun UserProfileScreen(
     onNavigateToFollowers: (Int) -> Unit,
     onNavigateToFollowing: (Int) -> Unit,
     onNavigateToPlaylist: (Int) -> Unit,
+    onNavigateToChat: (Int) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
@@ -68,6 +69,7 @@ fun UserProfileScreen(
                 is UserProfileContract.Effect.NavigateToFollowers -> onNavigateToFollowers(effect.userId)
                 is UserProfileContract.Effect.NavigateToFollowing -> onNavigateToFollowing(effect.userId)
                 is UserProfileContract.Effect.NavigateToPlaylist -> onNavigateToPlaylist(effect.playlistId)
+                is UserProfileContract.Effect.NavigateToChat -> onNavigateToChat(effect.userId)
             }
         }
     }
@@ -156,15 +158,26 @@ fun UserProfileScreen(
                             }
                             if (!user.isSelf) {
                                 Spacer(modifier = Modifier.height(spacing.md))
-                                MeloButton(
-                                    text = stringResource(
-                                        if (user.isFollowing) R.string.social_unfollow else R.string.social_follow,
-                                    ),
-                                    onClick = { viewModel.handleEvent(UserProfileContract.Event.ToggleFollow) },
-                                    enabled = !state.isFollowLoading,
-                                    variant = if (user.isFollowing) MeloButtonVariant.Outlined else MeloButtonVariant.Primary,
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                )
+                                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                                ) {
+                                    MeloButton(
+                                        text = stringResource(
+                                            if (user.isFollowing) R.string.social_unfollow else R.string.social_follow,
+                                        ),
+                                        onClick = { viewModel.handleEvent(UserProfileContract.Event.ToggleFollow) },
+                                        enabled = !state.isFollowLoading,
+                                        variant = if (user.isFollowing) MeloButtonVariant.Outlined else MeloButtonVariant.Primary,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    MeloButton(
+                                        text = stringResource(R.string.chat_message),
+                                        onClick = { viewModel.handleEvent(UserProfileContract.Event.MessageClicked) },
+                                        variant = MeloButtonVariant.Outlined,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
                             }
                         }
                     }

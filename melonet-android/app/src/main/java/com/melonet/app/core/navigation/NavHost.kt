@@ -57,7 +57,13 @@ import com.melonet.app.feature.social.UserListViewModel
 import com.melonet.app.feature.social.UserProfileScreen
 import com.melonet.app.feature.social.UserProfileViewModel
 import com.melonet.app.data.model.UserListType
+import com.melonet.app.feature.chat.ChatScreen
+import com.melonet.app.feature.chat.ChatViewModel
+import com.melonet.app.feature.chat.ConversationsScreen
+import com.melonet.app.feature.chat.ConversationsViewModel
+import com.melonet.app.data.repository.ChatRepository
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun MelonetMainScreen() {
@@ -65,6 +71,7 @@ fun MelonetMainScreen() {
     val viewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current)
     val authViewModel: AuthViewModel = koinViewModel()
     val playerViewModel: PlayerViewModel = koinViewModel(viewModelStoreOwner = viewModelStoreOwner)
+    val chatRepository: ChatRepository = koinInject()
     val authState by authViewModel.authState.collectAsState()
     val playerState by playerViewModel.uiState.collectAsState()
 
@@ -77,6 +84,7 @@ fun MelonetMainScreen() {
             !destination.hasRoute(RegisterRoute::class) &&
             !destination.hasRoute(PlayerRoute::class) &&
             !destination.hasRoute(ChatRoute::class) &&
+            !destination.hasRoute(ConversationsRoute::class) &&
             !destination.hasRoute(SettingsRoute::class) &&
             !destination.hasRoute(EditProfileRoute::class) &&
             !destination.hasRoute(UserProfileRoute::class) &&
@@ -89,6 +97,17 @@ fun MelonetMainScreen() {
         !currentDestination.hasRoute(PlayerRoute::class)
 
     val authenticatedUser = (authState as? AuthState.Authenticated)?.user
+
+    LaunchedEffect(authenticatedUser?.id) {
+        val userId = authenticatedUser?.id
+        if (userId != null) {
+            chatRepository.setCurrentUserId(userId)
+            chatRepository.connect()
+            chatRepository.refreshUnreadCount()
+        } else {
+            chatRepository.disconnect()
+        }
+    }
 
     LaunchedEffect(authState, currentDestination) {
         if (authState is AuthState.Unauthenticated) {
@@ -115,7 +134,7 @@ fun MelonetMainScreen() {
                 MeloTopBar(
                     avatarUrl = authenticatedUser.avatarUrl,
                     onAvatarClick = { navController.navigate(ProfileRoute) },
-                    onNotificationsClick = { /* A10 */ },
+                    onNotificationsClick = { navController.navigate(ConversationsRoute) },
                     onSettingsClick = { navController.navigate(SettingsRoute) },
                 )
             }
@@ -355,6 +374,25 @@ fun MelonetMainScreen() {
                     onNavigateToPlaylist = { playlistId ->
                         navController.navigate(PlaylistDetailRoute(playlistId = playlistId))
                     },
+                    onNavigateToChat = { userId ->
+                        navController.navigate(ChatRoute(otherUserId = userId))
+                    },
+                )
+            }
+
+            composable<ConversationsRoute> {
+                val conversationsViewModel: ConversationsViewModel = koinViewModel()
+                ConversationsScreen(
+                    viewModel = conversationsViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToChat = { conversationId, otherUserId, _ ->
+                        navController.navigate(
+                            ChatRoute(
+                                otherUserId = otherUserId,
+                                conversationId = conversationId,
+                            ),
+                        )
+                    },
                 )
             }
 
@@ -401,9 +439,17 @@ fun MelonetMainScreen() {
 
             composable<ChatRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<ChatRoute>()
-                DummyScreen(
-                    titleRes = R.string.placeholder_chat,
-                    formatArg = args.userId,
+                val chatViewModel: ChatViewModel = koinViewModel()
+                ChatScreen(
+                    otherUserId = args.otherUserId,
+                    conversationId = args.conversationId,
+                    shareSongId = args.shareSongId,
+                    viewModel = chatViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onPlaySong = { songId ->
+                        playerViewModel.handleEvent(PlayerContract.Event.PlaySongId(songId))
+                        navController.navigate(PlayerRoute(songId = songId))
+                    },
                 )
             }
         }

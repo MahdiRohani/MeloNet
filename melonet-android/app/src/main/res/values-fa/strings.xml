@@ -136,6 +136,22 @@
     <string name="social_no_playlists">پلی‌لیست عمومی وجود ندارد</string>
     <string name="social_empty_list">کاربری یافت نشد</string>
 
+    <!-- Chat -->
+    <string name="chat_conversations_title">پیام‌ها</string>
+    <string name="chat_title">چت</string>
+    <string name="chat_message">پیام</string>
+    <string name="chat_input_hint">پیام بنویسید…</string>
+    <string name="chat_send">ارسال</string>
+    <string name="chat_typing">در حال نوشتن…</string>
+    <string name="chat_empty_title">هنوز گفتگویی ندارید</string>
+    <string name="chat_empty_description">از پروفایل کاربران، گفتگو را شروع کنید.</string>
+    <string name="chat_error_title">بارگذاری پیام‌ها ناموفق بود</string>
+    <string name="chat_song_preview">یک آهنگ به اشتراک گذاشت</string>
+    <string name="chat_tap_to_play">برای پخش لمس کنید</string>
+    <string name="chat_status_sent">ارسال شد</string>
+    <string name="chat_status_delivered">تحویل شد</string>
+    <string name="chat_status_read">خوانده شد</string>
+
     <!-- Downloads -->
     <string name="downloads_title">دانلودها</string>
     <string name="downloads_sort_newest">جدیدترین</string>

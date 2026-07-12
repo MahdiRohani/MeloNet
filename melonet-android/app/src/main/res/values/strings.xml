@@ -136,6 +136,22 @@
     <string name="social_no_playlists">No public playlists</string>
     <string name="social_empty_list">No users found</string>
 
+    <!-- Chat -->
+    <string name="chat_conversations_title">Messages</string>
+    <string name="chat_title">Chat</string>
+    <string name="chat_message">Message</string>
+    <string name="chat_input_hint">Type a message…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_typing">typing…</string>
+    <string name="chat_empty_title">No conversations yet</string>
+    <string name="chat_empty_description">Start a chat from a user profile.</string>
+    <string name="chat_error_title">Could not load messages</string>
+    <string name="chat_song_preview">Shared a song</string>
+    <string name="chat_tap_to_play">Tap to play</string>
+    <string name="chat_status_sent">Sent</string>
+    <string name="chat_status_delivered">Delivered</string>
+    <string name="chat_status_read">Read</string>
+
     <!-- Downloads -->
     <string name="downloads_title">Downloads</string>
     <string name="downloads_sort_newest">Newest</string>

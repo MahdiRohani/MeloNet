@@ -22,11 +22,13 @@ object UserProfileContract {
         data object FollowersClicked : Event
         data object FollowingClicked : Event
         data class PlaylistClicked(val playlistId: Int) : Event
+        data object MessageClicked : Event
     }
 
     sealed interface Effect : UiEffect {
         data class NavigateToFollowers(val userId: Int) : Effect
         data class NavigateToFollowing(val userId: Int) : Effect
         data class NavigateToPlaylist(val playlistId: Int) : Effect
+        data class NavigateToChat(val userId: Int) : Effect
     }
 }

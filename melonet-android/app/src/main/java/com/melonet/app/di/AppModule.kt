@@ -14,6 +14,7 @@ import com.melonet.app.data.remote.HomeApi
 import com.melonet.app.data.remote.LibraryApi
 import com.melonet.app.data.remote.PlaylistApi
 import com.melonet.app.data.remote.SearchApi
+import com.melonet.app.data.remote.ChatApi
 import com.melonet.app.data.remote.SocialApi
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.HomeRepository
@@ -37,10 +38,14 @@ import com.melonet.app.feature.player.PlayerViewModel
 import com.melonet.app.feature.playlists.LibrarySongsViewModel
 import com.melonet.app.feature.playlists.PlaylistDetailViewModel
 import com.melonet.app.feature.playlists.PlaylistsViewModel
+import com.melonet.app.data.realtime.ChatWebSocketClient
+import com.melonet.app.data.repository.ChatRepository
 import com.melonet.app.data.repository.SocialRepository
 import com.melonet.app.feature.profile.EditProfileViewModel
 import com.melonet.app.feature.profile.ProfileViewModel
 import com.melonet.app.feature.settings.SettingsViewModel
+import com.melonet.app.feature.chat.ChatViewModel
+import com.melonet.app.feature.chat.ConversationsViewModel
 import com.melonet.app.feature.social.UserListViewModel
 import com.melonet.app.feature.social.UserProfileViewModel
 import com.melonet.app.feature.search.SearchViewModel
@@ -109,6 +114,7 @@ val appModule = module {
     single { get<Retrofit>().create(LibraryApi::class.java) }
     single { get<Retrofit>().create(PlaylistApi::class.java) }
     single { get<Retrofit>().create(SocialApi::class.java) }
+    single { get<Retrofit>().create(ChatApi::class.java) }
 
     single {
         Room.databaseBuilder(androidContext(), MeloNetDatabase::class.java, "melonet.db")
@@ -119,6 +125,7 @@ val appModule = module {
     single { get<MeloNetDatabase>().likedSongDao() }
     single { get<MeloNetDatabase>().playHistoryDao() }
     single { get<MeloNetDatabase>().downloadDao() }
+    single { get<MeloNetDatabase>().chatMessageDao() }
     single { DownloadStorage(androidContext()) }
     single { WorkManager.getInstance(androidContext()) }
 
@@ -172,6 +179,16 @@ val appModule = module {
         )
     }
     single { SocialRepository(socialApi = get(), dispatchers = get()) }
+    single { ChatWebSocketClient(tokenManager = get(), dispatchers = get()) }
+    single {
+        ChatRepository(
+            chatApi = get(),
+            chatMessageDao = get(),
+            webSocketClient = get(),
+            playerRepository = get(),
+            dispatchers = get(),
+        )
+    }
     single<OfflineSongResolver> { RoomOfflineSongResolver(downloadRepository = get()) }
     single { PlaybackManager(context = androidContext(), playerRepository = get()) }
 
@@ -184,6 +201,8 @@ val appModule = module {
     viewModel { SettingsViewModel(settingsRepository = get(), authRepository = get()) }
     viewModel { UserProfileViewModel(socialRepository = get()) }
     viewModel { UserListViewModel(socialRepository = get()) }
+    viewModel { ConversationsViewModel(chatRepository = get()) }
+    viewModel { ChatViewModel(chatRepository = get(), socialRepository = get()) }
     viewModel { SearchViewModel(searchRepository = get()) }
     viewModel { PlayerViewModel(playbackManager = get(), downloadRepository = get(), userRepository = get()) }
     viewModel { PlaylistsViewModel(playlistRepository = get()) }

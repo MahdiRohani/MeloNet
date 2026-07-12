@@ -27,6 +27,9 @@ class UserProfileViewModel(
             is UserProfileContract.Event.PlaylistClicked -> {
                 setEffect { UserProfileContract.Effect.NavigateToPlaylist(event.playlistId) }
             }
+            UserProfileContract.Event.MessageClicked -> {
+                if (userId > 0) setEffect { UserProfileContract.Effect.NavigateToChat(userId) }
+            }
         }
     }
 
