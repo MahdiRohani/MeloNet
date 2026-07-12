@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.melonet.app.data.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -32,9 +33,21 @@ class SettingsRepository(private val context: Context) {
         prefs[IS_PREMIUM] ?: false
     }
 
-    suspend fun setDarkMode(isDark: Boolean) {
+    val themeModeFlow: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
+        when (prefs[IS_DARK_MODE]) {
+            null -> ThemeMode.SYSTEM
+            true -> ThemeMode.DARK
+            false -> ThemeMode.LIGHT
+        }
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
         context.settingsDataStore.edit { prefs ->
-            prefs[IS_DARK_MODE] = isDark
+            when (mode) {
+                ThemeMode.SYSTEM -> prefs.remove(IS_DARK_MODE)
+                ThemeMode.LIGHT -> prefs[IS_DARK_MODE] = false
+                ThemeMode.DARK -> prefs[IS_DARK_MODE] = true
+            }
         }
     }
 

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,7 +34,8 @@ fun ProfileScreen(
     onEditProfileClick: () -> Unit = {},
     onLikedSongsClick: () -> Unit = {},
     onMyPlaylistsClick: () -> Unit = {},
-    onUpgradePremiumClick: () -> Unit = {}
+    onFollowingClick: () -> Unit = {},
+    onUpgradePremiumClick: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
@@ -44,6 +46,7 @@ fun ProfileScreen(
                 ProfileContract.Effect.NavigateToEditProfile -> onEditProfileClick()
                 ProfileContract.Effect.NavigateToLikedSongs -> onLikedSongsClick()
                 ProfileContract.Effect.NavigateToMyPlaylists -> onMyPlaylistsClick()
+                ProfileContract.Effect.NavigateToFollowing -> onFollowingClick()
                 is ProfileContract.Effect.ShowError -> Unit
             }
         }
@@ -54,13 +57,14 @@ fun ProfileScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(spacing.md),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(spacing.lg))
 
         ProfileAvatar(
+            avatarUrl = state.avatarUrl,
             isPremium = state.isPremium,
-            onEditClick = { viewModel.handleEvent(ProfileContract.Event.EditProfileClicked) }
+            onEditClick = { viewModel.handleEvent(ProfileContract.Event.EditProfileClicked) },
         )
 
         Spacer(modifier = Modifier.height(spacing.md))
@@ -68,28 +72,37 @@ fun ProfileScreen(
         Text(
             text = state.userName.ifBlank { stringResource(R.string.profile_guest_user) },
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
         )
 
         Spacer(modifier = Modifier.height(spacing.xl))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.md)
+            horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             ProfileQuickActionCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.profile_liked_songs),
                 icon = Icons.Default.Favorite,
-                onClick = { viewModel.handleEvent(ProfileContract.Event.LikedSongsClicked) }
+                onClick = { viewModel.handleEvent(ProfileContract.Event.LikedSongsClicked) },
             )
             ProfileQuickActionCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.profile_my_playlists),
                 icon = Icons.Default.LibraryMusic,
-                onClick = { viewModel.handleEvent(ProfileContract.Event.MyPlaylistsClicked) }
+                onClick = { viewModel.handleEvent(ProfileContract.Event.MyPlaylistsClicked) },
             )
         }
+
+        Spacer(modifier = Modifier.height(spacing.md))
+
+        ProfileQuickActionCard(
+            modifier = Modifier.fillMaxWidth(),
+            title = stringResource(R.string.home_quick_action_following),
+            icon = Icons.Default.People,
+            onClick = { viewModel.handleEvent(ProfileContract.Event.FollowingClicked) },
+        )
 
         Spacer(modifier = Modifier.height(spacing.xl))
 
@@ -98,7 +111,7 @@ fun ProfileScreen(
             onActionClick = {
                 viewModel.handleEvent(ProfileContract.Event.UpgradePremiumClicked)
                 onUpgradePremiumClick()
-            }
+            },
         )
     }
 }

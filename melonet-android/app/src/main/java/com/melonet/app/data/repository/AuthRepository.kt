@@ -86,6 +86,11 @@ class AuthRepository(
         _authState.value = AuthState.Unauthenticated
     }
 
+    suspend fun applyUser(user: User) = withContext(dispatchers.io) {
+        settingsRepository.setPremiumStatus(user.isPremium)
+        _authState.value = AuthState.Authenticated(user)
+    }
+
     suspend fun refreshTokens(): Boolean = withContext(dispatchers.io) {
         val refreshToken = tokenManager.getRefreshToken() ?: return@withContext false
         when (val result = safeApiCall {

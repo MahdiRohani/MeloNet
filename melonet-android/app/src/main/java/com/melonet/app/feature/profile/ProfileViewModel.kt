@@ -33,6 +33,9 @@ class ProfileViewModel(
             ProfileContract.Event.MyPlaylistsClicked -> {
                 setEffect { ProfileContract.Effect.NavigateToMyPlaylists }
             }
+            ProfileContract.Event.FollowingClicked -> {
+                setEffect { ProfileContract.Effect.NavigateToFollowing }
+            }
         }
     }
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -43,10 +44,19 @@ import com.melonet.app.feature.playlists.PlaylistDetailScreen
 import com.melonet.app.feature.playlists.PlaylistDetailViewModel
 import com.melonet.app.feature.playlists.PlaylistsScreen
 import com.melonet.app.feature.playlists.PlaylistsViewModel
+import com.melonet.app.feature.profile.EditProfileScreen
+import com.melonet.app.feature.profile.EditProfileViewModel
 import com.melonet.app.feature.profile.ProfileScreen
 import com.melonet.app.feature.profile.ProfileViewModel
 import com.melonet.app.feature.search.SearchScreen
 import com.melonet.app.feature.search.SearchViewModel
+import com.melonet.app.feature.settings.SettingsScreen
+import com.melonet.app.feature.settings.SettingsViewModel
+import com.melonet.app.feature.social.UserListScreen
+import com.melonet.app.feature.social.UserListViewModel
+import com.melonet.app.feature.social.UserProfileScreen
+import com.melonet.app.feature.social.UserProfileViewModel
+import com.melonet.app.data.model.UserListType
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -66,7 +76,12 @@ fun MelonetMainScreen() {
             !destination.hasRoute(LoginRoute::class) &&
             !destination.hasRoute(RegisterRoute::class) &&
             !destination.hasRoute(PlayerRoute::class) &&
-            !destination.hasRoute(ChatRoute::class)
+            !destination.hasRoute(ChatRoute::class) &&
+            !destination.hasRoute(SettingsRoute::class) &&
+            !destination.hasRoute(EditProfileRoute::class) &&
+            !destination.hasRoute(UserProfileRoute::class) &&
+            !destination.hasRoute(UserListRoute::class) &&
+            !destination.hasRoute(FollowingRoute::class)
     } == true
 
     val showMiniPlayer = showAppShell &&
@@ -74,6 +89,19 @@ fun MelonetMainScreen() {
         !currentDestination.hasRoute(PlayerRoute::class)
 
     val authenticatedUser = (authState as? AuthState.Authenticated)?.user
+
+    LaunchedEffect(authState, currentDestination) {
+        if (authState is AuthState.Unauthenticated) {
+            val onAuthScreen = currentDestination?.hasRoute(SplashRoute::class) == true ||
+                currentDestination?.hasRoute(LoginRoute::class) == true ||
+                currentDestination?.hasRoute(RegisterRoute::class) == true
+            if (!onAuthScreen) {
+                navController.navigate(LoginRoute) {
+                    popUpTo(HomeRoute) { inclusive = true }
+                }
+            }
+        }
+    }
 
     fun playSong(song: Song, queue: List<Song> = listOf(song)) {
         val playQueue = queue.ifEmpty { listOf(song) }
@@ -87,8 +115,8 @@ fun MelonetMainScreen() {
                 MeloTopBar(
                     avatarUrl = authenticatedUser.avatarUrl,
                     onAvatarClick = { navController.navigate(ProfileRoute) },
-                    onNotificationsClick = { /* A9 */ },
-                    onSettingsClick = { /* A9 */ },
+                    onNotificationsClick = { /* A10 */ },
+                    onSettingsClick = { navController.navigate(SettingsRoute) },
                 )
             }
         },
@@ -238,7 +266,37 @@ fun MelonetMainScreen() {
                 )
             }
             composable<FollowingRoute> {
-                DummyScreen(titleRes = R.string.home_quick_action_following)
+                val userListViewModel: UserListViewModel = koinViewModel()
+                val userId = authenticatedUser?.id ?: return@composable
+                UserListScreen(
+                    userId = userId,
+                    listType = UserListType.FOLLOWING,
+                    title = stringResource(R.string.home_quick_action_following),
+                    viewModel = userListViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUser = { id -> navController.navigate(UserProfileRoute(userId = id)) },
+                )
+            }
+
+            composable<UserListRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<UserListRoute>()
+                val listType = when (args.listType) {
+                    "followers" -> UserListType.FOLLOWERS
+                    else -> UserListType.FOLLOWING
+                }
+                val title = when (listType) {
+                    UserListType.FOLLOWERS -> stringResource(R.string.social_followers)
+                    UserListType.FOLLOWING -> stringResource(R.string.social_following)
+                }
+                val userListViewModel: UserListViewModel = koinViewModel()
+                UserListScreen(
+                    userId = args.userId,
+                    listType = listType,
+                    title = title,
+                    viewModel = userListViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUser = { id -> navController.navigate(UserProfileRoute(userId = id)) },
+                )
             }
 
             composable<CatalogRoute> { backStackEntry ->
@@ -283,9 +341,41 @@ fun MelonetMainScreen() {
 
             composable<UserProfileRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<UserProfileRoute>()
-                DummyScreen(
-                    titleRes = R.string.placeholder_user_profile,
-                    formatArg = args.userId,
+                val userProfileViewModel: UserProfileViewModel = koinViewModel()
+                UserProfileScreen(
+                    userId = args.userId,
+                    viewModel = userProfileViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToFollowers = { userId ->
+                        navController.navigate(UserListRoute(userId = userId, listType = "followers"))
+                    },
+                    onNavigateToFollowing = { userId ->
+                        navController.navigate(UserListRoute(userId = userId, listType = "following"))
+                    },
+                    onNavigateToPlaylist = { playlistId ->
+                        navController.navigate(PlaylistDetailRoute(playlistId = playlistId))
+                    },
+                )
+            }
+
+            composable<SettingsRoute> {
+                val settingsViewModel: SettingsViewModel = koinViewModel()
+                SettingsScreen(
+                    viewModel = settingsViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLogin = {
+                        navController.navigate(LoginRoute) {
+                            popUpTo(HomeRoute) { inclusive = true }
+                        }
+                    },
+                )
+            }
+
+            composable<EditProfileRoute> {
+                val editProfileViewModel: EditProfileViewModel = koinViewModel()
+                EditProfileScreen(
+                    viewModel = editProfileViewModel,
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 
@@ -293,8 +383,10 @@ fun MelonetMainScreen() {
                 val profileViewModel: ProfileViewModel = koinViewModel()
                 ProfileScreen(
                     viewModel = profileViewModel,
+                    onEditProfileClick = { navController.navigate(EditProfileRoute) },
                     onLikedSongsClick = { navController.navigate(LikedSongsRoute) },
                     onMyPlaylistsClick = { navController.navigate(PlaylistsRoute) },
+                    onFollowingClick = { navController.navigate(FollowingRoute) },
                 )
             }
 

@@ -14,6 +14,7 @@ import com.melonet.app.data.remote.HomeApi
 import com.melonet.app.data.remote.LibraryApi
 import com.melonet.app.data.remote.PlaylistApi
 import com.melonet.app.data.remote.SearchApi
+import com.melonet.app.data.remote.SocialApi
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.HomeRepository
 import com.melonet.app.data.repository.LibraryRepository
@@ -36,7 +37,12 @@ import com.melonet.app.feature.player.PlayerViewModel
 import com.melonet.app.feature.playlists.LibrarySongsViewModel
 import com.melonet.app.feature.playlists.PlaylistDetailViewModel
 import com.melonet.app.feature.playlists.PlaylistsViewModel
+import com.melonet.app.data.repository.SocialRepository
+import com.melonet.app.feature.profile.EditProfileViewModel
 import com.melonet.app.feature.profile.ProfileViewModel
+import com.melonet.app.feature.settings.SettingsViewModel
+import com.melonet.app.feature.social.UserListViewModel
+import com.melonet.app.feature.social.UserProfileViewModel
 import com.melonet.app.feature.search.SearchViewModel
 import androidx.room.Room
 import okhttp3.OkHttpClient
@@ -102,6 +108,7 @@ val appModule = module {
     single { get<Retrofit>().create(CatalogApi::class.java) }
     single { get<Retrofit>().create(LibraryApi::class.java) }
     single { get<Retrofit>().create(PlaylistApi::class.java) }
+    single { get<Retrofit>().create(SocialApi::class.java) }
 
     single {
         Room.databaseBuilder(androidContext(), MeloNetDatabase::class.java, "melonet.db")
@@ -164,6 +171,7 @@ val appModule = module {
             dispatchers = get(),
         )
     }
+    single { SocialRepository(socialApi = get(), dispatchers = get()) }
     single<OfflineSongResolver> { RoomOfflineSongResolver(downloadRepository = get()) }
     single { PlaybackManager(context = androidContext(), playerRepository = get()) }
 
@@ -172,6 +180,10 @@ val appModule = module {
     viewModel { RegisterViewModel(authRepository = get()) }
     viewModel { HomeViewModel(homeRepository = get()) }
     viewModel { ProfileViewModel(userRepository = get()) }
+    viewModel { EditProfileViewModel(userRepository = get(), authRepository = get(), appContext = androidContext()) }
+    viewModel { SettingsViewModel(settingsRepository = get(), authRepository = get()) }
+    viewModel { UserProfileViewModel(socialRepository = get()) }
+    viewModel { UserListViewModel(socialRepository = get()) }
     viewModel { SearchViewModel(searchRepository = get()) }
     viewModel { PlayerViewModel(playbackManager = get(), downloadRepository = get(), userRepository = get()) }
     viewModel { PlaylistsViewModel(playlistRepository = get()) }

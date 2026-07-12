@@ -110,6 +110,32 @@
     <string name="cd_toggle_password">نمایش/مخفی کردن رمز عبور</string>
     <string name="cd_delete_history">حذف از تاریخچه جستجو</string>
 
+    <!-- Settings -->
+    <string name="settings_title">تنظیمات</string>
+    <string name="settings_language">زبان</string>
+    <string name="settings_language_fa">فارسی</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_theme">تم</string>
+    <string name="settings_theme_system">سیستم</string>
+    <string name="settings_theme_light">روشن</string>
+    <string name="settings_theme_dark">تیره</string>
+    <string name="settings_logout">خروج از حساب</string>
+
+    <!-- Edit profile -->
+    <string name="edit_profile_title">ویرایش پروفایل</string>
+    <string name="edit_profile_bio">بیوگرافی</string>
+    <string name="edit_profile_save">ذخیره تغییرات</string>
+
+    <!-- Social -->
+    <string name="user_profile_title">پروفایل</string>
+    <string name="social_follow">دنبال کردن</string>
+    <string name="social_unfollow">لغو دنبال</string>
+    <string name="social_followers">دنبال‌کنندگان</string>
+    <string name="social_following">دنبال‌شده‌ها</string>
+    <string name="social_public_playlists">پلی‌لیست‌های عمومی</string>
+    <string name="social_no_playlists">پلی‌لیست عمومی وجود ندارد</string>
+    <string name="social_empty_list">کاربری یافت نشد</string>
+
     <!-- Downloads -->
     <string name="downloads_title">دانلودها</string>
     <string name="downloads_sort_newest">جدیدترین</string>

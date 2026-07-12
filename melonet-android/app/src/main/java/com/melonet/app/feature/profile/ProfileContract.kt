@@ -20,6 +20,7 @@ object ProfileContract {
         data object EditProfileClicked : Event
         data object LikedSongsClicked : Event
         data object MyPlaylistsClicked : Event
+        data object FollowingClicked : Event
     }
 
     sealed interface Effect : UiEffect {
@@ -27,5 +28,6 @@ object ProfileContract {
         data object NavigateToEditProfile : Effect
         data object NavigateToLikedSongs : Effect
         data object NavigateToMyPlaylists : Effect
+        data object NavigateToFollowing : Effect
     }
 }

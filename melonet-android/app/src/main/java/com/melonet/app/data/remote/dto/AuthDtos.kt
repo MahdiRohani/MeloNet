@@ -34,3 +34,9 @@ data class LogoutRequestDto(
 data class LogoutResponseDto(
     @SerializedName("logged_out") val loggedOut: Boolean,
 )
+
+data class UpdateProfileRequestDto(
+    @SerializedName("display_name") val displayName: String? = null,
+    @SerializedName("bio") val bio: String? = null,
+    @SerializedName("email") val email: String? = null,
+)

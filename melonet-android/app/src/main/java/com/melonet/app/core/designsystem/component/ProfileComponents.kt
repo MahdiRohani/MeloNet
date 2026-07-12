@@ -1,6 +1,5 @@
 package com.melonet.app.core.designsystem.component
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,13 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
 @Composable
 fun ProfileAvatar(
+    avatarUrl: String?,
     isPremium: Boolean,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,8 +46,8 @@ fun ProfileAvatar(
         contentAlignment = Alignment.BottomEnd,
         modifier = modifier.size(dimensions.avatarRing)
     ) {
-        Image(
-            painter = painterResource(id = android.R.drawable.ic_menu_myplaces),
+        MeloImage(
+            imageUrl = avatarUrl?.ifBlank { null },
             contentDescription = stringResource(R.string.cd_user_avatar),
             contentScale = ContentScale.Crop,
             modifier = Modifier
