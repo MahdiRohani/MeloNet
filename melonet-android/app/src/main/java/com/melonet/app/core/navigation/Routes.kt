@@ -11,6 +11,25 @@ import kotlinx.serialization.Serializable
 @Serializable data object PlaylistsRoute
 @Serializable data object ProfileRoute
 
+@Serializable data object LikedSongsRoute
+@Serializable data object RecentSongsRoute
+@Serializable data object FollowingRoute
+
+@Serializable
+data class CatalogRoute(
+    val listType: String,
+    val filter: String? = null,
+)
+
+@Serializable
+data class SongDetailRoute(val songId: Int)
+
+@Serializable
+data class ArtistDetailRoute(val artistId: Int)
+
+@Serializable
+data class PlaylistDetailRoute(val playlistId: Int)
+
 @Serializable
 data class PlayerRoute(val songId: Int)
 

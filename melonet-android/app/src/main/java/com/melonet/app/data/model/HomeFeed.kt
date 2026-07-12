@@ -19,4 +19,7 @@ data class HomeFeed(
     val carousel: List<Song>,
     val quickActions: List<QuickAction>,
     val rows: List<HomeRow>
-)
+) {
+    val isEmpty: Boolean
+        get() = carousel.isEmpty() && quickActions.isEmpty() && rows.isEmpty()
+}

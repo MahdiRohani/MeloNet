@@ -14,6 +14,14 @@
     <string name="home_quick_action_recent">اخیراً</string>
     <string name="home_quick_action_playlists">پلی‌لیست</string>
     <string name="home_quick_action_following">دنبال شده</string>
+    <string name="home_quick_action_popular">محبوب</string>
+    <string name="home_quick_action_new">جدیدترین‌ها</string>
+    <string name="home_quick_action_global">جهانی</string>
+    <string name="home_empty_title">هنوز محتوایی نیست</string>
+    <string name="home_empty_description">بعداً برای پیشنهادهای جدید سر بزنید.</string>
+
+    <!-- Errors -->
+    <string name="error_unauthorized">لطفاً وارد شوید</string>
 
     <!-- Profile -->
     <string name="profile_guest_user">کاربر مهمان</string>
@@ -30,6 +38,7 @@
 
     <!-- Actions -->
     <string name="action_retry">تلاش مجدد</string>
+    <string name="action_see_all">مشاهده همه</string>
 
     <!-- Auth -->
     <string name="auth_login_title">خوش آمدید</string>
@@ -63,4 +72,8 @@
     <string name="placeholder_playlists_tab">تب پلی‌لیست‌ها</string>
     <string name="placeholder_player">صفحه پلیر — شناسه آهنگ: %1$d</string>
     <string name="placeholder_chat">صفحه چت — شناسه کاربر: %1$d</string>
+    <string name="placeholder_catalog">کاتالوگ — %1$s</string>
+    <string name="placeholder_song_detail">جزئیات آهنگ — شناسه: %1$d</string>
+    <string name="placeholder_artist_detail">جزئیات هنرمند — شناسه: %1$d</string>
+    <string name="placeholder_playlist_detail">جزئیات پلی‌لیست — شناسه: %1$d</string>
 </resources>

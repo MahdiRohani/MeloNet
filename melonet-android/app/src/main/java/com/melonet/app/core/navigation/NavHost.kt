@@ -129,6 +129,9 @@ fun MelonetMainScreen() {
                     onSongClick = { songId ->
                         navController.navigate(PlayerRoute(songId = songId))
                     },
+                    onNavigate = { route ->
+                        navController.navigate(route)
+                    },
                 )
             }
 
@@ -140,6 +143,48 @@ fun MelonetMainScreen() {
             }
             composable<PlaylistsRoute> {
                 DummyScreen(titleRes = R.string.placeholder_playlists_tab)
+            }
+            composable<LikedSongsRoute> {
+                DummyScreen(titleRes = R.string.profile_liked_songs)
+            }
+            composable<RecentSongsRoute> {
+                DummyScreen(titleRes = R.string.home_quick_action_recent)
+            }
+            composable<FollowingRoute> {
+                DummyScreen(titleRes = R.string.home_quick_action_following)
+            }
+
+            composable<CatalogRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<CatalogRoute>()
+                val label = args.filter?.let { "${args.listType} ($it)" } ?: args.listType
+                DummyScreen(
+                    titleRes = R.string.placeholder_catalog,
+                    formatArg = label,
+                )
+            }
+
+            composable<SongDetailRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<SongDetailRoute>()
+                DummyScreen(
+                    titleRes = R.string.placeholder_song_detail,
+                    formatArg = args.songId,
+                )
+            }
+
+            composable<ArtistDetailRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<ArtistDetailRoute>()
+                DummyScreen(
+                    titleRes = R.string.placeholder_artist_detail,
+                    formatArg = args.artistId,
+                )
+            }
+
+            composable<PlaylistDetailRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<PlaylistDetailRoute>()
+                DummyScreen(
+                    titleRes = R.string.placeholder_playlist_detail,
+                    formatArg = args.playlistId,
+                )
             }
 
             composable<ProfileRoute> {
@@ -173,7 +218,7 @@ fun MelonetMainScreen() {
 @Composable
 private fun DummyScreen(
     titleRes: Int,
-    formatArg: Int? = null,
+    formatArg: Any? = null,
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(

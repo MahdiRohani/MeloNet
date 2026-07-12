@@ -13,10 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
 @Composable
@@ -26,6 +23,7 @@ fun SongCard(
     imageUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    sharedTransitionKey: String? = null,
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
@@ -35,24 +33,21 @@ fun SongCard(
             .width(dimensions.songCardSize)
             .clickable(onClick = onClick)
     ) {
-        if (imageUrl.isNullOrBlank()) {
-            ShimmerBox(
-                modifier = Modifier.size(dimensions.songCardSize),
-                shape = MaterialTheme.shapes.medium,
-            )
-        } else {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(imageUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(dimensions.songCardSize)
-                    .clip(MaterialTheme.shapes.medium),
-            )
-        }
+        MeloImage(
+            imageUrl = imageUrl,
+            contentDescription = title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(dimensions.songCardSize)
+                .clip(MaterialTheme.shapes.medium)
+                .then(
+                    if (sharedTransitionKey != null) {
+                        Modifier // A6: attach sharedElement(sharedTransitionKey)
+                    } else {
+                        Modifier
+                    }
+                ),
+        )
         Spacer(modifier = Modifier.height(spacing.sm))
         Text(
             text = title,

@@ -2,7 +2,6 @@ package com.melonet.app.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,85 +17,167 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.melonet.app.R
+import com.melonet.app.core.common.displayMessage
+import com.melonet.app.core.designsystem.component.EmptyState
+import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.QuickActionChip
 import com.melonet.app.core.designsystem.component.QuickActionChipShimmer
 import com.melonet.app.core.designsystem.component.SectionHeader
 import com.melonet.app.core.designsystem.component.SectionHeaderShimmer
 import com.melonet.app.core.designsystem.component.SongCard
 import com.melonet.app.core.designsystem.component.SongCardShimmer
-import com.melonet.app.core.designsystem.component.shimmerEffect
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.core.ui.PlayerSharedKeys
+import com.melonet.app.data.model.HomeRow
 import com.melonet.app.data.model.QuickAction
 import com.melonet.app.data.model.Song
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onSongClick: (Int) -> Unit
+    onSongClick: (Int) -> Unit,
+    onNavigate: (Any) -> Unit,
+    snackbarHostState: SnackbarHostState? = null,
 ) {
     val state by viewModel.uiState.collectAsState()
-    val spacing = MeloNetTheme.spacing
+    val context = LocalContext.current
+    val errorMessage = state.error?.displayMessage(context)
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is HomeContract.Effect.NavigateToPlayer -> onSongClick(effect.songId)
-                is HomeContract.Effect.ShowError -> Unit
+                is HomeContract.Effect.Navigate -> onNavigate(effect.destination.toRoute())
+                is HomeContract.Effect.ShowError -> {
+                    snackbarHostState?.showSnackbar(effect.error.displayMessage(context))
+                }
             }
         }
     }
 
+    when {
+        state.isLoading -> {
+            HomeFeedContent(
+                carouselSongs = emptyList(),
+                quickActions = emptyList(),
+                rows = emptyList(),
+                isLoading = true,
+                onSongClick = {},
+                onQuickActionClick = {},
+                onSeeAllClick = {},
+            )
+        }
+        errorMessage != null && state.feed == null -> {
+            ErrorState(
+                message = errorMessage,
+                onRetry = { viewModel.handleEvent(HomeContract.Event.Load) },
+            )
+        }
+        state.feed != null && state.feed!!.isEmpty -> {
+            EmptyState(
+                title = stringResource(R.string.home_empty_title),
+                description = stringResource(R.string.home_empty_description),
+            )
+        }
+        else -> {
+            PullToRefreshBox(
+                isRefreshing = state.isRefreshing,
+                onRefresh = { viewModel.handleEvent(HomeContract.Event.Refresh) },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                HomeFeedContent(
+                    carouselSongs = state.feed?.carousel.orEmpty(),
+                    quickActions = state.feed?.quickActions.orEmpty(),
+                    rows = state.feed?.rows.orEmpty(),
+                    isLoading = false,
+                    onSongClick = { songId ->
+                        viewModel.handleEvent(HomeContract.Event.SongClicked(songId))
+                    },
+                    onQuickActionClick = { action ->
+                        viewModel.handleEvent(HomeContract.Event.QuickActionClicked(action))
+                    },
+                    onSeeAllClick = { row ->
+                        viewModel.handleEvent(HomeContract.Event.SeeAllClicked(row))
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeFeedContent(
+    carouselSongs: List<Song>,
+    quickActions: List<QuickAction>,
+    rows: List<HomeRow>,
+    isLoading: Boolean,
+    onSongClick: (Int) -> Unit,
+    onQuickActionClick: (QuickAction) -> Unit,
+    onSeeAllClick: (HomeRow) -> Unit,
+) {
+    val spacing = MeloNetTheme.spacing
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background),
     ) {
         item {
-            HomeSlider(
-                isLoading = state.isLoading,
-                carouselTitle = state.feed?.carousel?.firstOrNull()?.title
+            HomeCarousel(
+                songs = carouselSongs,
+                isLoading = isLoading,
+                onSongClick = onSongClick,
             )
         }
 
         item {
             QuickActionsSection(
-                actions = state.feed?.quickActions.orEmpty(),
-                isLoading = state.isLoading,
-                onActionClick = { viewModel.handleEvent(HomeContract.Event.QuickActionClicked(it)) }
+                actions = quickActions,
+                isLoading = isLoading,
+                onActionClick = onQuickActionClick,
             )
         }
 
-        if (state.isLoading) {
+        if (isLoading) {
             items(3) {
                 SongSection(
                     title = null,
                     songs = emptyList(),
+                    seeAllPath = null,
                     isLoading = true,
-                    onSongClick = {}
+                    onSongClick = {},
+                    onSeeAllClick = {},
                 )
             }
         } else {
-            items(state.feed?.rows.orEmpty(), key = { it.id }) { row ->
+            items(rows, key = { it.id }) { row ->
                 SongSection(
                     title = row.title,
                     songs = row.items,
+                    seeAllPath = row.seeAllPath,
                     isLoading = false,
-                    onSongClick = { songId ->
-                        viewModel.handleEvent(HomeContract.Event.SongClicked(songId))
-                    }
+                    onSongClick = onSongClick,
+                    onSeeAllClick = { onSeeAllClick(row) },
                 )
             }
         }
@@ -106,76 +187,68 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeSlider(isLoading: Boolean, carouselTitle: String?) {
-    val spacing = MeloNetTheme.spacing
-    val dimensions = MeloNetTheme.dimensions
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(dimensions.carouselHeight)
-            .padding(spacing.md)
-            .clip(MaterialTheme.shapes.large)
-            .then(
-                if (isLoading) Modifier.shimmerEffect()
-                else Modifier.background(MaterialTheme.colorScheme.primary)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (!isLoading) {
-            Text(
-                text = carouselTitle ?: stringResource(R.string.home_carousel_fallback),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-        }
-    }
-}
-
-@Composable
 private fun QuickActionsSection(
     actions: List<QuickAction>,
     isLoading: Boolean,
-    onActionClick: (QuickAction) -> Unit
+    onActionClick: (QuickAction) -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
 
-    val defaultActions = listOf(
-        Triple(stringResource(R.string.home_quick_action_liked), Icons.Default.Favorite, null),
-        Triple(stringResource(R.string.home_quick_action_recent), Icons.Default.History, null),
-        Triple(stringResource(R.string.home_quick_action_playlists), Icons.Default.LibraryMusic, null),
-        Triple(stringResource(R.string.home_quick_action_following), Icons.Default.People, null)
-    )
+    val fallbackActions = remember {
+        listOf(
+            QuickAction("liked", "", "liked", "favorite"),
+            QuickAction("recent", "", "recent", "history"),
+            QuickAction("playlists", "", "playlists", "playlist"),
+            QuickAction("following", "", "following", "people"),
+        )
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = spacing.md, vertical = spacing.sm),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         if (isLoading) {
-            repeat(4) {
-                QuickActionChipShimmer()
-            }
-        } else if (actions.isNotEmpty()) {
-            actions.take(4).forEach { action ->
+            repeat(4) { QuickActionChipShimmer() }
+        } else {
+            val displayActions = if (actions.isNotEmpty()) actions.take(4) else fallbackActions
+            displayActions.forEach { action ->
                 QuickActionChip(
-                    title = action.title,
+                    title = action.title.ifBlank {
+                        fallbackLabelForAction(action)
+                    },
                     icon = iconForQuickAction(action),
-                    onClick = { onActionClick(action) }
+                    onClick = { onActionClick(action) },
                 )
             }
-        } else {
-            defaultActions.forEach { (title, icon, _) ->
-                QuickActionChip(title = title, icon = icon, onClick = {})
-            }
         }
+    }
+}
+
+@Composable
+private fun fallbackLabelForAction(action: QuickAction): String {
+    val key = (action.icon ?: action.target ?: action.id).lowercase()
+    return when {
+        "liked" in key || "favorite" in key -> stringResource(R.string.home_quick_action_liked)
+        "recent" in key || "history" in key -> stringResource(R.string.home_quick_action_recent)
+        "playlist" in key -> stringResource(R.string.home_quick_action_playlists)
+        "follow" in key || "people" in key -> stringResource(R.string.home_quick_action_following)
+        "search" in key -> stringResource(R.string.nav_search)
+        "popular" in key || "trending" in key -> stringResource(R.string.home_quick_action_popular)
+        "new" in key -> stringResource(R.string.home_quick_action_new)
+        "global" in key || "public" in key -> stringResource(R.string.home_quick_action_global)
+        else -> action.id
     }
 }
 
 private fun iconForQuickAction(action: QuickAction): ImageVector {
     val key = (action.icon ?: action.target ?: action.id).lowercase()
     return when {
+        "search" in key -> Icons.Default.Search
+        "popular" in key || "trending" in key -> Icons.Default.TrendingUp
+        "new" in key -> Icons.Default.NewReleases
+        "global" in key || "public" in key -> Icons.Default.Public
         "liked" in key || "favorite" in key -> Icons.Default.Favorite
         "recent" in key || "history" in key -> Icons.Default.History
         "playlist" in key -> Icons.Default.LibraryMusic
@@ -188,20 +261,25 @@ private fun iconForQuickAction(action: QuickAction): ImageVector {
 private fun SongSection(
     title: String?,
     songs: List<Song>,
+    seeAllPath: String?,
     isLoading: Boolean,
-    onSongClick: (Int) -> Unit
+    onSongClick: (Int) -> Unit,
+    onSeeAllClick: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
 
     Column(modifier = Modifier.padding(vertical = spacing.sm + spacing.xs)) {
         when {
             isLoading -> SectionHeaderShimmer()
-            !title.isNullOrBlank() -> SectionHeader(title = title)
+            !title.isNullOrBlank() -> SectionHeader(
+                title = title,
+                onActionClick = if (!seeAllPath.isNullOrBlank()) onSeeAllClick else null,
+            )
         }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = spacing.md),
-            horizontalArrangement = Arrangement.spacedBy(spacing.md)
+            horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             if (isLoading) {
                 items(5) { SongCardShimmer() }
@@ -211,7 +289,8 @@ private fun SongSection(
                         title = song.title,
                         subtitle = song.artistName,
                         imageUrl = song.coverUrl,
-                        onClick = { onSongClick(song.id) }
+                        sharedTransitionKey = PlayerSharedKeys.songCover(song.id),
+                        onClick = { onSongClick(song.id) },
                     )
                 }
             }

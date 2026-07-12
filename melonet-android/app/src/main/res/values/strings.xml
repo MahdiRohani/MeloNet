@@ -14,6 +14,14 @@
     <string name="home_quick_action_recent">Recent</string>
     <string name="home_quick_action_playlists">Playlists</string>
     <string name="home_quick_action_following">Following</string>
+    <string name="home_quick_action_popular">Popular</string>
+    <string name="home_quick_action_new">New Releases</string>
+    <string name="home_quick_action_global">Global</string>
+    <string name="home_empty_title">Nothing here yet</string>
+    <string name="home_empty_description">Check back later for new music recommendations.</string>
+
+    <!-- Errors -->
+    <string name="error_unauthorized">Please sign in to continue</string>
 
     <!-- Profile -->
     <string name="profile_guest_user">Guest User</string>
@@ -30,6 +38,7 @@
 
     <!-- Actions -->
     <string name="action_retry">Retry</string>
+    <string name="action_see_all">See all</string>
 
     <!-- Auth -->
     <string name="auth_login_title">Welcome back</string>
@@ -63,4 +72,8 @@
     <string name="placeholder_playlists_tab">Playlists tab</string>
     <string name="placeholder_player">Player screen — song ID: %1$d</string>
     <string name="placeholder_chat">Chat screen — user ID: %1$d</string>
+    <string name="placeholder_catalog">Catalog — %1$s</string>
+    <string name="placeholder_song_detail">Song detail — ID: %1$d</string>
+    <string name="placeholder_artist_detail">Artist detail — ID: %1$d</string>
+    <string name="placeholder_playlist_detail">Playlist detail — ID: %1$d</string>
 </resources>
