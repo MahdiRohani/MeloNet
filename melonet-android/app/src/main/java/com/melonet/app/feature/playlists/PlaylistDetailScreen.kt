@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.melonet.app.R
+import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
@@ -123,6 +124,11 @@ fun PlaylistDetailScreen(
             contentPadding = PaddingValues(spacing.md),
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
+            if (songs.itemCount == 0 && songs.loadState.refresh !is androidx.paging.LoadState.Loading) {
+                item(key = "playlist_empty") {
+                    EmptyState(title = stringResource(R.string.playlist_detail_empty))
+                }
+            }
             items(
                 count = songs.itemCount,
                 key = songs.itemKey { it.id },

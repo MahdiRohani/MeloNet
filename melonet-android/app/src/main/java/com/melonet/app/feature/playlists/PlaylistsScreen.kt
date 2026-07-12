@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.PlaylistCard
 import com.melonet.app.core.designsystem.component.QuickActionChip
@@ -165,10 +166,9 @@ private fun PlaylistGrid(
     val spacing = MeloNetTheme.spacing
     val items = playlists.itemSnapshotList.items
     if (items.isEmpty()) {
-        Text(
-            text = stringResource(R.string.playlists_empty),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        EmptyState(
+            title = stringResource(R.string.playlists_empty),
+            description = stringResource(R.string.playlists_empty_description),
             modifier = Modifier.padding(spacing.sm),
         )
         return

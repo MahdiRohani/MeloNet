@@ -1,5 +1,8 @@
 package com.melonet.app.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class Playlist(
     val id: Int,
     val ownerId: Int,

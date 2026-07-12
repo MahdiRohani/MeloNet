@@ -1,6 +1,8 @@
 package com.melonet.app.feature.settings
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import com.melonet.app.BuildConfig
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloFilterChip
@@ -47,6 +50,10 @@ fun SettingsScreen(
                     (context as? Activity)?.recreate()
                 }
                 SettingsContract.Effect.NavigateToLogin -> onNavigateToLogin()
+                is SettingsContract.Effect.OpenPrivacyPolicy -> {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(effect.url))
+                    context.startActivity(intent)
+                }
             }
         }
     }
@@ -112,6 +119,19 @@ fun SettingsScreen(
                 onClick = { viewModel.handleEvent(SettingsContract.Event.LogoutClicked) },
                 enabled = !state.isLoggingOut,
                 modifier = Modifier.fillMaxWidth(),
+            )
+
+            MeloButton(
+                text = stringResource(R.string.settings_privacy_policy),
+                onClick = { viewModel.handleEvent(SettingsContract.Event.PrivacyPolicyClicked) },
+                variant = com.melonet.app.core.designsystem.component.MeloButtonVariant.Outlined,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Text(
+                text = stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

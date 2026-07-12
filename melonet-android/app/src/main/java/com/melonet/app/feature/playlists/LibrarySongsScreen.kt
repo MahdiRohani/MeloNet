@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.melonet.app.R
+import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloButtonVariant
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
@@ -98,6 +99,14 @@ fun LibrarySongsScreen(
             contentPadding = PaddingValues(vertical = spacing.md),
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
+            if (songs.itemCount == 0 && songs.loadState.refresh !is androidx.paging.LoadState.Loading) {
+                item(key = "library_empty") {
+                    EmptyState(
+                        title = stringResource(R.string.library_empty_songs),
+                        description = stringResource(R.string.library_empty_songs_description),
+                    )
+                }
+            }
             items(
                 count = songs.itemCount,
                 key = songs.itemKey { it.id },

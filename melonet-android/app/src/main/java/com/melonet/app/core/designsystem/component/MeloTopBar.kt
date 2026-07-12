@@ -54,7 +54,7 @@ fun MeloTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_app_logo),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(dimensions.iconSm),
                 )

@@ -30,8 +30,15 @@ class SettingsViewModel(
             is SettingsContract.Event.LanguageSelected -> setLanguage(event.language)
             is SettingsContract.Event.ThemeSelected -> setTheme(event.mode)
             SettingsContract.Event.LogoutClicked -> logout()
+            SettingsContract.Event.PrivacyPolicyClicked -> {
+                setEffect { SettingsContract.Effect.OpenPrivacyPolicy(PRIVACY_POLICY_URL) }
+            }
             SettingsContract.Event.NavigateBack -> Unit
         }
+    }
+
+    private companion object {
+        const val PRIVACY_POLICY_URL = "https://melonet.app/privacy"
     }
 
     private fun setLanguage(language: String) {

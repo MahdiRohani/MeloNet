@@ -77,6 +77,10 @@
     <string name="playlists_create_title">پلی‌لیست جدید</string>
     <string name="playlists_create_name">نام پلی‌لیست</string>
     <string name="playlists_empty">هنوز پلی‌لیستی نیست</string>
+    <string name="playlists_empty_description">برای مرتب‌کردن آهنگ‌های مورد علاقه، یک پلی‌لیست بسازید.</string>
+    <string name="library_empty_songs">هنوز آهنگی اینجا نیست</string>
+    <string name="library_empty_songs_description">آهنگ‌هایی که لایک یا پخش می‌کنید اینجا نمایش داده می‌شوند.</string>
+    <string name="playlist_detail_empty">این پلی‌لیست خالی است</string>
     <string name="playlists_song_count">%1$d آهنگ</string>
     <string name="library_play_all">پخش همه</string>
     <string name="library_shuffle">تصادفی</string>
@@ -103,6 +107,8 @@
 
     <!-- Content descriptions -->
     <string name="cd_user_avatar">آواتار کاربر</string>
+    <string name="cd_app_logo">لوگوی MeloNet</string>
+    <string name="cd_navigate_back">بازگشت</string>
     <string name="cd_premium_user">کاربر ویژه</string>
     <string name="cd_edit_profile">ویرایش پروفایل</string>
     <string name="cd_notifications">اعلان‌ها</string>
@@ -120,6 +126,11 @@
     <string name="settings_theme_light">روشن</string>
     <string name="settings_theme_dark">تیره</string>
     <string name="settings_logout">خروج از حساب</string>
+    <string name="settings_privacy_policy">سیاست حریم خصوصی</string>
+    <string name="settings_version">نسخه %1$s</string>
+
+    <!-- Offline -->
+    <string name="offline_banner_message">آفلاین هستید. برخی قابلیت‌ها در دسترس نیستند.</string>
 
     <!-- Edit profile -->
     <string name="edit_profile_title">ویرایش پروفایل</string>

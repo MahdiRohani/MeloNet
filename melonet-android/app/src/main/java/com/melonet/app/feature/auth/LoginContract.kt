@@ -1,11 +1,13 @@
 package com.melonet.app.feature.auth
 
+import androidx.compose.runtime.Immutable
 import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
 
 object LoginContract {
 
+    @Immutable
     data class State(
         val login: String = "",
         val password: String = "",

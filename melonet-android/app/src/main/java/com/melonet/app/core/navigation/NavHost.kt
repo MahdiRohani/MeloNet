@@ -1,7 +1,7 @@
 package com.melonet.app.core.navigation
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -23,6 +23,8 @@ import androidx.navigation.toRoute
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.MeloTopBar
 import com.melonet.app.core.designsystem.component.MiniPlayerBar
+import com.melonet.app.core.designsystem.component.OfflineBanner
+import com.melonet.app.core.network.NetworkConnectivityMonitor
 import com.melonet.app.data.model.AuthState
 import com.melonet.app.data.model.Song
 import com.melonet.app.feature.auth.AuthViewModel
@@ -72,6 +74,8 @@ fun MelonetMainScreen() {
     val authViewModel: AuthViewModel = koinViewModel()
     val playerViewModel: PlayerViewModel = koinViewModel(viewModelStoreOwner = viewModelStoreOwner)
     val chatRepository: ChatRepository = koinInject()
+    val networkMonitor: NetworkConnectivityMonitor = koinInject()
+    val isOnline by networkMonitor.isOnline.collectAsState(initial = true)
     val authState by authViewModel.authState.collectAsState()
     val playerState by playerViewModel.uiState.collectAsState()
 
@@ -131,12 +135,17 @@ fun MelonetMainScreen() {
     Scaffold(
         topBar = {
             if (showAppShell && authenticatedUser != null) {
-                MeloTopBar(
+                Column {
+                    if (!isOnline) {
+                        OfflineBanner()
+                    }
+                    MeloTopBar(
                     avatarUrl = authenticatedUser.avatarUrl,
                     onAvatarClick = { navController.navigate(ProfileRoute) },
                     onNotificationsClick = { navController.navigate(ConversationsRoute) },
                     onSettingsClick = { navController.navigate(SettingsRoute) },
                 )
+                }
             }
         },
         bottomBar = {

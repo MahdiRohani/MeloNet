@@ -9,9 +9,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import coil.size.Precision
+import coil.size.Scale
 import com.melonet.app.R
 
 @Composable
@@ -20,16 +24,28 @@ fun MeloImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    targetSize: Dp? = null,
 ) {
     if (imageUrl.isNullOrBlank()) {
         MeloImagePlaceholder(modifier = modifier)
         return
     }
 
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val pixelSize = targetSize?.let { with(density) { it.roundToPx() } }
+
     SubcomposeAsyncImage(
-        model = ImageRequest.Builder(LocalContext.current)
+        model = ImageRequest.Builder(context)
             .data(imageUrl)
             .crossfade(true)
+            .apply {
+                if (pixelSize != null) {
+                    size(pixelSize)
+                    scale(Scale.FILL)
+                    precision(Precision.INEXACT)
+                }
+            }
             .build(),
         contentDescription = contentDescription,
         contentScale = contentScale,

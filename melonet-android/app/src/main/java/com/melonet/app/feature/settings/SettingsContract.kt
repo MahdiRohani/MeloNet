@@ -16,11 +16,13 @@ object SettingsContract {
         data class LanguageSelected(val language: String) : Event
         data class ThemeSelected(val mode: ThemeMode) : Event
         data object LogoutClicked : Event
+        data object PrivacyPolicyClicked : Event
         data object NavigateBack : Event
     }
 
     sealed interface Effect : UiEffect {
         data object RecreateActivity : Effect
         data object NavigateToLogin : Effect
+        data class OpenPrivacyPolicy(val url: String) : Effect
     }
 }

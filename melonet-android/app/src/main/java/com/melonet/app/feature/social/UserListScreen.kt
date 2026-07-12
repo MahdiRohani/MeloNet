@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
+import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
@@ -86,10 +87,7 @@ fun UserListScreen(
                 )
             }
             state.users.isEmpty() -> {
-                Text(
-                    text = stringResource(R.string.social_empty_list),
-                    modifier = Modifier.padding(MeloNetTheme.spacing.md),
-                )
+                EmptyState(title = stringResource(R.string.social_empty_list))
             }
             else -> {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {

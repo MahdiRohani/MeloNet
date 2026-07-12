@@ -1,6 +1,7 @@
 package com.melonet.app
 
 import android.app.Application
+import androidx.profileinstaller.ProfileInstaller
 import com.melonet.app.di.appModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -15,5 +16,6 @@ class MeloNetApp : Application() {
             androidContext(this@MeloNetApp)
             modules(appModule)
         }
+        ProfileInstaller.writeProfile(this)
     }
 }

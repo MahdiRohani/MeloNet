@@ -3,6 +3,7 @@ package com.melonet.app.di
 import com.melonet.app.BuildConfig
 import com.melonet.app.core.common.DefaultDispatchersProvider
 import com.melonet.app.core.common.DispatchersProvider
+import com.melonet.app.core.network.NetworkConnectivityMonitor
 import com.melonet.app.core.network.AuthInterceptor
 import com.melonet.app.core.network.TokenAuthenticator
 import com.melonet.app.data.local.MeloNetDatabase
@@ -64,6 +65,7 @@ val appModule = module {
 
     single { TokenManager(androidContext()) }
     single { SettingsRepository(androidContext()) }
+    single { NetworkConnectivityMonitor(androidContext()) }
 
     single {
         HttpLoggingInterceptor().apply {

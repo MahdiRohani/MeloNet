@@ -77,6 +77,10 @@
     <string name="playlists_create_title">New playlist</string>
     <string name="playlists_create_name">Playlist name</string>
     <string name="playlists_empty">No playlists yet</string>
+    <string name="playlists_empty_description">Create a playlist to organize your favorite songs.</string>
+    <string name="library_empty_songs">No songs here yet</string>
+    <string name="library_empty_songs_description">Songs you like or play will appear here.</string>
+    <string name="playlist_detail_empty">This playlist is empty</string>
     <string name="playlists_song_count">%1$d songs</string>
     <string name="library_play_all">Play all</string>
     <string name="library_shuffle">Shuffle</string>
@@ -103,6 +107,8 @@
 
     <!-- Content descriptions -->
     <string name="cd_user_avatar">User avatar</string>
+    <string name="cd_app_logo">MeloNet logo</string>
+    <string name="cd_navigate_back">Navigate back</string>
     <string name="cd_premium_user">Premium user</string>
     <string name="cd_edit_profile">Edit profile</string>
     <string name="cd_notifications">Notifications</string>
@@ -120,6 +126,11 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_logout">Log out</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="settings_version">Version %1$s</string>
+
+    <!-- Offline -->
+    <string name="offline_banner_message">You are offline. Some features may be unavailable.</string>
 
     <!-- Edit profile -->
     <string name="edit_profile_title">Edit profile</string>
