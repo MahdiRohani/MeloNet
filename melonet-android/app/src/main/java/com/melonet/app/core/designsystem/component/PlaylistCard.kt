@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
+import com.melonet.app.R
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
 @Composable
@@ -48,7 +50,7 @@ fun PlaylistCard(
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text = songCount.toString(),
+            text = stringResource(R.string.playlists_song_count, songCount),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -59,7 +59,7 @@ import com.melonet.app.data.model.Song
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel,
-    onNavigateToSong: (Int) -> Unit,
+    onPlaySong: (Song) -> Unit,
     onNavigateToArtist: (Int) -> Unit,
     onNavigateToUser: (Int) -> Unit,
 ) {
@@ -70,7 +70,7 @@ fun SearchScreen(
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is SearchContract.Effect.NavigateToSong -> onNavigateToSong(effect.songId)
+                is SearchContract.Effect.PlaySong -> onPlaySong(effect.song)
                 is SearchContract.Effect.NavigateToArtist -> onNavigateToArtist(effect.artistId)
                 is SearchContract.Effect.NavigateToUser -> onNavigateToUser(effect.userId)
             }

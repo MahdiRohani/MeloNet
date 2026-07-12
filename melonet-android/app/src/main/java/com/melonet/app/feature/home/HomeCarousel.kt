@@ -31,7 +31,7 @@ private const val CAROUSEL_AUTO_SCROLL_MS = 4_000L
 fun HomeCarousel(
     songs: List<Song>,
     isLoading: Boolean,
-    onSongClick: (Int) -> Unit,
+    onSongClick: (Song) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = MeloNetTheme.spacing
@@ -72,7 +72,7 @@ fun HomeCarousel(
                     val song = songs[page]
                     CarouselSlide(
                         song = song,
-                        onClick = { onSongClick(song.id) },
+                        onClick = { onSongClick(song) },
                     )
                 }
             }

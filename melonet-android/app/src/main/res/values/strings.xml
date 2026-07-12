@@ -53,6 +53,35 @@
     <!-- Actions -->
     <string name="action_retry">Retry</string>
     <string name="action_see_all">See all</string>
+    <string name="action_create">Create</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Player -->
+    <string name="player_speed_title">Playback speed</string>
+    <string name="player_speed_format">%1$.1fx</string>
+    <string name="player_sleep_timer_title">Sleep timer</string>
+    <string name="player_sleep_timer_off">Off</string>
+    <string name="player_sleep_timer_minutes">%1$d minutes</string>
+    <string name="player_sleep_timer_active">Sleep in %1$d min</string>
+    <string name="cd_player_back">Back</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_skip_next">Skip next</string>
+    <string name="cd_skip_previous">Skip previous</string>
+    <string name="cd_playback_speed">Playback speed</string>
+    <string name="cd_sleep_timer">Sleep timer</string>
+
+    <!-- Playlists -->
+    <string name="playlists_section_global">Global playlists</string>
+    <string name="playlists_section_mine">My playlists</string>
+    <string name="playlists_create_title">New playlist</string>
+    <string name="playlists_create_name">Playlist name</string>
+    <string name="playlists_empty">No playlists yet</string>
+    <string name="playlists_song_count">%1$d songs</string>
+    <string name="library_play_all">Play all</string>
+    <string name="library_shuffle">Shuffle</string>
+    <string name="cd_create_playlist">Create playlist</string>
+    <string name="cd_delete_song">Remove song</string>
 
     <!-- Auth -->
     <string name="auth_login_title">Welcome back</string>

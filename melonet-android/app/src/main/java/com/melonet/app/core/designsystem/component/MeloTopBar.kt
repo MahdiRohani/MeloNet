@@ -13,7 +13,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -126,44 +128,76 @@ private fun MeloTopBarAvatar(
 fun MiniPlayerBar(
     title: String,
     artist: String,
+    coverUrl: String?,
+    isPlaying: Boolean,
+    progress: Float,
     onClick: () -> Unit,
+    onPlayPauseClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
 
-    MeloCard(
-        onClick = onClick,
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(dimensions.miniPlayerHeight)
             .padding(horizontal = spacing.sm),
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Row(
+        androidx.compose.material3.LinearProgressIndicator(
+            progress = { progress.coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        )
+        MeloCard(
+            onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
+                .height(dimensions.miniPlayerHeight),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ) {
-            ShimmerBox(
-                modifier = Modifier.size(dimensions.iconLg),
-                shape = MaterialTheme.shapes.small,
-            )
-            Spacer(modifier = Modifier.width(spacing.sm))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MeloImage(
+                    imageUrl = coverUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(dimensions.iconLg)
+                        .clip(MaterialTheme.shapes.small),
                 )
-                Text(
-                    text = artist,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
+                Spacer(modifier = Modifier.width(spacing.sm))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = artist,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+                IconButton(onClick = onPlayPauseClick) {
+                    Icon(
+                        imageVector = if (isPlaying) {
+                            Icons.Default.Pause
+                        } else {
+                            Icons.Default.PlayArrow
+                        },
+                        contentDescription = stringResource(
+                            if (isPlaying) R.string.cd_pause else R.string.cd_play,
+                        ),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
     }

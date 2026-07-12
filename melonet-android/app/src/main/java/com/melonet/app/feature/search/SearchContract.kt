@@ -24,7 +24,7 @@ object SearchContract {
     }
 
     sealed interface Effect : UiEffect {
-        data class NavigateToSong(val songId: Int) : Effect
+        data class PlaySong(val song: com.melonet.app.data.model.Song) : Effect
         data class NavigateToArtist(val artistId: Int) : Effect
         data class NavigateToUser(val userId: Int) : Effect
     }

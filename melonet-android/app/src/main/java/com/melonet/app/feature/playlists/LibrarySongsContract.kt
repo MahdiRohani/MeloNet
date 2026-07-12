@@ -1,0 +1,29 @@
+package com.melonet.app.feature.playlists
+
+import com.melonet.app.core.common.UiEffect
+import com.melonet.app.core.common.UiEvent
+import com.melonet.app.core.common.UiState
+
+enum class LibraryListType {
+    LIKED,
+    RECENT,
+}
+
+object LibrarySongsContract {
+
+    data class State(
+        val listType: LibraryListType = LibraryListType.LIKED,
+    ) : UiState
+
+    sealed interface Event : UiEvent {
+        data class SongClicked(val songId: Int) : Event
+        data class DismissSong(val songId: Int) : Event
+        data object PlayAll : Event
+        data object ShuffleAll : Event
+    }
+
+    sealed interface Effect : UiEffect {
+        data class NavigateToPlayer(val songId: Int) : Effect
+        data class PlayQueue(val startSongId: Int, val shuffle: Boolean) : Effect
+    }
+}

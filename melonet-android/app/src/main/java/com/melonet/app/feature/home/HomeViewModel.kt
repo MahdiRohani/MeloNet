@@ -22,7 +22,8 @@ class HomeViewModel(
             HomeContract.Event.Load -> loadHomeFeed(refreshing = false)
             HomeContract.Event.Refresh -> loadHomeFeed(refreshing = true)
             is HomeContract.Event.SongClicked -> {
-                setEffect { HomeContract.Effect.NavigateToPlayer(event.songId) }
+                val queue = buildSongQueue(event.song)
+                setEffect { HomeContract.Effect.PlaySong(event.song, queue) }
             }
             is HomeContract.Event.QuickActionClicked -> {
                 navigateFromTarget(event.action.target)
@@ -35,6 +36,17 @@ class HomeViewModel(
                 }
             }
         }
+    }
+
+    private fun buildSongQueue(startSong: com.melonet.app.data.model.Song): List<com.melonet.app.data.model.Song> {
+        val feed = uiState.value.feed ?: return listOf(startSong)
+        val allSongs = buildList {
+            addAll(feed.carousel)
+            feed.rows.forEach { row -> addAll(row.items) }
+        }.distinctBy { it.id }
+        if (allSongs.isEmpty()) return listOf(startSong)
+        val index = allSongs.indexOfFirst { it.id == startSong.id }.coerceAtLeast(0)
+        return allSongs.drop(index).ifEmpty { listOf(startSong) }
     }
 
     private fun navigateFromTarget(target: String) {

@@ -9,16 +9,29 @@ import com.melonet.app.data.local.MeloNetDatabase
 import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.local.TokenManager
 import com.melonet.app.data.remote.AuthApi
+import com.melonet.app.data.remote.CatalogApi
 import com.melonet.app.data.remote.HomeApi
+import com.melonet.app.data.remote.LibraryApi
+import com.melonet.app.data.remote.PlaylistApi
 import com.melonet.app.data.remote.SearchApi
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.HomeRepository
+import com.melonet.app.data.repository.LibraryRepository
+import com.melonet.app.data.repository.NoOpOfflineSongResolver
+import com.melonet.app.data.repository.OfflineSongResolver
+import com.melonet.app.data.repository.PlayerRepository
+import com.melonet.app.data.repository.PlaylistRepository
 import com.melonet.app.data.repository.SearchRepository
 import com.melonet.app.data.repository.UserRepository
 import com.melonet.app.feature.auth.AuthViewModel
 import com.melonet.app.feature.auth.LoginViewModel
 import com.melonet.app.feature.auth.RegisterViewModel
 import com.melonet.app.feature.home.HomeViewModel
+import com.melonet.app.feature.player.PlaybackManager
+import com.melonet.app.feature.player.PlayerViewModel
+import com.melonet.app.feature.playlists.LibrarySongsViewModel
+import com.melonet.app.feature.playlists.PlaylistDetailViewModel
+import com.melonet.app.feature.playlists.PlaylistsViewModel
 import com.melonet.app.feature.profile.ProfileViewModel
 import com.melonet.app.feature.search.SearchViewModel
 import androidx.room.Room
@@ -82,6 +95,9 @@ val appModule = module {
     single { get<Retrofit>().create(HomeApi::class.java) }
     single { get<Retrofit>().create(AuthApi::class.java) }
     single { get<Retrofit>().create(SearchApi::class.java) }
+    single { get<Retrofit>().create(CatalogApi::class.java) }
+    single { get<Retrofit>().create(LibraryApi::class.java) }
+    single { get<Retrofit>().create(PlaylistApi::class.java) }
 
     single {
         Room.databaseBuilder(androidContext(), MeloNetDatabase::class.java, "melonet.db")
@@ -89,6 +105,10 @@ val appModule = module {
             .build()
     }
     single { get<MeloNetDatabase>().searchHistoryDao() }
+    single { get<MeloNetDatabase>().likedSongDao() }
+    single { get<MeloNetDatabase>().playHistoryDao() }
+
+    single<OfflineSongResolver> { NoOpOfflineSongResolver() }
 
     single { HomeRepository(homeApi = get(), dispatchers = get()) }
     single {
@@ -111,9 +131,27 @@ val appModule = module {
             authApi = get(),
             settingsRepository = get(),
             tokenManager = get(),
-            dispatchers = get()
+            dispatchers = get(),
         )
     }
+    single {
+        PlayerRepository(
+            catalogApi = get(),
+            libraryApi = get(),
+            offlineSongResolver = get(),
+            dispatchers = get(),
+        )
+    }
+    single { PlaylistRepository(playlistApi = get(), dispatchers = get()) }
+    single {
+        LibraryRepository(
+            libraryApi = get(),
+            likedSongDao = get(),
+            playHistoryDao = get(),
+            dispatchers = get(),
+        )
+    }
+    single { PlaybackManager(context = androidContext(), playerRepository = get()) }
 
     viewModel { AuthViewModel(authRepository = get()) }
     viewModel { LoginViewModel(authRepository = get()) }
@@ -121,4 +159,8 @@ val appModule = module {
     viewModel { HomeViewModel(homeRepository = get()) }
     viewModel { ProfileViewModel(userRepository = get()) }
     viewModel { SearchViewModel(searchRepository = get()) }
+    viewModel { PlayerViewModel(playbackManager = get()) }
+    viewModel { PlaylistsViewModel(playlistRepository = get()) }
+    viewModel { PlaylistDetailViewModel(playlistRepository = get()) }
+    viewModel { LibrarySongsViewModel(libraryRepository = get()) }
 }

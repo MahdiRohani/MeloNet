@@ -7,11 +7,3 @@ data class Artist(
     val bio: String?,
     val songCount: Int = 0,
 )
-
-data class Playlist(
-    val id: Int,
-    val title: String,
-    val coverUrl: String,
-    val songCount: Int,
-    val isOwner: Boolean
-)

@@ -1,5 +1,7 @@
 package com.melonet.app.core.navigation
 
+import androidx.activity.compose.LocalActivity
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +22,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.MeloTopBar
+import com.melonet.app.core.designsystem.component.MiniPlayerBar
 import com.melonet.app.data.model.AuthState
+import com.melonet.app.data.model.Song
 import com.melonet.app.feature.auth.AuthViewModel
 import com.melonet.app.feature.auth.LoginScreen
 import com.melonet.app.feature.auth.LoginViewModel
@@ -28,17 +32,30 @@ import com.melonet.app.feature.auth.RegisterScreen
 import com.melonet.app.feature.auth.RegisterViewModel
 import com.melonet.app.feature.home.HomeScreen
 import com.melonet.app.feature.home.HomeViewModel
-import com.melonet.app.feature.search.SearchScreen
-import com.melonet.app.feature.search.SearchViewModel
+import com.melonet.app.feature.player.PlayerContract
+import com.melonet.app.feature.player.PlayerScreen
+import com.melonet.app.feature.player.PlayerViewModel
+import com.melonet.app.feature.playlists.LibraryListType
+import com.melonet.app.feature.playlists.LibrarySongsScreen
+import com.melonet.app.feature.playlists.LibrarySongsViewModel
+import com.melonet.app.feature.playlists.PlaylistDetailScreen
+import com.melonet.app.feature.playlists.PlaylistDetailViewModel
+import com.melonet.app.feature.playlists.PlaylistsScreen
+import com.melonet.app.feature.playlists.PlaylistsViewModel
 import com.melonet.app.feature.profile.ProfileScreen
 import com.melonet.app.feature.profile.ProfileViewModel
+import com.melonet.app.feature.search.SearchScreen
+import com.melonet.app.feature.search.SearchViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun MelonetMainScreen() {
     val navController = rememberNavController()
+    val activity = LocalActivity.current as ComponentActivity
     val authViewModel: AuthViewModel = koinViewModel()
+    val playerViewModel: PlayerViewModel = koinViewModel(viewModelStoreOwner = activity)
     val authState by authViewModel.authState.collectAsState()
+    val playerState by playerViewModel.uiState.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -51,7 +68,17 @@ fun MelonetMainScreen() {
             !destination.hasRoute(ChatRoute::class)
     } == true
 
+    val showMiniPlayer = showAppShell &&
+        playerState.currentSong != null &&
+        !currentDestination.hasRoute(PlayerRoute::class)
+
     val authenticatedUser = (authState as? AuthState.Authenticated)?.user
+
+    fun playSong(song: Song, queue: List<Song> = listOf(song)) {
+        val playQueue = queue.ifEmpty { listOf(song) }
+        playerViewModel.handleEvent(PlayerContract.Event.PlaySong(song, playQueue))
+        navController.navigate(PlayerRoute(songId = song.id))
+    }
 
     Scaffold(
         topBar = {
@@ -67,7 +94,25 @@ fun MelonetMainScreen() {
         bottomBar = {
             if (showAppShell) {
                 Column {
-                    // Mini player slot — wired in A6 (Player)
+                    if (showMiniPlayer) {
+                        val song = playerState.currentSong!!
+                        val progress = if (playerState.durationMs > 0) {
+                            playerState.positionMs.toFloat() / playerState.durationMs
+                        } else {
+                            0f
+                        }
+                        MiniPlayerBar(
+                            title = song.title,
+                            artist = song.artistName,
+                            coverUrl = song.coverUrl,
+                            isPlaying = playerState.isPlaying,
+                            progress = progress,
+                            onClick = { navController.navigate(PlayerRoute(songId = song.id)) },
+                            onPlayPauseClick = {
+                                playerViewModel.handleEvent(PlayerContract.Event.TogglePlayPause)
+                            },
+                        )
+                    }
                     MelonetBottomNavigation(navController)
                 }
             }
@@ -128,12 +173,8 @@ fun MelonetMainScreen() {
                 val homeViewModel: HomeViewModel = koinViewModel()
                 HomeScreen(
                     viewModel = homeViewModel,
-                    onSongClick = { songId ->
-                        navController.navigate(PlayerRoute(songId = songId))
-                    },
-                    onNavigate = { route ->
-                        navController.navigate(route)
-                    },
+                    onPlaySong = { song, queue -> playSong(song, queue) },
+                    onNavigate = { route -> navController.navigate(route) },
                 )
             }
 
@@ -141,9 +182,7 @@ fun MelonetMainScreen() {
                 val searchViewModel: SearchViewModel = koinViewModel()
                 SearchScreen(
                     viewModel = searchViewModel,
-                    onNavigateToSong = { songId ->
-                        navController.navigate(SongDetailRoute(songId = songId))
-                    },
+                    onPlaySong = { song -> playSong(song) },
                     onNavigateToArtist = { artistId ->
                         navController.navigate(ArtistDetailRoute(artistId = artistId))
                     },
@@ -156,13 +195,41 @@ fun MelonetMainScreen() {
                 DummyScreen(titleRes = R.string.placeholder_downloads_tab)
             }
             composable<PlaylistsRoute> {
-                DummyScreen(titleRes = R.string.placeholder_playlists_tab)
+                val playlistsViewModel: PlaylistsViewModel = koinViewModel()
+                PlaylistsScreen(
+                    viewModel = playlistsViewModel,
+                    onNavigateToDetail = { playlistId ->
+                        navController.navigate(PlaylistDetailRoute(playlistId = playlistId))
+                    },
+                    onNavigateToLiked = { navController.navigate(LikedSongsRoute) },
+                    onNavigateToRecent = { navController.navigate(RecentSongsRoute) },
+                )
             }
             composable<LikedSongsRoute> {
-                DummyScreen(titleRes = R.string.profile_liked_songs)
+                val libraryViewModel: LibrarySongsViewModel = koinViewModel()
+                LibrarySongsScreen(
+                    listType = LibraryListType.LIKED,
+                    viewModel = libraryViewModel,
+                    onNavigateToPlayer = { songId -> navController.navigate(PlayerRoute(songId)) },
+                    onPlayQueue = { startId, songs, shuffle ->
+                        val queue = if (shuffle) songs.shuffled() else songs
+                        val start = queue.find { it.id == startId } ?: queue.firstOrNull() ?: return@LibrarySongsScreen
+                        playSong(start, queue)
+                    },
+                )
             }
             composable<RecentSongsRoute> {
-                DummyScreen(titleRes = R.string.home_quick_action_recent)
+                val libraryViewModel: LibrarySongsViewModel = koinViewModel()
+                LibrarySongsScreen(
+                    listType = LibraryListType.RECENT,
+                    viewModel = libraryViewModel,
+                    onNavigateToPlayer = { songId -> navController.navigate(PlayerRoute(songId)) },
+                    onPlayQueue = { startId, songs, shuffle ->
+                        val queue = if (shuffle) songs.shuffled() else songs
+                        val start = queue.find { it.id == startId } ?: queue.firstOrNull() ?: return@LibrarySongsScreen
+                        playSong(start, queue)
+                    },
+                )
             }
             composable<FollowingRoute> {
                 DummyScreen(titleRes = R.string.home_quick_action_following)
@@ -195,9 +262,16 @@ fun MelonetMainScreen() {
 
             composable<PlaylistDetailRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<PlaylistDetailRoute>()
-                DummyScreen(
-                    titleRes = R.string.placeholder_playlist_detail,
-                    formatArg = args.playlistId,
+                val detailViewModel: PlaylistDetailViewModel = koinViewModel()
+                PlaylistDetailScreen(
+                    playlistId = args.playlistId,
+                    viewModel = detailViewModel,
+                    onNavigateToPlayer = { songId -> navController.navigate(PlayerRoute(songId)) },
+                    onPlayQueue = { startId, songs, shuffle ->
+                        val queue = if (shuffle) songs.shuffled() else songs
+                        val start = queue.find { it.id == startId } ?: queue.firstOrNull() ?: return@PlaylistDetailScreen
+                        playSong(start, queue)
+                    },
                 )
             }
 
@@ -213,16 +287,17 @@ fun MelonetMainScreen() {
                 val profileViewModel: ProfileViewModel = koinViewModel()
                 ProfileScreen(
                     viewModel = profileViewModel,
-                    onLikedSongsClick = { navController.navigate(PlaylistsRoute) },
+                    onLikedSongsClick = { navController.navigate(LikedSongsRoute) },
                     onMyPlaylistsClick = { navController.navigate(PlaylistsRoute) },
                 )
             }
 
             composable<PlayerRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<PlayerRoute>()
-                DummyScreen(
-                    titleRes = R.string.placeholder_player,
-                    formatArg = args.songId,
+                PlayerScreen(
+                    viewModel = playerViewModel,
+                    songId = args.songId,
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 

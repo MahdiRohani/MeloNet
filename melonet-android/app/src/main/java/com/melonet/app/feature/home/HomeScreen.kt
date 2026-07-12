@@ -55,7 +55,7 @@ import com.melonet.app.data.model.Song
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onSongClick: (Int) -> Unit,
+    onPlaySong: (Song, List<Song>) -> Unit,
     onNavigate: (Any) -> Unit,
     snackbarHostState: SnackbarHostState? = null,
 ) {
@@ -66,7 +66,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is HomeContract.Effect.NavigateToPlayer -> onSongClick(effect.songId)
+                is HomeContract.Effect.PlaySong -> onPlaySong(effect.song, effect.queue)
                 is HomeContract.Effect.Navigate -> onNavigate(effect.destination.toRoute())
                 is HomeContract.Effect.ShowError -> {
                     snackbarHostState?.showSnackbar(effect.error.displayMessage(context))
@@ -110,8 +110,8 @@ fun HomeScreen(
                     quickActions = state.feed?.quickActions.orEmpty(),
                     rows = state.feed?.rows.orEmpty(),
                     isLoading = false,
-                    onSongClick = { songId ->
-                        viewModel.handleEvent(HomeContract.Event.SongClicked(songId))
+                    onSongClick = { song ->
+                        viewModel.handleEvent(HomeContract.Event.SongClicked(song))
                     },
                     onQuickActionClick = { action ->
                         viewModel.handleEvent(HomeContract.Event.QuickActionClicked(action))
@@ -131,7 +131,7 @@ private fun HomeFeedContent(
     quickActions: List<QuickAction>,
     rows: List<HomeRow>,
     isLoading: Boolean,
-    onSongClick: (Int) -> Unit,
+    onSongClick: (Song) -> Unit,
     onQuickActionClick: (QuickAction) -> Unit,
     onSeeAllClick: (HomeRow) -> Unit,
 ) {
@@ -263,7 +263,7 @@ private fun SongSection(
     songs: List<Song>,
     seeAllPath: String?,
     isLoading: Boolean,
-    onSongClick: (Int) -> Unit,
+    onSongClick: (Song) -> Unit,
     onSeeAllClick: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
@@ -290,7 +290,7 @@ private fun SongSection(
                         subtitle = song.artistName,
                         imageUrl = song.coverUrl,
                         sharedTransitionKey = PlayerSharedKeys.songCover(song.id),
-                        onClick = { onSongClick(song.id) },
+                        onClick = { onSongClick(song) },
                     )
                 }
             }

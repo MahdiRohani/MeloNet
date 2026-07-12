@@ -53,6 +53,35 @@
     <!-- Actions -->
     <string name="action_retry">تلاش مجدد</string>
     <string name="action_see_all">مشاهده همه</string>
+    <string name="action_create">ساخت</string>
+    <string name="action_cancel">لغو</string>
+
+    <!-- Player -->
+    <string name="player_speed_title">سرعت پخش</string>
+    <string name="player_speed_format">%1$.1fx</string>
+    <string name="player_sleep_timer_title">تایمر خواب</string>
+    <string name="player_sleep_timer_off">خاموش</string>
+    <string name="player_sleep_timer_minutes">%1$d دقیقه</string>
+    <string name="player_sleep_timer_active">خواب تا %1$d دقیقه</string>
+    <string name="cd_player_back">بازگشت</string>
+    <string name="cd_play">پخش</string>
+    <string name="cd_pause">توقف</string>
+    <string name="cd_skip_next">آهنگ بعدی</string>
+    <string name="cd_skip_previous">آهنگ قبلی</string>
+    <string name="cd_playback_speed">سرعت پخش</string>
+    <string name="cd_sleep_timer">تایمر خواب</string>
+
+    <!-- Playlists -->
+    <string name="playlists_section_global">پلی‌لیست‌های جهانی</string>
+    <string name="playlists_section_mine">پلی‌لیست‌های من</string>
+    <string name="playlists_create_title">پلی‌لیست جدید</string>
+    <string name="playlists_create_name">نام پلی‌لیست</string>
+    <string name="playlists_empty">هنوز پلی‌لیستی نیست</string>
+    <string name="playlists_song_count">%1$d آهنگ</string>
+    <string name="library_play_all">پخش همه</string>
+    <string name="library_shuffle">تصادفی</string>
+    <string name="cd_create_playlist">ساخت پلی‌لیست</string>
+    <string name="cd_delete_song">حذف آهنگ</string>
 
     <!-- Auth -->
     <string name="auth_login_title">خوش آمدید</string>
