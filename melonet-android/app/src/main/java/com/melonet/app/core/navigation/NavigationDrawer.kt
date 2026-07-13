@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
@@ -42,6 +44,8 @@ data class DrawerMenuItem<T : Any>(
 
 val drawerMenuItems = listOf(
     DrawerMenuItem(R.string.nav_profile, Icons.Default.Person, ProfileRoute),
+    DrawerMenuItem(R.string.nav_playlists, Icons.AutoMirrored.Filled.QueueMusic, PlaylistsRoute),
+    DrawerMenuItem(R.string.nav_local_music, Icons.Default.LibraryMusic, LocalMusicRoute),
     DrawerMenuItem(R.string.chat_conversations_title, Icons.AutoMirrored.Filled.Chat, ConversationsRoute),
     DrawerMenuItem(R.string.nav_downloads, Icons.Default.Download, DownloadsRoute),
     DrawerMenuItem(R.string.settings_title, Icons.Default.Settings, SettingsRoute),

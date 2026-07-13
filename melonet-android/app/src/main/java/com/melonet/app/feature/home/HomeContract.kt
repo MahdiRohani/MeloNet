@@ -4,6 +4,7 @@ import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
+import com.melonet.app.data.model.Artist
 import com.melonet.app.data.model.HomeFeed
 import com.melonet.app.data.model.HomeRow
 import com.melonet.app.data.model.QuickAction
@@ -24,6 +25,7 @@ object HomeContract {
         data class SongClicked(val song: Song) : Event
         data class QuickActionClicked(val action: QuickAction) : Event
         data class SeeAllClicked(val row: HomeRow) : Event
+        data class ArtistClicked(val artist: Artist) : Event
     }
 
     sealed interface Effect : UiEffect {

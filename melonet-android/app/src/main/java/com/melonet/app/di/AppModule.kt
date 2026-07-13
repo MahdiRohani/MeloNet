@@ -9,6 +9,7 @@ import com.melonet.app.core.network.TokenAuthenticator
 import com.melonet.app.data.local.MeloNetDatabase
 import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.local.TokenManager
+import com.melonet.app.data.remote.ArtistApi
 import com.melonet.app.data.remote.AuthApi
 import com.melonet.app.data.remote.CatalogApi
 import com.melonet.app.data.remote.HomeApi
@@ -17,6 +18,7 @@ import com.melonet.app.data.remote.PlaylistApi
 import com.melonet.app.data.remote.SearchApi
 import com.melonet.app.data.remote.ChatApi
 import com.melonet.app.data.remote.SocialApi
+import com.melonet.app.data.repository.ArtistRepository
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.CatalogRepository
 import com.melonet.app.data.repository.HomeRepository
@@ -34,7 +36,9 @@ import com.melonet.app.data.repository.UserRepository
 import com.melonet.app.feature.auth.AuthViewModel
 import com.melonet.app.feature.auth.LoginViewModel
 import com.melonet.app.feature.auth.RegisterViewModel
+import com.melonet.app.feature.artist.ArtistDetailViewModel
 import com.melonet.app.feature.catalog.CatalogViewModel
+import com.melonet.app.feature.following.FollowingViewModel
 import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.PlayerViewModel
@@ -118,6 +122,7 @@ val appModule = module {
     single { get<Retrofit>().create(AuthApi::class.java) }
     single { get<Retrofit>().create(SearchApi::class.java) }
     single { get<Retrofit>().create(CatalogApi::class.java) }
+    single { get<Retrofit>().create(ArtistApi::class.java) }
     single { get<Retrofit>().create(LibraryApi::class.java) }
     single { get<Retrofit>().create(PlaylistApi::class.java) }
     single { get<Retrofit>().create(SocialApi::class.java) }
@@ -139,6 +144,7 @@ val appModule = module {
 
     single { HomeRepository(homeApi = get(), dispatchers = get()) }
     single { CatalogRepository(catalogApi = get()) }
+    single { ArtistRepository(artistApi = get(), dispatchers = get()) }
     single {
         SearchRepository(
             searchApi = get(),
@@ -207,6 +213,8 @@ val appModule = module {
     viewModel { RegisterViewModel(authRepository = get()) }
     viewModel { HomeViewModel(homeRepository = get()) }
     viewModel { CatalogViewModel(catalogRepository = get()) }
+    viewModel { ArtistDetailViewModel(artistRepository = get()) }
+    viewModel { FollowingViewModel(socialRepository = get(), artistRepository = get()) }
     viewModel { ProfileViewModel(userRepository = get()) }
     viewModel { EditProfileViewModel(userRepository = get(), authRepository = get(), appContext = androidContext()) }
     viewModel { SettingsViewModel(settingsRepository = get(), authRepository = get()) }

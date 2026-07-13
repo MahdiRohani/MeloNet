@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Public
@@ -38,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
+import com.melonet.app.core.designsystem.component.ArtistCircleItem
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.QuickActionChip
@@ -48,6 +50,8 @@ import com.melonet.app.core.designsystem.component.SongCard
 import com.melonet.app.core.designsystem.component.SongCardShimmer
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.core.ui.PlayerSharedKeys
+import com.melonet.app.data.model.Artist
+import com.melonet.app.data.model.HomeArtistRow
 import com.melonet.app.data.model.HomeRow
 import com.melonet.app.data.model.QuickAction
 import com.melonet.app.data.model.Song
@@ -79,13 +83,14 @@ fun HomeScreen(
     when {
         state.isLoading -> {
             HomeFeedContent(
-                carouselSongs = emptyList(),
                 quickActions = emptyList(),
                 rows = emptyList(),
+                artistRows = emptyList(),
                 isLoading = true,
                 onSongClick = {},
                 onQuickActionClick = {},
                 onSeeAllClick = {},
+                onArtistClick = {},
             )
         }
         errorMessage != null && state.feed == null -> {
@@ -107,9 +112,9 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 HomeFeedContent(
-                    carouselSongs = state.feed?.carousel.orEmpty(),
                     quickActions = state.feed?.quickActions.orEmpty(),
                     rows = state.feed?.rows.orEmpty(),
+                    artistRows = state.feed?.artistRows.orEmpty(),
                     isLoading = false,
                     onSongClick = { song ->
                         viewModel.handleEvent(HomeContract.Event.SongClicked(song))
@@ -120,6 +125,9 @@ fun HomeScreen(
                     onSeeAllClick = { row ->
                         viewModel.handleEvent(HomeContract.Event.SeeAllClicked(row))
                     },
+                    onArtistClick = { artist ->
+                        viewModel.handleEvent(HomeContract.Event.ArtistClicked(artist))
+                    },
                 )
             }
         }
@@ -128,15 +136,26 @@ fun HomeScreen(
 
 @Composable
 private fun HomeFeedContent(
-    carouselSongs: List<Song>,
     quickActions: List<QuickAction>,
     rows: List<HomeRow>,
+    artistRows: List<HomeArtistRow>,
     isLoading: Boolean,
     onSongClick: (Song) -> Unit,
     onQuickActionClick: (QuickAction) -> Unit,
     onSeeAllClick: (HomeRow) -> Unit,
+    onArtistClick: (Artist) -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
+
+    val carouselCategories = rows
+        .filter { it.items.isNotEmpty() }
+        .map { row ->
+            CarouselCategory(
+                title = row.title,
+                coverUrl = row.items.first().coverUrl,
+                row = row,
+            )
+        }
 
     LazyColumn(
         modifier = Modifier
@@ -145,9 +164,9 @@ private fun HomeFeedContent(
     ) {
         item {
             HomeCarousel(
-                songs = carouselSongs,
+                categories = carouselCategories,
                 isLoading = isLoading,
-                onSongClick = onSongClick,
+                onCategoryClick = onSeeAllClick,
             )
         }
 
@@ -181,9 +200,41 @@ private fun HomeFeedContent(
                     onSeeAllClick = { onSeeAllClick(row) },
                 )
             }
+
+            items(artistRows.filter { it.items.isNotEmpty() }, key = { it.id }) { row ->
+                ArtistSection(
+                    title = row.title,
+                    artists = row.items,
+                    onArtistClick = onArtistClick,
+                )
+            }
         }
 
         item { Spacer(modifier = Modifier.height(spacing.lg)) }
+    }
+}
+
+@Composable
+private fun ArtistSection(
+    title: String,
+    artists: List<Artist>,
+    onArtistClick: (Artist) -> Unit,
+) {
+    val spacing = MeloNetTheme.spacing
+    Column(modifier = Modifier.padding(vertical = spacing.sm + spacing.xs)) {
+        SectionHeader(title = title, onActionClick = null)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            items(artists, key = { it.id }) { artist ->
+                ArtistCircleItem(
+                    name = artist.name,
+                    imageUrl = artist.imageUrl,
+                    onClick = { onArtistClick(artist) },
+                )
+            }
+        }
     }
 }
 
@@ -239,6 +290,8 @@ private fun fallbackLabelForAction(action: QuickAction): String {
         "popular" in key || "trending" in key -> stringResource(R.string.home_quick_action_popular)
         "new" in key -> stringResource(R.string.home_quick_action_new)
         "iranian" in key || "persian" in key -> stringResource(R.string.home_quick_action_iranian)
+        "turkish" in key -> stringResource(R.string.home_quick_action_turkish)
+        "instrumental" in key -> stringResource(R.string.home_quick_action_instrumental)
         "global" in key || "public" in key -> stringResource(R.string.home_quick_action_global)
         else -> action.id
     }
@@ -251,6 +304,8 @@ private fun iconForQuickAction(action: QuickAction): ImageVector {
         "popular" in key || "trending" in key -> Icons.Default.TrendingUp
         "new" in key -> Icons.Default.NewReleases
         "iranian" in key || "persian" in key -> Icons.Default.Flag
+        "turkish" in key -> Icons.Default.Public
+        "instrumental" in key -> Icons.Default.MusicNote
         "global" in key || "public" in key -> Icons.Default.Public
         "liked" in key || "favorite" in key -> Icons.Default.Favorite
         "recent" in key || "history" in key -> Icons.Default.History

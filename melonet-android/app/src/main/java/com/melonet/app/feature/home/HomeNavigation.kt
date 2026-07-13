@@ -1,5 +1,6 @@
 package com.melonet.app.feature.home
 
+import com.melonet.app.core.navigation.ArtistDetailRoute
 import com.melonet.app.core.navigation.CatalogRoute
 import com.melonet.app.core.navigation.FollowingRoute
 import com.melonet.app.core.navigation.LikedSongsRoute
@@ -15,6 +16,7 @@ sealed interface HomeDestination {
     data object Recent : HomeDestination
     data object Playlists : HomeDestination
     data object Following : HomeDestination
+    data class Artist(val artistId: Int) : HomeDestination
 }
 
 object HomeNavigation {
@@ -66,4 +68,5 @@ fun HomeDestination.toRoute(): Any = when (this) {
     HomeDestination.Recent -> RecentSongsRoute
     HomeDestination.Playlists -> PlaylistsRoute
     HomeDestination.Following -> FollowingRoute
+    is HomeDestination.Artist -> ArtistDetailRoute(artistId = artistId)
 }

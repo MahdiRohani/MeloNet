@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -26,6 +27,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -34,10 +39,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.paging.LoadState
@@ -66,6 +73,8 @@ fun SearchScreen(
     val state by viewModel.uiState.collectAsState()
     val searchResults = viewModel.searchResults.collectAsLazyPagingItems()
     val spacing = MeloNetTheme.spacing
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -73,93 +82,110 @@ fun SearchScreen(
                 is SearchContract.Effect.PlaySong -> onPlaySong(effect.song)
                 is SearchContract.Effect.NavigateToArtist -> onNavigateToArtist(effect.artistId)
                 is SearchContract.Effect.NavigateToUser -> onNavigateToUser(effect.userId)
+                is SearchContract.Effect.ShowHistoryDeletedUndo -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.search_history_deleted, effect.query),
+                        actionLabel = context.getString(R.string.action_undo),
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.handleEvent(
+                            SearchContract.Event.HistoryDeleteUndone(effect.query, effect.searchedAt),
+                        )
+                    }
+                }
             }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
-        MeloSearchBar(
-            query = state.query,
-            onQueryChange = { viewModel.handleEvent(SearchContract.Event.QueryChanged(it)) },
-            onSearch = { viewModel.handleEvent(SearchContract.Event.QuerySubmitted(it)) },
-            placeholder = stringResource(R.string.search_hint),
-            modifier = Modifier.padding(top = spacing.sm),
-        )
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            MeloSearchBar(
+                query = state.query,
+                onQueryChange = { viewModel.handleEvent(SearchContract.Event.QueryChanged(it)) },
+                onSearch = { viewModel.handleEvent(SearchContract.Event.QuerySubmitted(it)) },
+                placeholder = stringResource(R.string.search_hint),
+                modifier = Modifier.padding(top = spacing.sm),
+            )
 
-        SearchFilterRow(
-            selectedFilter = state.selectedFilter,
-            onFilterSelected = { filter ->
-                viewModel.handleEvent(SearchContract.Event.FilterSelected(filter))
-            },
-        )
+            SearchFilterRow(
+                selectedFilter = state.selectedFilter,
+                onFilterSelected = { filter ->
+                    viewModel.handleEvent(SearchContract.Event.FilterSelected(filter))
+                },
+            )
 
-        when {
-            state.query.isBlank() -> {
-                SearchHistorySection(
-                    history = state.history,
-                    onHistoryClick = { query ->
-                        viewModel.handleEvent(SearchContract.Event.HistoryItemClicked(query))
-                    },
-                    onHistoryDelete = { query ->
-                        viewModel.handleEvent(SearchContract.Event.HistoryItemDeleted(query))
-                    },
-                )
-            }
-            searchResults.loadState.refresh is LoadState.Loading && searchResults.itemCount == 0 -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            when {
+                state.query.isBlank() -> {
+                    SearchHistorySection(
+                        history = state.history,
+                        onHistoryClick = { query ->
+                            viewModel.handleEvent(SearchContract.Event.HistoryItemClicked(query))
+                        },
+                        onHistoryDelete = { query ->
+                            viewModel.handleEvent(SearchContract.Event.HistoryItemDeleted(query))
+                        },
+                    )
                 }
-            }
-            searchResults.loadState.refresh is LoadState.Error && searchResults.itemCount == 0 -> {
-                val errorMessage = (searchResults.loadState.refresh as LoadState.Error)
-                    .error.message
-                    ?: stringResource(R.string.search_error_title)
-                ErrorState(
-                    message = errorMessage,
-                    onRetry = { searchResults.retry() },
-                )
-            }
-            searchResults.itemCount == 0 &&
-                searchResults.loadState.refresh is LoadState.NotLoading -> {
-                EmptyState(title = stringResource(R.string.search_no_results))
-            }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(vertical = spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
-                ) {
-                    items(
-                        count = searchResults.itemCount,
-                        key = searchResults.itemKey { it.stableKey() },
-                    ) { index ->
-                        val item = searchResults[index] ?: return@items
-                        SearchResultRow(
-                            item = item,
-                            onClick = {
-                                viewModel.handleEvent(SearchContract.Event.ResultClicked(item))
-                            },
-                        )
+                searchResults.loadState.refresh is LoadState.Loading && searchResults.itemCount == 0 -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
+                }
+                searchResults.loadState.refresh is LoadState.Error && searchResults.itemCount == 0 -> {
+                    val errorMessage = (searchResults.loadState.refresh as LoadState.Error)
+                        .error.message
+                        ?: stringResource(R.string.search_error_title)
+                    ErrorState(
+                        message = errorMessage,
+                        onRetry = { searchResults.retry() },
+                    )
+                }
+                searchResults.itemCount == 0 &&
+                    searchResults.loadState.refresh is LoadState.NotLoading -> {
+                    EmptyState(title = stringResource(R.string.search_no_results))
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(vertical = spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                    ) {
+                        items(
+                            count = searchResults.itemCount,
+                            key = searchResults.itemKey { it.stableKey() },
+                        ) { index ->
+                            val item = searchResults[index] ?: return@items
+                            SearchResultRow(
+                                item = item,
+                                onClick = {
+                                    viewModel.handleEvent(SearchContract.Event.ResultClicked(item))
+                                },
+                            )
+                        }
 
-                    if (searchResults.loadState.append is LoadState.Loading) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(spacing.md),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(spacing.lg),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
+                        if (searchResults.loadState.append is LoadState.Loading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(spacing.md),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(spacing.lg),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
                             }
                         }
                     }
@@ -215,14 +241,16 @@ private fun SearchHistorySection(
         return
     }
 
-    Column(modifier = Modifier.padding(horizontal = spacing.md)) {
-        Text(
-            text = stringResource(R.string.search_history_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(vertical = spacing.sm),
-        )
-        history.forEach { query ->
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item(key = "history_header") {
+            Text(
+                text = stringResource(R.string.search_history_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
+            )
+        }
+        items(items = history, key = { it }) { query ->
             SearchHistoryItem(
                 query = query,
                 onClick = { onHistoryClick(query) },

@@ -12,18 +12,21 @@ interface CatalogApi {
 
     @GET("api/catalog/popular")
     suspend fun getPopular(
+        @Query("sort") sort: String?,
         @Query("page") page: Int,
         @Query("limit") limit: Int,
     ): ApiResponse<List<SongDto>>
 
     @GET("api/catalog/new")
     suspend fun getNewReleases(
+        @Query("sort") sort: String?,
         @Query("page") page: Int,
         @Query("limit") limit: Int,
     ): ApiResponse<List<SongDto>>
 
     @GET("api/catalog/trending")
     suspend fun getTrending(
+        @Query("sort") sort: String?,
         @Query("page") page: Int,
         @Query("limit") limit: Int,
     ): ApiResponse<List<SongDto>>

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -82,14 +83,18 @@ type audiusArtwork struct {
 }
 
 type trackDTO struct {
-	ID           string        `json:"id"`
-	Title        string        `json:"title"`
-	Duration     int           `json:"duration"`
-	Genre        string        `json:"genre"`
-	Mood         string        `json:"mood"`
-	IsStreamable *bool         `json:"is_streamable"`
-	Artwork      audiusArtwork `json:"artwork"`
-	User         struct {
+	ID            string        `json:"id"`
+	Title         string        `json:"title"`
+	Duration      int           `json:"duration"`
+	Genre         string        `json:"genre"`
+	Mood          string        `json:"mood"`
+	IsStreamable  *bool         `json:"is_streamable"`
+	PlayCount     int           `json:"play_count"`
+	RepostCount   int           `json:"repost_count"`
+	FavoriteCount int           `json:"favorite_count"`
+	ReleaseDate   string        `json:"release_date"`
+	Artwork       audiusArtwork `json:"artwork"`
+	User          struct {
 		Name string `json:"name"`
 	} `json:"user"`
 }
@@ -285,14 +290,18 @@ func dtoToTrack(dto trackDTO) (Track, bool) {
 		return Track{}, false
 	}
 	return Track{
-		ID:          dto.ID,
-		Title:       strings.TrimSpace(dto.Title),
-		Artist:      strings.TrimSpace(dto.User.Name),
-		Genre:       strings.TrimSpace(dto.Genre),
-		Mood:        strings.TrimSpace(dto.Mood),
-		CoverURL:    firstNonEmpty(dto.Artwork.Large, dto.Artwork.Medium, dto.Artwork.Small),
-		ThumbURL:    firstNonEmpty(dto.Artwork.Small, dto.Artwork.Medium, dto.Artwork.Large),
-		DurationSec: dto.Duration,
+		ID:            dto.ID,
+		Title:         strings.TrimSpace(dto.Title),
+		Artist:        strings.TrimSpace(dto.User.Name),
+		Genre:         strings.TrimSpace(dto.Genre),
+		Mood:          strings.TrimSpace(dto.Mood),
+		CoverURL:      firstNonEmpty(dto.Artwork.Large, dto.Artwork.Medium, dto.Artwork.Small),
+		ThumbURL:      firstNonEmpty(dto.Artwork.Small, dto.Artwork.Medium, dto.Artwork.Large),
+		DurationSec:   dto.Duration,
+		PlayCount:     dto.PlayCount,
+		RepostCount:   dto.RepostCount,
+		FavoriteCount: dto.FavoriteCount,
+		ReleaseDate:   strings.TrimSpace(dto.ReleaseDate),
 	}, true
 }
 
@@ -303,6 +312,87 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// SortByPopularity orders tracks in place from most to least popular (stable).
+func SortByPopularity(tracks []Track) {
+	sort.SliceStable(tracks, func(i, j int) bool {
+		return tracks[i].Popularity() > tracks[j].Popularity()
+	})
+}
+
+// Sort keys accepted by SortTracks / catalog "sort" query param.
+const (
+	SortMostPlayed = "most_played"
+	SortMostLiked  = "most_liked"
+	SortNewest     = "newest"
+	SortOldest     = "oldest"
+)
+
+// NormalizeSort maps user/API sort aliases to a canonical sort key.
+func NormalizeSort(sort string) string {
+	switch strings.ToLower(strings.TrimSpace(sort)) {
+	case "most_played", "plays", "popular", "most_viewed", "views":
+		return SortMostPlayed
+	case "most_liked", "likes", "favorites":
+		return SortMostLiked
+	case "newest", "new", "latest":
+		return SortNewest
+	case "oldest", "old":
+		return SortOldest
+	default:
+		return SortMostPlayed
+	}
+}
+
+// SortTracks orders tracks in place according to the given sort key.
+func SortTracks(tracks []Track, sort string) {
+	switch NormalizeSort(sort) {
+	case SortMostLiked:
+		sortStable(tracks, func(i, j int) bool {
+			li := tracks[i].FavoriteCount + tracks[i].RepostCount
+			lj := tracks[j].FavoriteCount + tracks[j].RepostCount
+			return li > lj
+		})
+	case SortNewest:
+		sortStable(tracks, func(i, j int) bool {
+			return tracks[i].ReleaseDate > tracks[j].ReleaseDate
+		})
+	case SortOldest:
+		sortStable(tracks, func(i, j int) bool {
+			// Empty dates sort last for "oldest".
+			if tracks[i].ReleaseDate == "" {
+				return false
+			}
+			if tracks[j].ReleaseDate == "" {
+				return true
+			}
+			return tracks[i].ReleaseDate < tracks[j].ReleaseDate
+		})
+	default:
+		SortByPopularity(tracks)
+	}
+}
+
+func sortStable(tracks []Track, less func(i, j int) bool) {
+	sort.SliceStable(tracks, less)
+}
+
+// DedupeTracks removes duplicate tracks by ID, preserving first-seen order.
+func DedupeTracks(tracks []Track) []Track {
+	seen := make(map[string]struct{}, len(tracks))
+	out := make([]Track, 0, len(tracks))
+	for _, t := range tracks {
+		if t.ID == "" {
+			continue
+		}
+		if _, ok := seen[t.ID]; ok {
+			continue
+		}
+		seen[t.ID] = struct{}{}
+		out = append(out, t)
+	}
+	return out
 }
 
 func Paginate(tracks []Track, page, limit int) ([]Track, int) {

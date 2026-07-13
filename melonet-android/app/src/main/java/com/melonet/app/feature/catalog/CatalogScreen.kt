@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,10 +20,11 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.melonet.app.R
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
-import com.melonet.app.core.designsystem.component.MeloButton
-import com.melonet.app.core.designsystem.component.MeloButtonVariant
+import com.melonet.app.core.designsystem.component.SortFilterRow
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.Song
 import com.melonet.app.feature.playlists.SongListItem
@@ -38,6 +38,7 @@ fun CatalogScreen(
 ) {
     val spacing = MeloNetTheme.spacing
     val songs = viewModel.songs.collectAsLazyPagingItems()
+    val state by viewModel.uiState.collectAsState()
 
     LaunchedEffect(listType, filter) {
         viewModel.configure(listType, filter)
@@ -69,22 +70,11 @@ fun CatalogScreen(
             modifier = Modifier.padding(bottom = spacing.md),
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            MeloButton(
-                text = stringResource(R.string.library_play_all),
-                onClick = { viewModel.handleEvent(CatalogContract.Event.PlayAll) },
-                modifier = Modifier.weight(1f),
-            )
-            MeloButton(
-                text = stringResource(R.string.library_shuffle),
-                onClick = { viewModel.handleEvent(CatalogContract.Event.ShuffleAll) },
-                modifier = Modifier.weight(1f),
-                variant = MeloButtonVariant.Outlined,
-            )
-        }
+        SortFilterRow(
+            selected = state.sort,
+            onSelected = { viewModel.handleEvent(CatalogContract.Event.SortSelected(it)) },
+            modifier = Modifier.padding(bottom = spacing.sm),
+        )
 
         when {
             songs.loadState.refresh is LoadState.Loading && songs.itemCount == 0 -> {
@@ -150,6 +140,8 @@ private fun catalogTitle(listType: String, filter: String?): String = when (list
     "category" -> when (filter?.lowercase()) {
         "global" -> stringResource(R.string.home_quick_action_global)
         "iranian" -> stringResource(R.string.catalog_iranian)
+        "turkish" -> stringResource(R.string.home_quick_action_turkish)
+        "instrumental" -> stringResource(R.string.home_quick_action_instrumental)
         "nostalgia" -> stringResource(R.string.catalog_nostalgia)
         "popular" -> stringResource(R.string.home_quick_action_popular)
         else -> filter ?: stringResource(R.string.nav_home)

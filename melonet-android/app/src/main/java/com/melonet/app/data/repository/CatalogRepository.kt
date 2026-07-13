@@ -12,13 +12,18 @@ import kotlinx.coroutines.flow.Flow
 class CatalogRepository(
     private val catalogApi: CatalogApi,
 ) {
-    fun catalogSongs(listType: CatalogListType, category: String? = null): Flow<PagingData<Song>> = Pager(
+    fun catalogSongs(
+        listType: CatalogListType,
+        category: String? = null,
+        sort: String? = null,
+    ): Flow<PagingData<Song>> = Pager(
         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
         pagingSourceFactory = {
             CatalogPagingSource(
                 catalogApi = catalogApi,
                 listType = listType,
                 category = category,
+                sort = sort,
             )
         },
     ).flow

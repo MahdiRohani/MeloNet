@@ -402,7 +402,7 @@ func (r *PlaylistRepository) ReorderSongs(ctx context.Context, playlistID int64,
 			WHERE playlist_id = $1 AND song_id = $2
 		`, playlistID, songID, position+1)
 		if err != nil {
-			return fmt.Errorf("reorder song %d: %w", songID, err)
+			return fmt.Errorf("reorder song %s: %w", songID, err)
 		}
 		if tag.RowsAffected() == 0 {
 			return ErrNotFound

@@ -21,6 +21,7 @@ object SearchContract {
         data class FilterSelected(val filter: SearchFilter) : Event
         data class HistoryItemClicked(val query: String) : Event
         data class HistoryItemDeleted(val query: String) : Event
+        data class HistoryDeleteUndone(val query: String, val searchedAt: Long) : Event
         data class ResultClicked(val item: SearchResultItem) : Event
     }
 
@@ -28,5 +29,6 @@ object SearchContract {
         data class PlaySong(val song: com.melonet.app.data.model.Song) : Effect
         data class NavigateToArtist(val artistId: Int) : Effect
         data class NavigateToUser(val userId: Int) : Effect
+        data class ShowHistoryDeletedUndo(val query: String, val searchedAt: Long) : Effect
     }
 }

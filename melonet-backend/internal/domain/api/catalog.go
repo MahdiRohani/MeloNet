@@ -22,12 +22,14 @@ type SongResponse struct {
 }
 
 type ArtistResponse struct {
-	ID        uint   `json:"id"`
-	Name      string `json:"name"`
-	Slug      string `json:"slug"`
-	Bio       string `json:"bio,omitempty"`
-	ImageURL  string `json:"image_url"`
-	SongCount int    `json:"song_count,omitempty"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Bio         string `json:"bio,omitempty"`
+	ImageURL    string `json:"image_url"`
+	SongCount   int    `json:"song_count,omitempty"`
+	Region      string `json:"region,omitempty"`
+	IsFollowing bool   `json:"is_following"`
 }
 
 type AlbumResponse struct {
@@ -73,8 +75,16 @@ type HomeRowResponse struct {
 	Items      []SongResponse `json:"items"`
 }
 
+type HomeArtistRowResponse struct {
+	ID         string           `json:"id"`
+	Title      string           `json:"title"`
+	SeeAllPath string           `json:"see_all_path,omitempty"`
+	Items      []ArtistResponse `json:"items"`
+}
+
 type HomeFeedResponse struct {
 	Carousel     []SongResponse          `json:"carousel"`
 	QuickActions []QuickActionResponse   `json:"quick_actions"`
 	Rows         []HomeRowResponse       `json:"rows"`
+	ArtistRows   []HomeArtistRowResponse `json:"artist_rows,omitempty"`
 }

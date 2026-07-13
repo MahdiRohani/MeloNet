@@ -54,7 +54,7 @@ func (h *CatalogHandler) GetSong(c *gin.Context) {
 
 func (h *CatalogHandler) Popular(c *gin.Context) {
 	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 20)
-	songs, meta, err := h.catalog.Popular(c.Request.Context(), page, limit)
+	songs, meta, err := h.catalog.Popular(c.Request.Context(), c.Query("sort"), page, limit)
 	if err != nil {
 		response.InternalError(c, "failed to list popular songs")
 		return
@@ -64,7 +64,7 @@ func (h *CatalogHandler) Popular(c *gin.Context) {
 
 func (h *CatalogHandler) Newest(c *gin.Context) {
 	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 20)
-	songs, meta, err := h.catalog.Newest(c.Request.Context(), page, limit)
+	songs, meta, err := h.catalog.Newest(c.Request.Context(), c.Query("sort"), page, limit)
 	if err != nil {
 		response.InternalError(c, "failed to list new songs")
 		return
@@ -74,7 +74,7 @@ func (h *CatalogHandler) Newest(c *gin.Context) {
 
 func (h *CatalogHandler) Trending(c *gin.Context) {
 	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 20)
-	songs, meta, err := h.catalog.Trending(c.Request.Context(), page, limit)
+	songs, meta, err := h.catalog.Trending(c.Request.Context(), c.Query("sort"), page, limit)
 	if err != nil {
 		response.InternalError(c, "failed to list trending songs")
 		return
@@ -84,7 +84,7 @@ func (h *CatalogHandler) Trending(c *gin.Context) {
 
 func (h *CatalogHandler) ListArtists(c *gin.Context) {
 	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 20)
-	artists, meta, err := h.catalog.ListArtists(c.Request.Context(), c.Query("q"), page, limit)
+	artists, meta, err := h.catalog.ListArtists(c.Request.Context(), c.Query("region"), page, limit)
 	if err != nil {
 		response.InternalError(c, "failed to list artists")
 		return
@@ -115,9 +115,9 @@ func (h *CatalogHandler) ListArtistSongs(c *gin.Context) {
 	}
 
 	page, limit := service.ParsePagination(c.Query("page"), c.Query("limit"), 20)
-	songs, meta, err := h.catalog.ListArtistSongs(c.Request.Context(), artistID, page, limit)
+	songs, meta, err := h.catalog.ListArtistSongs(c.Request.Context(), artistID, c.Query("sort"), page, limit)
 	if err != nil {
-		response.InternalError(c, "failed to list artist songs")
+		mapCatalogError(c, err)
 		return
 	}
 	response.OKWithMeta(c, songs, meta)

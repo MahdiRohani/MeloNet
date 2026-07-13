@@ -32,8 +32,12 @@ import com.melonet.app.feature.auth.LoginScreen
 import com.melonet.app.feature.auth.LoginViewModel
 import com.melonet.app.feature.auth.RegisterScreen
 import com.melonet.app.feature.auth.RegisterViewModel
+import com.melonet.app.feature.artist.ArtistDetailScreen
+import com.melonet.app.feature.artist.ArtistDetailViewModel
 import com.melonet.app.feature.catalog.CatalogScreen
 import com.melonet.app.feature.catalog.CatalogViewModel
+import com.melonet.app.feature.following.FollowingScreen
+import com.melonet.app.feature.following.FollowingViewModel
 import com.melonet.app.feature.downloads.DownloadsScreen
 import com.melonet.app.feature.downloads.DownloadsViewModel
 import com.melonet.app.feature.home.HomeScreen
@@ -109,6 +113,11 @@ fun MelonetMainScreen() {
             !destination.hasRoute(AddSongsRoute::class)
     } == true
 
+    // Chat (ConversationsRoute) is a bottom-nav tab but keeps its own top bar,
+    // so the bottom bar is shown there even though the shell top bar is not.
+    val showBottomBar = showAppShell ||
+        currentDestination?.hasRoute(ConversationsRoute::class) == true
+
     val showMiniPlayer = showAppShell &&
         playerState.currentSong != null &&
         !currentDestination.hasRoute(PlayerRoute::class)
@@ -162,17 +171,13 @@ fun MelonetMainScreen() {
                         OfflineBanner()
                     }
                     MeloTopBar(
-                    avatarUrl = authenticatedUser.avatarUrl,
-                    onAvatarClick = { navController.navigate(ProfileRoute) },
-                    onMenuClick = { scope.launch { drawerState.open() } },
-                    onNotificationsClick = { navController.navigate(ConversationsRoute) },
-                    unreadCount = unreadCount,
-                )
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                    )
                 }
             }
         },
         bottomBar = {
-            if (showAppShell) {
+            if (showBottomBar) {
                 Column {
                     if (showMiniPlayer) {
                         val song = playerState.currentSong!!
@@ -325,15 +330,14 @@ fun MelonetMainScreen() {
                 )
             }
             composable<FollowingRoute> {
-                val userListViewModel: UserListViewModel = koinViewModel()
+                val followingViewModel: FollowingViewModel = koinViewModel()
                 val userId = authenticatedUser?.id ?: return@composable
-                UserListScreen(
+                FollowingScreen(
                     userId = userId,
-                    listType = UserListType.FOLLOWING,
-                    title = stringResource(R.string.home_quick_action_following),
-                    viewModel = userListViewModel,
+                    viewModel = followingViewModel,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToUser = { id -> navController.navigate(UserProfileRoute(userId = id)) },
+                    onNavigateToArtist = { id -> navController.navigate(ArtistDetailRoute(artistId = id)) },
                 )
             }
 
@@ -385,9 +389,17 @@ fun MelonetMainScreen() {
 
             composable<ArtistDetailRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<ArtistDetailRoute>()
-                DummyScreen(
-                    titleRes = R.string.placeholder_artist_detail,
-                    formatArg = args.artistId,
+                val artistViewModel: ArtistDetailViewModel = koinViewModel()
+                ArtistDetailScreen(
+                    artistId = args.artistId,
+                    viewModel = artistViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onPlayQueue = { startId, songs ->
+                        val start = songs.find { it.id == startId }
+                            ?: songs.firstOrNull()
+                            ?: return@ArtistDetailScreen
+                        playSong(start, songs)
+                    },
                 )
             }
 
@@ -499,6 +511,9 @@ fun MelonetMainScreen() {
                     onLikedSongsClick = { navController.navigate(LikedSongsRoute) },
                     onMyPlaylistsClick = { navController.navigate(PlaylistsRoute) },
                     onFollowingClick = { navController.navigate(FollowingRoute) },
+                    onRecentlyPlayedClick = { navController.navigate(RecentSongsRoute) },
+                    onLocalMusicClick = { navController.navigate(LocalMusicRoute) },
+                    onDownloadsClick = { navController.navigate(DownloadsRoute) },
                 )
             }
 

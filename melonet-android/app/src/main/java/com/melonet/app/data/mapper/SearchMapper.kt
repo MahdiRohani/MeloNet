@@ -38,13 +38,7 @@ object SearchMapper {
         albumTitle = dto.albumTitle,
     )
 
-    private fun artistToModel(dto: ArtistDto): Artist = Artist(
-        id = dto.id,
-        name = dto.name,
-        imageUrl = dto.imageUrl.orEmpty(),
-        bio = dto.bio,
-        songCount = dto.songCount ?: 0,
-    )
+    private fun artistToModel(dto: ArtistDto): Artist = ArtistMapper.toModel(dto)
 
     private fun userToModel(dto: UserSearchResultDto): SearchUser = SearchUser(
         id = dto.id,

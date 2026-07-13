@@ -32,6 +32,12 @@ func proxyArtURL(publicBase, trackID string) string {
 	return publicBase + "/api/art/" + trackID
 }
 
+// ArtURL exposes the proxied artwork URL for a track (used when building
+// non-song responses such as grouped artists).
+func ArtURL(publicBase, trackID string) string {
+	return proxyArtURL(strings.TrimRight(publicBase, "/"), trackID)
+}
+
 func TracksToAPI(publicBase string, tracks []Track) []api.SongResponse {
 	out := make([]api.SongResponse, 0, len(tracks))
 	for _, track := range tracks {

@@ -2,9 +2,10 @@ package com.melonet.app.core.navigation
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -25,36 +26,44 @@ sealed class BottomNavEntry<T : Any>(
     val icon: ImageVector,
     val route: T,
 ) {
-    data object Home : BottomNavEntry<HomeRoute>(
-        R.string.nav_home,
-        Icons.Default.Home,
-        HomeRoute,
-    )
-
     data object Search : BottomNavEntry<SearchRoute>(
         R.string.nav_search,
         Icons.Default.Search,
         SearchRoute,
     )
 
-    data object LocalMusic : BottomNavEntry<LocalMusicRoute>(
-        R.string.nav_local_music,
-        Icons.Default.PhoneAndroid,
-        LocalMusicRoute,
+    data object Chat : BottomNavEntry<ConversationsRoute>(
+        R.string.nav_chat,
+        Icons.AutoMirrored.Filled.Chat,
+        ConversationsRoute,
     )
 
-    data object Playlists : BottomNavEntry<PlaylistsRoute>(
-        R.string.nav_playlists,
-        Icons.Default.QueueMusic,
-        PlaylistsRoute,
+    data object Home : BottomNavEntry<HomeRoute>(
+        R.string.nav_home,
+        Icons.Default.Home,
+        HomeRoute,
+    )
+
+    data object Downloads : BottomNavEntry<DownloadsRoute>(
+        R.string.nav_downloads,
+        Icons.Default.Download,
+        DownloadsRoute,
+    )
+
+    data object Profile : BottomNavEntry<ProfileRoute>(
+        R.string.nav_profile,
+        Icons.Default.Person,
+        ProfileRoute,
     )
 }
 
+// Home is intentionally kept in the centre of the bar.
 val bottomNavEntries = listOf(
-    BottomNavEntry.Home,
     BottomNavEntry.Search,
-    BottomNavEntry.LocalMusic,
-    BottomNavEntry.Playlists,
+    BottomNavEntry.Chat,
+    BottomNavEntry.Home,
+    BottomNavEntry.Downloads,
+    BottomNavEntry.Profile,
 )
 
 @Composable
@@ -67,9 +76,9 @@ fun MelonetBottomNavigation(
     NavigationBar {
         bottomNavEntries.forEach { entry ->
             val title = stringResource(entry.titleRes)
-            val isSelected = entry.route?.let { route ->
+            val isSelected = entry.route.let { route ->
                 currentDestination?.hierarchy?.any { it.hasRoute(route::class) } == true
-            } == true
+            }
 
             NavigationBarItem(
                 selected = isSelected,

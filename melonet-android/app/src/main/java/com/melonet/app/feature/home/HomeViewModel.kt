@@ -35,6 +35,9 @@ class HomeViewModel(
                     }
                 }
             }
+            is HomeContract.Event.ArtistClicked -> {
+                setEffect { HomeContract.Effect.Navigate(HomeDestination.Artist(event.artist.id)) }
+            }
         }
     }
 

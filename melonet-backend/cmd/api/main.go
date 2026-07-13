@@ -84,13 +84,15 @@ func run(logger *slog.Logger) error {
 	historyRepo := postgres.NewHistoryRepository(db)
 	playlistRepo := postgres.NewPlaylistRepository(db)
 	followRepo := postgres.NewFollowRepository(db)
+	artistFollowRepo := postgres.NewArtistFollowRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
 
 	audiusClient := audius.NewClient(cfg.Audius.AppName, cfg.PublicBaseURL)
 
 	authService := service.NewAuthService(userRepo, tokenRepo, tokenMgr, avatarStorage, cfg.PublicBaseURL)
 	catalogService := service.NewCatalogService(audiusClient)
-	searchService := service.NewSearchService(audiusClient, userRepo)
+	artistFollowService := service.NewArtistFollowService(artistFollowRepo, catalogService)
+	searchService := service.NewSearchService(audiusClient, userRepo, catalogService)
 	homeService := service.NewHomeService(catalogService)
 	libraryService := service.NewLibraryService(likeRepo, historyRepo, songCacheRepo, audiusClient)
 	playlistService := service.NewPlaylistService(playlistRepo, songCacheRepo, audiusClient)
@@ -111,6 +113,7 @@ func run(logger *slog.Logger) error {
 		Media:    handler.NewMediaHandler(mediaStorage),
 		Stream:   handler.NewStreamHandler(audiusClient),
 		Catalog:  handler.NewCatalogHandler(catalogService),
+		Artist:   handler.NewArtistHandler(catalogService, artistFollowService),
 		Search:   handler.NewSearchHandler(searchService),
 		Home:     handler.NewHomeHandler(homeService),
 		Library:  handler.NewLibraryHandler(libraryService),

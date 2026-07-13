@@ -42,12 +42,8 @@ import com.melonet.app.core.designsystem.theme.MeloNetTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeloTopBar(
-    avatarUrl: String?,
-    onAvatarClick: () -> Unit,
     onMenuClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
     modifier: Modifier = Modifier,
-    unreadCount: Int = 0,
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
@@ -82,65 +78,10 @@ fun MeloTopBar(
                 )
             }
         },
-        actions = {
-            MeloTopBarAvatar(
-                avatarUrl = avatarUrl,
-                onClick = onAvatarClick,
-            )
-            IconButton(onClick = onNotificationsClick) {
-                BadgedBox(
-                    badge = {
-                        if (unreadCount > 0) {
-                            Badge {
-                                Text(text = if (unreadCount > 99) "99+" else unreadCount.toString())
-                            }
-                        }
-                    },
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Chat,
-                        contentDescription = stringResource(R.string.cd_messages),
-                        modifier = Modifier.size(dimensions.iconSm),
-                    )
-                }
-            }
-        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
         ),
     )
-}
-
-@Composable
-private fun MeloTopBarAvatar(
-    avatarUrl: String?,
-    onClick: () -> Unit,
-) {
-    val dimensions = MeloNetTheme.dimensions
-
-    if (avatarUrl.isNullOrBlank()) {
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = stringResource(R.string.cd_user_avatar),
-                modifier = Modifier.size(dimensions.iconSm),
-            )
-        }
-    } else {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(avatarUrl)
-                .crossfade(true)
-                .build(),
-            contentDescription = stringResource(R.string.cd_user_avatar),
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .padding(end = MeloNetTheme.spacing.xs)
-                .size(dimensions.avatarSm)
-                .clip(CircleShape)
-                .clickable(onClick = onClick),
-        )
-    }
 }
 
 @Composable

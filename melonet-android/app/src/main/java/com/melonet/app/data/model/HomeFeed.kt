@@ -15,11 +15,19 @@ data class HomeRow(
     val items: List<Song>
 )
 
+data class HomeArtistRow(
+    val id: String,
+    val title: String,
+    val seeAllPath: String?,
+    val items: List<Artist>
+)
+
 data class HomeFeed(
     val carousel: List<Song>,
     val quickActions: List<QuickAction>,
-    val rows: List<HomeRow>
+    val rows: List<HomeRow>,
+    val artistRows: List<HomeArtistRow> = emptyList(),
 ) {
     val isEmpty: Boolean
-        get() = carousel.isEmpty() && quickActions.isEmpty() && rows.isEmpty()
+        get() = carousel.isEmpty() && quickActions.isEmpty() && rows.isEmpty() && artistRows.isEmpty()
 }

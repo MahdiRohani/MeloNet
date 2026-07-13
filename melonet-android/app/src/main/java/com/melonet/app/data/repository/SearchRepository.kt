@@ -49,8 +49,17 @@ class SearchRepository(
         searchHistoryDao.upsert(SearchHistoryEntity(query = trimmed))
     }
 
-    suspend fun deleteHistory(query: String) = withContext(dispatchers.io) {
+    /** Deletes a history entry and returns its original timestamp so it can be restored (undo). */
+    suspend fun deleteHistory(query: String): Long? = withContext(dispatchers.io) {
+        val existing = searchHistoryDao.get(query)
         searchHistoryDao.delete(query)
+        existing?.searchedAt
+    }
+
+    suspend fun restoreHistory(query: String, searchedAt: Long) = withContext(dispatchers.io) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return@withContext
+        searchHistoryDao.upsert(SearchHistoryEntity(query = trimmed, searchedAt = searchedAt))
     }
 
     suspend fun searchSongs(query: String, limit: Int = 20): List<Song> = withContext(dispatchers.io) {

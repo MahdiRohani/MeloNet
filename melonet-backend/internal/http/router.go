@@ -22,6 +22,7 @@ type Dependencies struct {
 	Media      *handler.MediaHandler
 	Stream     *handler.StreamHandler
 	Catalog    *handler.CatalogHandler
+	Artist     *handler.ArtistHandler
 	Search     *handler.SearchHandler
 	Home       *handler.HomeHandler
 	Chat       *handler.ChatHandler
@@ -123,9 +124,12 @@ func NewRouter(deps Dependencies) *gin.Engine {
 		api.GET("/catalog/new", deps.Catalog.Newest)
 		api.GET("/catalog/trending", deps.Catalog.Trending)
 
+		api.GET("/me/following/artists", deps.Artist.ListFollowing)
 		api.GET("/artists", deps.Catalog.ListArtists)
-		api.GET("/artists/:id", deps.Catalog.GetArtist)
+		api.GET("/artists/:id", deps.Artist.Get)
 		api.GET("/artists/:id/songs", deps.Catalog.ListArtistSongs)
+		api.POST("/artists/:id/follow", deps.Artist.Follow)
+		api.DELETE("/artists/:id/follow", deps.Artist.Unfollow)
 
 		api.GET("/albums/:id", deps.Catalog.GetAlbum)
 		api.GET("/albums/:id/songs", deps.Catalog.ListAlbumSongs)

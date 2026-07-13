@@ -2,14 +2,21 @@ package com.melonet.app.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,20 +25,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.component.shimmerEffect
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
-import com.melonet.app.data.model.Song
+import com.melonet.app.data.model.HomeRow
 import kotlinx.coroutines.delay
 
 private const val CAROUSEL_AUTO_SCROLL_MS = 4_000L
 
+/** A single carousel slide that represents a whole category (home row). */
+data class CarouselCategory(
+    val title: String,
+    val coverUrl: String,
+    val row: HomeRow,
+)
+
 @Composable
 fun HomeCarousel(
-    songs: List<Song>,
+    categories: List<CarouselCategory>,
     isLoading: Boolean,
-    onSongClick: (Song) -> Unit,
+    onCategoryClick: (HomeRow) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = MeloNetTheme.spacing
@@ -52,15 +70,15 @@ fun HomeCarousel(
                         .shimmerEffect(),
                 )
             }
-            songs.isEmpty() -> Unit
+            categories.isEmpty() -> Unit
             else -> {
-                val pagerState = rememberPagerState(pageCount = { songs.size })
+                val pagerState = rememberPagerState(pageCount = { categories.size })
 
-                LaunchedEffect(songs.size) {
-                    if (songs.size <= 1) return@LaunchedEffect
+                LaunchedEffect(categories.size) {
+                    if (categories.size <= 1) return@LaunchedEffect
                     while (true) {
                         delay(CAROUSEL_AUTO_SCROLL_MS)
-                        val nextPage = (pagerState.currentPage + 1) % songs.size
+                        val nextPage = (pagerState.currentPage + 1) % categories.size
                         pagerState.animateScrollToPage(nextPage)
                     }
                 }
@@ -69,10 +87,10 @@ fun HomeCarousel(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
                 ) { page ->
-                    val song = songs[page]
+                    val category = categories[page]
                     CarouselSlide(
-                        song = song,
-                        onClick = { onSongClick(song) },
+                        category = category,
+                        onClick = { onCategoryClick(category.row) },
                     )
                 }
             }
@@ -82,7 +100,7 @@ fun HomeCarousel(
 
 @Composable
 private fun CarouselSlide(
-    song: Song,
+    category: CarouselCategory,
     onClick: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
@@ -94,36 +112,55 @@ private fun CarouselSlide(
             .clickable(onClick = onClick),
     ) {
         MeloImage(
-            imageUrl = song.coverUrl,
-            contentDescription = song.title,
+            imageUrl = category.coverUrl,
+            contentDescription = category.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)),
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
         )
-        Column(
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomStart)
+                .fillMaxWidth()
                 .padding(spacing.md),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = song.title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier // A6: sharedElement(PlayerSharedKeys.songCover(song.id))
-            )
-            Text(
-                text = song.artistName,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = category.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.home_carousel_explore),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

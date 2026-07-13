@@ -6,4 +6,6 @@ data class Artist(
     val imageUrl: String,
     val bio: String?,
     val songCount: Int = 0,
+    val region: String = "",
+    val isFollowing: Boolean = false,
 )

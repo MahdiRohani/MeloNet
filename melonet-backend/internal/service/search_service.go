@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"melonet-backend/internal/audius"
@@ -12,12 +13,13 @@ import (
 )
 
 type SearchService struct {
-	audius *audius.Client
-	users  *postgres.UserRepository
+	audius  *audius.Client
+	users   *postgres.UserRepository
+	catalog *CatalogService
 }
 
-func NewSearchService(client *audius.Client, users *postgres.UserRepository) *SearchService {
-	return &SearchService{audius: client, users: users}
+func NewSearchService(client *audius.Client, users *postgres.UserRepository, catalog *CatalogService) *SearchService {
+	return &SearchService{audius: client, users: users, catalog: catalog}
 }
 
 func NormalizeSearchType(searchType string) string {
@@ -49,19 +51,16 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 
 	switch searchType {
 	case "song":
-		fetchLimit := page * limit
-		if fetchLimit < 50 {
-			fetchLimit = 50
-		}
-		if fetchLimit > 100 {
-			fetchLimit = 100
-		}
-		tracks, err := s.audius.SearchTracks(ctx, query, fetchLimit)
+		tracks, err := s.searchTracksRanked(ctx, query, page, limit)
 		if err != nil {
 			return api.SearchResponse{}, domain.Pagination{}, err
 		}
 		pageTracks, total := audius.Paginate(tracks, page, limit)
 		result.Songs = audius.TracksToAPI(s.audius.PublicBase(), pageTracks)
+		meta.Total = total
+	case "artist":
+		artists, total := s.catalog.SearchArtists(ctx, query, page, limit)
+		result.Artists = artists
 		meta.Total = total
 	case "user":
 		users, total, err := s.users.Search(ctx, query, page, limit)
@@ -71,20 +70,17 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 		result.Users = postgres.UserSummariesToSearchResults(users)
 		meta.Total = total
 	default:
-		fetchLimit := page * limit
-		if fetchLimit < 50 {
-			fetchLimit = 50
-		}
-		if fetchLimit > 100 {
-			fetchLimit = 100
-		}
-		tracks, err := s.audius.SearchTracks(ctx, query, fetchLimit)
+		tracks, err := s.searchTracksRanked(ctx, query, page, limit)
 		if err != nil {
 			return api.SearchResponse{}, domain.Pagination{}, err
 		}
 		pageTracks, total := audius.Paginate(tracks, page, limit)
 		result.Songs = audius.TracksToAPI(s.audius.PublicBase(), pageTracks)
 		meta.Total = total
+
+		// Artist + user previews so the "All" tab surfaces every result kind.
+		artistPreview, _ := s.catalog.SearchArtists(ctx, query, 1, 5)
+		result.Artists = artistPreview
 
 		previewLimit := 5
 		if limit < previewLimit {
@@ -95,4 +91,30 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 	}
 
 	return result, meta, nil
+}
+
+// searchTracksRanked fetches a page-worth of Audius track results and ranks them
+// by real popularity (play count) so the most-listened matches surface first.
+func (s *SearchService) searchTracksRanked(ctx context.Context, query string, page, limit int) ([]audius.Track, error) {
+	fetchLimit := page * limit
+	if fetchLimit < 50 {
+		fetchLimit = 50
+	}
+	if fetchLimit > 100 {
+		fetchLimit = 100
+	}
+	tracks, err := s.audius.SearchTracks(ctx, query, fetchLimit)
+	if err != nil {
+		return nil, err
+	}
+	audius.SortByPopularity(tracks)
+	return tracks, nil
+}
+
+// artistID derives a stable positive 32-bit-safe id from an artist name so the
+// client can key/route on it without a real artist record existing.
+func artistID(name string) uint {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(strings.ToLower(strings.TrimSpace(name))))
+	return uint(h.Sum32()%2_000_000_000) + 1
 }

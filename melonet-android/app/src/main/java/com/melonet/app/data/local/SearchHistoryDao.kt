@@ -19,6 +19,9 @@ interface SearchHistoryDao {
     @Query("SELECT * FROM search_history ORDER BY searchedAt DESC LIMIT 20")
     fun observeRecent(): Flow<List<SearchHistoryEntity>>
 
+    @Query("SELECT * FROM search_history WHERE query = :query LIMIT 1")
+    suspend fun get(query: String): SearchHistoryEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: SearchHistoryEntity)
 

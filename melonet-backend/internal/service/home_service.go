@@ -15,58 +15,70 @@ func NewHomeService(catalog *CatalogService) *HomeService {
 }
 
 func (s *HomeService) Feed(ctx context.Context) (api.HomeFeedResponse, error) {
-	carouselSongs, _, err := s.catalog.Trending(ctx, 1, 5)
+	carouselSongs, _, err := s.catalog.Trending(ctx, "", 1, 5)
 	if err != nil {
 		return api.HomeFeedResponse{}, err
 	}
 
-	popular, _, err := s.catalog.Popular(ctx, 1, 10)
+	popular, _, err := s.catalog.Popular(ctx, "", 1, 12)
 	if err != nil {
 		return api.HomeFeedResponse{}, err
 	}
 
-	newest, _, err := s.catalog.Newest(ctx, 1, 10)
+	newest, _, err := s.catalog.Newest(ctx, "", 1, 12)
 	if err != nil {
 		return api.HomeFeedResponse{}, err
 	}
 
-	electronic, _, err := s.catalog.CategorySongs(ctx, "Global", "popular", 1, 10)
+	hiphop, _, err := s.catalog.CategorySongs(ctx, "Popular", "trending", 1, 10)
 	if err != nil {
 		return api.HomeFeedResponse{}, err
 	}
 
-	hiphop, _, err := s.catalog.CategorySongs(ctx, "Popular", "newest", 1, 10)
-	if err != nil {
-		return api.HomeFeedResponse{}, err
-	}
-
-	ambient, _, err := s.catalog.CategorySongs(ctx, "Nostalgia", "popular", 1, 10)
-	if err != nil {
-		return api.HomeFeedResponse{}, err
-	}
-
-	// Iranian songs come from Audius search which can be flaky; never fail the whole feed on its behalf.
-	iranian, _, err := s.catalog.IranianSongs(ctx, 1, 10)
+	// Curated region/theme rows are aggregated from artist searches / genre
+	// trending and can be flaky, so they must never fail the whole feed.
+	iranian, _, err := s.catalog.IranianSongs(ctx, "", 1, 12)
 	if err != nil {
 		iranian = nil
+	}
+	turkish, _, err := s.catalog.TurkishSongs(ctx, "", 1, 12)
+	if err != nil {
+		turkish = nil
+	}
+	instrumental, _, err := s.catalog.InstrumentalSongs(ctx, "", 1, 12)
+	if err != nil {
+		instrumental = nil
+	}
+
+	// Artist rows (rendered as circular chips) — also non-fatal.
+	foreignArtists, _, err := s.catalog.ListArtistsByRegion(ctx, RegionForeign, 1, 10)
+	if err != nil {
+		foreignArtists = nil
+	}
+	iranianArtists, _, err := s.catalog.ListArtistsByRegion(ctx, RegionIranian, 1, 10)
+	if err != nil {
+		iranianArtists = nil
 	}
 
 	return api.HomeFeedResponse{
 		Carousel: carouselSongs,
 		QuickActions: []api.QuickActionResponse{
-			{ID: "search", Title: "Search", Target: "search", Icon: "search"},
-			{ID: "popular", Title: "Popular", Target: "catalog/popular", Icon: "trending_up"},
-			{ID: "new", Title: "New Releases", Target: "catalog/new", Icon: "new_releases"},
-			{ID: "iranian", Title: "Iranian", Target: "songs?category=Iranian", Icon: "iranian"},
-			{ID: "global", Title: "Global", Target: "songs?category=Global", Icon: "public"},
+			{ID: "liked", Title: "Liked", Target: "liked", Icon: "favorite"},
+			{ID: "playlists", Title: "Playlists", Target: "playlists", Icon: "playlist"},
+			{ID: "recent", Title: "Recent", Target: "recent", Icon: "history"},
+			{ID: "following", Title: "Following", Target: "following", Icon: "people"},
 		},
 		Rows: []api.HomeRowResponse{
 			{ID: "popular", Title: "Popular", RowType: "songs", SeeAllPath: "/api/catalog/popular", Items: popular},
 			{ID: "new", Title: "New Releases", RowType: "songs", SeeAllPath: "/api/catalog/new", Items: newest},
 			{ID: "iranian", Title: "Iranian", RowType: "songs", SeeAllPath: "/api/songs?category=Iranian", Items: iranian},
-			{ID: "global", Title: "Electronic", RowType: "songs", SeeAllPath: "/api/songs?category=Global", Items: electronic},
-			{ID: "local", Title: "Hip-Hop", RowType: "songs", SeeAllPath: "/api/songs?category=Popular", Items: hiphop},
-			{ID: "nostalgia", Title: "Ambient", RowType: "songs", SeeAllPath: "/api/songs?category=Nostalgia", Items: ambient},
+			{ID: "turkish", Title: "Turkish", RowType: "songs", SeeAllPath: "/api/songs?category=Turkish", Items: turkish},
+			{ID: "instrumental", Title: "Instrumental", RowType: "songs", SeeAllPath: "/api/songs?category=Instrumental", Items: instrumental},
+			{ID: "hiphop", Title: "Hip-Hop", RowType: "songs", SeeAllPath: "/api/songs?category=Popular", Items: hiphop},
+		},
+		ArtistRows: []api.HomeArtistRowResponse{
+			{ID: "artists_foreign", Title: "Popular Artists", SeeAllPath: "/api/artists?region=foreign", Items: foreignArtists},
+			{ID: "artists_iranian", Title: "Iranian Artists", SeeAllPath: "/api/artists?region=iranian", Items: iranianArtists},
 		},
 	}, nil
 }

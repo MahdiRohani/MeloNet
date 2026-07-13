@@ -72,7 +72,16 @@ class SearchViewModel(
             }
             is SearchContract.Event.HistoryItemDeleted -> {
                 viewModelScope.launch {
-                    searchRepository.deleteHistory(event.query)
+                    val searchedAt = searchRepository.deleteHistory(event.query)
+                        ?: System.currentTimeMillis()
+                    setEffect {
+                        SearchContract.Effect.ShowHistoryDeletedUndo(event.query, searchedAt)
+                    }
+                }
+            }
+            is SearchContract.Event.HistoryDeleteUndone -> {
+                viewModelScope.launch {
+                    searchRepository.restoreHistory(event.query, event.searchedAt)
                 }
             }
             is SearchContract.Event.ResultClicked -> {

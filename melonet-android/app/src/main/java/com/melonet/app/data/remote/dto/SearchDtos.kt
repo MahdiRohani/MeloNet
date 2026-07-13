@@ -17,6 +17,8 @@ data class ArtistDto(
     @SerializedName("bio") val bio: String?,
     @SerializedName("image_url") val imageUrl: String?,
     @SerializedName("song_count") val songCount: Int?,
+    @SerializedName("region") val region: String?,
+    @SerializedName("is_following") val isFollowing: Boolean?,
 )
 
 data class UserSearchResultDto(

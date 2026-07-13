@@ -5,6 +5,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.data.model.Song
+import com.melonet.app.data.model.SortOption
 import com.melonet.app.data.paging.CatalogListType
 import com.melonet.app.data.repository.CatalogRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,9 +18,15 @@ class CatalogViewModel(
     private val catalogRepository: CatalogRepository,
 ) : BaseViewModel<CatalogContract.State, CatalogContract.Event, CatalogContract.Effect>() {
 
-    private data class CatalogArgs(val listType: String, val filter: String?)
+    private data class CatalogArgs(
+        val listType: String,
+        val filter: String?,
+        val sort: SortOption,
+    )
 
-    private val argsFlow = MutableStateFlow(CatalogArgs("popular", null))
+    private val argsFlow = MutableStateFlow(
+        CatalogArgs("popular", null, SortOption.MOST_PLAYED),
+    )
     private val cachedSongs = mutableListOf<Song>()
 
     val songs: Flow<PagingData<Song>> = argsFlow
@@ -27,6 +34,7 @@ class CatalogViewModel(
             catalogRepository.catalogSongs(
                 listType = args.listType.toCatalogListType(),
                 category = args.filter,
+                sort = args.sort.apiValue,
             )
         }
         .cachedIn(viewModelScope)
@@ -34,8 +42,13 @@ class CatalogViewModel(
     override fun createInitialState() = CatalogContract.State()
 
     fun configure(listType: String, filter: String?) {
-        argsFlow.value = CatalogArgs(listType, filter)
-        setState { copy(listType = listType, filter = filter) }
+        val defaultSort = if (listType.equals("new", ignoreCase = true)) {
+            SortOption.NEWEST
+        } else {
+            SortOption.MOST_PLAYED
+        }
+        argsFlow.value = CatalogArgs(listType, filter, defaultSort)
+        setState { copy(listType = listType, filter = filter, sort = defaultSort) }
     }
 
     override fun handleEvent(event: CatalogContract.Event) {
@@ -43,13 +56,10 @@ class CatalogViewModel(
             is CatalogContract.Event.SongClicked -> {
                 setEffect { CatalogContract.Effect.PlayQueue(event.songId, shuffle = false) }
             }
-            CatalogContract.Event.PlayAll -> {
-                val first = cachedSongs.firstOrNull()?.id ?: return
-                setEffect { CatalogContract.Effect.PlayQueue(first, shuffle = false) }
-            }
-            CatalogContract.Event.ShuffleAll -> {
-                val first = cachedSongs.shuffled().firstOrNull()?.id ?: return
-                setEffect { CatalogContract.Effect.PlayQueue(first, shuffle = true) }
+            is CatalogContract.Event.SortSelected -> {
+                if (event.sort == uiState.value.sort) return
+                argsFlow.value = argsFlow.value.copy(sort = event.sort)
+                setState { copy(sort = event.sort) }
             }
         }
     }

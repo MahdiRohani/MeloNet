@@ -5,6 +5,7 @@
     <string name="nav_home">Home</string>
     <string name="nav_search">Search</string>
     <string name="nav_downloads">Downloads</string>
+    <string name="nav_chat">Chat</string>
     <string name="nav_playlists">Playlists</string>
     <string name="nav_profile">Profile</string>
     <string name="nav_local_music">My Device</string>
@@ -43,6 +44,9 @@
     <string name="home_quick_action_new">New Releases</string>
     <string name="home_quick_action_global">Global</string>
     <string name="home_quick_action_iranian">Iranian</string>
+    <string name="home_quick_action_turkish">Turkish</string>
+    <string name="home_quick_action_instrumental">Instrumental</string>
+    <string name="home_carousel_explore">Explore category</string>
     <string name="home_empty_title">Nothing here yet</string>
     <string name="home_empty_description">Check back later for new music recommendations.</string>
 
@@ -52,6 +56,25 @@
     <string name="catalog_nostalgia">Nostalgia</string>
     <string name="catalog_empty">No songs here yet</string>
     <string name="catalog_error">Couldn\'t load songs</string>
+
+    <!-- Sort -->
+    <string name="sort_most_played">Most played</string>
+    <string name="sort_most_liked">Most liked</string>
+    <string name="sort_newest">Newest</string>
+    <string name="sort_oldest">Oldest</string>
+
+    <!-- Artist -->
+    <string name="artist_title">Artist</string>
+    <plurals name="artist_song_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
+
+    <!-- Following -->
+    <string name="following_tab_people">People</string>
+    <string name="following_tab_artists">Artists</string>
+    <string name="following_empty_people">You\'re not following anyone yet</string>
+    <string name="following_empty_artists">You\'re not following any artists yet</string>
 
     <!-- Errors -->
     <string name="error_unauthorized">Please sign in to continue</string>
@@ -67,6 +90,8 @@
     <string name="search_history_title">Recent searches</string>
     <string name="search_history_empty_title">No recent searches</string>
     <string name="search_history_empty_description">Your search history will appear here.</string>
+    <string name="search_history_deleted">Removed \"%1$s\"</string>
+    <string name="action_undo">Undo</string>
     <string name="search_artist_song_count">%1$d songs</string>
     <string name="search_user_username">@%1$s</string>
 
@@ -74,6 +99,13 @@
     <string name="profile_guest_user">Guest User</string>
     <string name="profile_liked_songs">Liked Songs</string>
     <string name="profile_my_playlists">My Playlists</string>
+    <string name="profile_edit">Edit profile</string>
+    <string name="profile_library_title">Your Library</string>
+    <string name="profile_recently_played">Recently played</string>
+    <string name="profile_local_music">Songs on device</string>
+    <string name="profile_downloads">Downloads</string>
+    <string name="profile_following">Following</string>
+    <string name="profile_premium_badge">Premium</string>
 
     <!-- Premium -->
     <string name="premium_active_title">Your subscription is active</string>

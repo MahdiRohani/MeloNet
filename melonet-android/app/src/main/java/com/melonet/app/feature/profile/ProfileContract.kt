@@ -21,6 +21,9 @@ object ProfileContract {
         data object LikedSongsClicked : Event
         data object MyPlaylistsClicked : Event
         data object FollowingClicked : Event
+        data object RecentlyPlayedClicked : Event
+        data object LocalMusicClicked : Event
+        data object DownloadsClicked : Event
     }
 
     sealed interface Effect : UiEffect {
@@ -29,5 +32,8 @@ object ProfileContract {
         data object NavigateToLikedSongs : Effect
         data object NavigateToMyPlaylists : Effect
         data object NavigateToFollowing : Effect
+        data object NavigateToRecentlyPlayed : Effect
+        data object NavigateToLocalMusic : Effect
+        data object NavigateToDownloads : Effect
     }
 }

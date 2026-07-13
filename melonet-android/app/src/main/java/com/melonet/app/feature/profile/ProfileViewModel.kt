@@ -36,6 +36,15 @@ class ProfileViewModel(
             ProfileContract.Event.FollowingClicked -> {
                 setEffect { ProfileContract.Effect.NavigateToFollowing }
             }
+            ProfileContract.Event.RecentlyPlayedClicked -> {
+                setEffect { ProfileContract.Effect.NavigateToRecentlyPlayed }
+            }
+            ProfileContract.Event.LocalMusicClicked -> {
+                setEffect { ProfileContract.Effect.NavigateToLocalMusic }
+            }
+            ProfileContract.Event.DownloadsClicked -> {
+                setEffect { ProfileContract.Effect.NavigateToDownloads }
+            }
         }
     }
 
