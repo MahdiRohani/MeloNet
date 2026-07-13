@@ -22,10 +22,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val darkModePref by settingsRepository.isDarkModeFlow.collectAsState(initial = null)
-            val language by settingsRepository.languageFlow.collectAsState(initial = "fa")
             val isDarkTheme = darkModePref ?: isSystemInDarkTheme()
 
-            ProvideAppLocale(language = language) {
+            ProvideAppLocale(language = "en") {
                 MeloNetTheme(darkTheme = isDarkTheme) {
                     MelonetMainScreen()
                 }

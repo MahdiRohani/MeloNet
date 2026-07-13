@@ -12,7 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,6 +45,7 @@ fun PlaylistDetailScreen(
     playlistId: Int,
     viewModel: PlaylistDetailViewModel,
     onNavigateToPlayer: (String) -> Unit,
+    onNavigateToAddSongs: (Int) -> Unit,
     onPlayQueue: (startSongId: String, songs: List<Song>, shuffle: Boolean) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -67,7 +73,25 @@ fun PlaylistDetailScreen(
         viewModel.updateCachedSongs(songs.itemSnapshotList.items)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        floatingActionButton = {
+            if (state.playlist?.isOwner == true) {
+                FloatingActionButton(
+                    onClick = { onNavigateToAddSongs(playlistId) },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.cd_add_song),
+                    )
+                }
+            }
+        },
+    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding),
+    ) {
         if (state.isLoading && state.playlist == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
             return@Column
@@ -142,6 +166,7 @@ fun PlaylistDetailScreen(
                 )
             }
         }
+    }
     }
 }
 

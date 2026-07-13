@@ -7,6 +7,31 @@
     <string name="nav_downloads">Downloads</string>
     <string name="nav_playlists">Playlists</string>
     <string name="nav_profile">Profile</string>
+    <string name="nav_local_music">My Device</string>
+    <string name="nav_menu">Menu</string>
+    <string name="cd_menu">Open menu</string>
+    <string name="menu_header">MeloNet</string>
+
+    <!-- Local music -->
+    <string name="local_music_title">Music on this device</string>
+    <string name="local_music_permission_title">Access your music</string>
+    <string name="local_music_permission_message">Allow MeloNet to read the audio files stored on your device to play them here.</string>
+    <string name="local_music_grant">Grant access</string>
+    <string name="local_music_empty_title">No music found</string>
+    <string name="local_music_empty_description">We couldn\'t find any audio files on your device.</string>
+    <string name="local_music_song_count">%1$d songs</string>
+
+    <!-- Add songs to playlist -->
+    <string name="add_songs_title">Add songs</string>
+    <string name="add_songs_tab_device">On device</string>
+    <string name="add_songs_tab_app">MeloNet</string>
+    <string name="add_songs_search_hint">Search MeloNet songs…</string>
+    <string name="add_songs_added">Added</string>
+    <string name="add_songs_add">Add</string>
+    <string name="add_songs_search_empty">Search for songs to add</string>
+    <string name="cd_add_song">Add song</string>
+    <string name="playlist_add_songs">Add songs</string>
+    <string name="cd_remove_from_playlist">Remove from playlist</string>
 
     <!-- Home -->
     <string name="home_carousel_fallback">MeloNet</string>
@@ -17,8 +42,16 @@
     <string name="home_quick_action_popular">Popular</string>
     <string name="home_quick_action_new">New Releases</string>
     <string name="home_quick_action_global">Global</string>
+    <string name="home_quick_action_iranian">Iranian</string>
     <string name="home_empty_title">Nothing here yet</string>
     <string name="home_empty_description">Check back later for new music recommendations.</string>
+
+    <!-- Catalog -->
+    <string name="catalog_trending">Trending</string>
+    <string name="catalog_iranian">Iranian</string>
+    <string name="catalog_nostalgia">Nostalgia</string>
+    <string name="catalog_empty">No songs here yet</string>
+    <string name="catalog_error">Couldn\'t load songs</string>
 
     <!-- Errors -->
     <string name="error_unauthorized">Please sign in to continue</string>
@@ -70,6 +103,11 @@
     <string name="cd_skip_previous">Skip previous</string>
     <string name="cd_playback_speed">Playback speed</string>
     <string name="cd_sleep_timer">Sleep timer</string>
+    <string name="cd_shuffle">Shuffle</string>
+    <string name="cd_repeat">Repeat mode</string>
+    <string name="player_repeat_off">Repeat off</string>
+    <string name="player_repeat_all">Repeat all</string>
+    <string name="player_repeat_one">Repeat one</string>
 
     <!-- Playlists -->
     <string name="playlists_section_global">Global playlists</string>
@@ -112,15 +150,13 @@
     <string name="cd_premium_user">Premium user</string>
     <string name="cd_edit_profile">Edit profile</string>
     <string name="cd_notifications">Notifications</string>
+    <string name="cd_messages">Messages</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_toggle_password">Toggle password visibility</string>
     <string name="cd_delete_history">Delete search history</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_language">Language</string>
-    <string name="settings_language_fa">فارسی</string>
-    <string name="settings_language_en">English</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>

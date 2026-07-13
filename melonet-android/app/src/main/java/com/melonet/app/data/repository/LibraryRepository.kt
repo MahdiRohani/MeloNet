@@ -10,6 +10,8 @@ import com.melonet.app.data.local.LikedSongDao
 import com.melonet.app.data.local.PlayHistoryDao
 import com.melonet.app.data.local.toLikedEntity
 import com.melonet.app.data.local.toPlayHistoryEntity
+import com.melonet.app.data.local.LocalPlaylistDao
+import com.melonet.app.data.local.LocalPlaylistSongEntity
 import com.melonet.app.data.mapper.PlaylistMapper
 import com.melonet.app.data.model.Playlist
 import com.melonet.app.data.model.PlaylistScope
@@ -26,6 +28,7 @@ import kotlinx.coroutines.withContext
 
 class PlaylistRepository(
     private val playlistApi: PlaylistApi,
+    private val localPlaylistDao: LocalPlaylistDao,
     private val dispatchers: DispatchersProvider,
 ) {
     fun playlists(scope: PlaylistScope): Flow<PagingData<Playlist>> = Pager(
@@ -63,9 +66,51 @@ class PlaylistRepository(
     fun playlistSongs(playlistId: Int): Flow<PagingData<Song>> = Pager(
         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
         pagingSourceFactory = {
-            PlaylistSongsPagingSource(playlistApi, playlistId)
+            PlaylistSongsPagingSource(playlistApi, playlistId, localPlaylistDao)
         },
     ).flow
+
+    suspend fun getLocalPlaylistSongs(playlistId: Int): List<Song> = withContext(dispatchers.io) {
+        localPlaylistDao.getSongsForPlaylist(playlistId).map { entity ->
+            Song(
+                id = entity.songId,
+                title = entity.title,
+                artistName = entity.artistName,
+                coverUrl = entity.coverUrl,
+                audioUrl = entity.audioUrl,
+                category = if (entity.isLocal) "local" else "app",
+                lyrics = "",
+                durationSec = entity.durationSec,
+            )
+        }
+    }
+
+    suspend fun addLocalSongToPlaylist(playlistId: Int, song: Song): Result<Unit> =
+        withContext(dispatchers.io) {
+            if (localPlaylistDao.exists(playlistId, song.id)) {
+                return@withContext Result.Success(Unit)
+            }
+            localPlaylistDao.insert(
+                LocalPlaylistSongEntity(
+                    playlistId = playlistId,
+                    songId = song.id,
+                    title = song.title,
+                    artistName = song.artistName,
+                    coverUrl = song.coverUrl,
+                    audioUrl = song.audioUrl,
+                    durationSec = song.durationSec,
+                    isLocal = song.id.startsWith("local_") || song.category == "local",
+                    addedAt = System.currentTimeMillis(),
+                ),
+            )
+            Result.Success(Unit)
+        }
+
+    suspend fun removeLocalSongFromPlaylist(playlistId: Int, songId: String): Result<Unit> =
+        withContext(dispatchers.io) {
+            localPlaylistDao.delete(playlistId, songId)
+            Result.Success(Unit)
+        }
 }
 
 class LibraryRepository(

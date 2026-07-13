@@ -79,21 +79,6 @@ fun SettingsScreen(
             modifier = Modifier.padding(spacing.md),
             verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
-            SettingsSection(title = stringResource(R.string.settings_language)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    MeloFilterChip(
-                        label = stringResource(R.string.settings_language_fa),
-                        selected = state.language == "fa",
-                        onClick = { viewModel.handleEvent(SettingsContract.Event.LanguageSelected("fa")) },
-                    )
-                    MeloFilterChip(
-                        label = stringResource(R.string.settings_language_en),
-                        selected = state.language == "en",
-                        onClick = { viewModel.handleEvent(SettingsContract.Event.LanguageSelected("en")) },
-                    )
-                }
-            }
-
             SettingsSection(title = stringResource(R.string.settings_theme)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                     MeloFilterChip(

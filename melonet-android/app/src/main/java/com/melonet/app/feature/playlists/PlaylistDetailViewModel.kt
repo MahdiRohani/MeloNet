@@ -19,9 +19,13 @@ class PlaylistDetailViewModel(
 ) : BaseViewModel<PlaylistDetailContract.State, PlaylistDetailContract.Event, PlaylistDetailContract.Effect>() {
 
     private val playlistIdFlow = MutableStateFlow<Int?>(null)
+    private val refreshTrigger = MutableStateFlow(0)
     private val cachedSongs = mutableListOf<Song>()
 
-    val songs: Flow<PagingData<Song>> = playlistIdFlow
+    val songs: Flow<PagingData<Song>> = kotlinx.coroutines.flow.combine(
+        playlistIdFlow,
+        refreshTrigger,
+    ) { id, _ -> id }
         .flatMapLatest { id ->
             if (id == null) {
                 kotlinx.coroutines.flow.flowOf(PagingData.empty())
@@ -60,6 +64,10 @@ class PlaylistDetailViewModel(
     }
 
     fun getCachedSongs(): List<Song> = cachedSongs.toList()
+
+    fun refreshSongs() {
+        refreshTrigger.value++
+    }
 
     private fun loadPlaylist(playlistId: Int) {
         playlistIdFlow.value = playlistId

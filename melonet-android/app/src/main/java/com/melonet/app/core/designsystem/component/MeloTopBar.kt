@@ -8,15 +8,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,15 +44,28 @@ import com.melonet.app.core.designsystem.theme.MeloNetTheme
 fun MeloTopBar(
     avatarUrl: String?,
     onAvatarClick: () -> Unit,
-    onSettingsClick: () -> Unit,
+    onMenuClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    unreadCount: Int = 0,
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
 
     TopAppBar(
-        modifier = modifier.height(dimensions.topBarHeight),
+        modifier = modifier
+            .statusBarsPadding()
+            .height(dimensions.topBarHeight + spacing.sm)
+            .padding(bottom = spacing.xs),
+        navigationIcon = {
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = stringResource(R.string.cd_menu),
+                    modifier = Modifier.size(dimensions.iconSm),
+                )
+            }
+        },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -72,18 +88,21 @@ fun MeloTopBar(
                 onClick = onAvatarClick,
             )
             IconButton(onClick = onNotificationsClick) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = stringResource(R.string.cd_notifications),
-                    modifier = Modifier.size(dimensions.iconSm),
-                )
-            }
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = stringResource(R.string.cd_settings),
-                    modifier = Modifier.size(dimensions.iconSm),
-                )
+                BadgedBox(
+                    badge = {
+                        if (unreadCount > 0) {
+                            Badge {
+                                Text(text = if (unreadCount > 99) "99+" else unreadCount.toString())
+                            }
+                        }
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Chat,
+                        contentDescription = stringResource(R.string.cd_messages),
+                        modifier = Modifier.size(dimensions.iconSm),
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

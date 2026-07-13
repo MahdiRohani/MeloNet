@@ -32,6 +32,8 @@ import com.melonet.app.feature.auth.LoginScreen
 import com.melonet.app.feature.auth.LoginViewModel
 import com.melonet.app.feature.auth.RegisterScreen
 import com.melonet.app.feature.auth.RegisterViewModel
+import com.melonet.app.feature.catalog.CatalogScreen
+import com.melonet.app.feature.catalog.CatalogViewModel
 import com.melonet.app.feature.downloads.DownloadsScreen
 import com.melonet.app.feature.downloads.DownloadsViewModel
 import com.melonet.app.feature.home.HomeScreen
@@ -64,6 +66,15 @@ import com.melonet.app.feature.chat.ChatViewModel
 import com.melonet.app.feature.chat.ConversationsScreen
 import com.melonet.app.feature.chat.ConversationsViewModel
 import com.melonet.app.data.repository.ChatRepository
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
+import com.melonet.app.core.permission.rememberAudioPermissionRequesterWithCallback
+import com.melonet.app.feature.localmusic.LocalMusicScreen
+import com.melonet.app.feature.localmusic.LocalMusicViewModel
+import com.melonet.app.feature.playlists.AddSongsScreen
+import com.melonet.app.feature.playlists.AddSongsViewModel
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -78,6 +89,7 @@ fun MelonetMainScreen() {
     val isOnline by networkMonitor.isOnline.collectAsState(initial = true)
     val authState by authViewModel.authState.collectAsState()
     val playerState by playerViewModel.uiState.collectAsState()
+    val unreadCount by chatRepository.unreadCount.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -93,7 +105,8 @@ fun MelonetMainScreen() {
             !destination.hasRoute(EditProfileRoute::class) &&
             !destination.hasRoute(UserProfileRoute::class) &&
             !destination.hasRoute(UserListRoute::class) &&
-            !destination.hasRoute(FollowingRoute::class)
+            !destination.hasRoute(FollowingRoute::class) &&
+            !destination.hasRoute(AddSongsRoute::class)
     } == true
 
     val showMiniPlayer = showAppShell &&
@@ -132,6 +145,15 @@ fun MelonetMainScreen() {
         navController.navigate(PlayerRoute(songId = song.id))
     }
 
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val requestAudioPermission = rememberAudioPermissionRequesterWithCallback()
+
+    MelonetNavigationDrawer(
+        drawerState = drawerState,
+        scope = scope,
+        onNavigate = { route -> navController.navigate(route) },
+    ) {
     Scaffold(
         topBar = {
             if (showAppShell && authenticatedUser != null) {
@@ -142,8 +164,9 @@ fun MelonetMainScreen() {
                     MeloTopBar(
                     avatarUrl = authenticatedUser.avatarUrl,
                     onAvatarClick = { navController.navigate(ProfileRoute) },
+                    onMenuClick = { scope.launch { drawerState.open() } },
                     onNotificationsClick = { navController.navigate(ConversationsRoute) },
-                    onSettingsClick = { navController.navigate(SettingsRoute) },
+                    unreadCount = unreadCount,
                 )
                 }
             }
@@ -248,6 +271,14 @@ fun MelonetMainScreen() {
                     },
                 )
             }
+            composable<LocalMusicRoute> {
+                val localMusicViewModel: LocalMusicViewModel = koinViewModel()
+                LocalMusicScreen(
+                    viewModel = localMusicViewModel,
+                    onPlaySong = { song, queue -> playSong(song, queue) },
+                    requestAudioPermission = requestAudioPermission,
+                )
+            }
             composable<DownloadsRoute> {
                 val downloadsViewModel: DownloadsViewModel = koinViewModel()
                 DownloadsScreen(
@@ -329,10 +360,18 @@ fun MelonetMainScreen() {
 
             composable<CatalogRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<CatalogRoute>()
-                val label = args.filter?.let { "${args.listType} ($it)" } ?: args.listType
-                DummyScreen(
-                    titleRes = R.string.placeholder_catalog,
-                    formatArg = label,
+                val catalogViewModel: CatalogViewModel = koinViewModel()
+                CatalogScreen(
+                    listType = args.listType,
+                    filter = args.filter,
+                    viewModel = catalogViewModel,
+                    onPlayQueue = { startId, songs, shuffle ->
+                        val queue = if (shuffle) songs.shuffled() else songs
+                        val start = queue.find { it.id == startId }
+                            ?: queue.firstOrNull()
+                            ?: return@CatalogScreen
+                        playSong(start, queue)
+                    },
                 )
             }
 
@@ -355,10 +394,20 @@ fun MelonetMainScreen() {
             composable<PlaylistDetailRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<PlaylistDetailRoute>()
                 val detailViewModel: PlaylistDetailViewModel = koinViewModel()
+                val refreshPlaylist by backStackEntry.savedStateHandle
+                    .getStateFlow("refresh_playlist", false)
+                    .collectAsState()
+                LaunchedEffect(refreshPlaylist) {
+                    if (refreshPlaylist) {
+                        detailViewModel.refreshSongs()
+                        backStackEntry.savedStateHandle["refresh_playlist"] = false
+                    }
+                }
                 PlaylistDetailScreen(
                     playlistId = args.playlistId,
                     viewModel = detailViewModel,
                     onNavigateToPlayer = { songId -> navController.navigate(PlayerRoute(songId)) },
+                    onNavigateToAddSongs = { id -> navController.navigate(AddSongsRoute(playlistId = id)) },
                     onPlayQueue = { startId, songs, shuffle ->
                         val queue = if (shuffle) songs.shuffled() else songs
                         val start = queue.find { it.id == startId } ?: queue.firstOrNull() ?: return@PlaylistDetailScreen
@@ -401,6 +450,22 @@ fun MelonetMainScreen() {
                                 conversationId = conversationId,
                             ),
                         )
+                    },
+                )
+            }
+
+            composable<AddSongsRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<AddSongsRoute>()
+                val addSongsViewModel: AddSongsViewModel = koinViewModel()
+                AddSongsScreen(
+                    playlistId = args.playlistId,
+                    viewModel = addSongsViewModel,
+                    requestAudioPermission = requestAudioPermission,
+                    onNavigateBack = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("refresh_playlist", true)
+                        navController.popBackStack()
                     },
                 )
             }
@@ -462,6 +527,7 @@ fun MelonetMainScreen() {
                 )
             }
         }
+    }
     }
 }
 

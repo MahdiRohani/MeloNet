@@ -11,6 +11,7 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.melonet.app.core.common.Result
+import com.melonet.app.data.model.RepeatMode
 import com.melonet.app.data.model.Song
 import com.melonet.app.data.repository.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,8 @@ data class PlaybackState(
     val playbackSpeed: Float = 1f,
     val sleepTimerMinutesLeft: Int? = null,
     val isConnected: Boolean = false,
+    val shuffleEnabled: Boolean = false,
+    val repeatMode: RepeatMode = RepeatMode.OFF,
 )
 
 class PlaybackManager(
@@ -68,6 +71,9 @@ class PlaybackManager(
                     maybeRecordPlay()
                 }
             }
+            if (playbackState == Player.STATE_ENDED) {
+                handlePlaybackEnded()
+            }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -91,7 +97,16 @@ class PlaybackManager(
                 controller = c
                 c.addListener(playerListener)
                 _state.update {
-                    it.copy(isConnected = true, playbackSpeed = c.playbackParameters.speed)
+                    it.copy(
+                        isConnected = true,
+                        playbackSpeed = c.playbackParameters.speed,
+                        shuffleEnabled = c.shuffleModeEnabled,
+                        repeatMode = when (c.repeatMode) {
+                            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+                            Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+                            else -> RepeatMode.OFF
+                        },
+                    )
                 }
                 syncFromPlayer(c)
                 if (c.isPlaying) startProgressUpdates()
@@ -174,6 +189,53 @@ class PlaybackManager(
             }
             controller?.pause()
             _state.update { it.copy(sleepTimerMinutesLeft = null) }
+        }
+    }
+
+    fun toggleShuffle() {
+        val c = controller ?: return
+        val enabled = !c.shuffleModeEnabled
+        c.shuffleModeEnabled = enabled
+        _state.update { it.copy(shuffleEnabled = enabled) }
+    }
+
+    fun cycleRepeatMode() {
+        val next = when (_state.value.repeatMode) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+        applyRepeatMode(next)
+    }
+
+    private fun applyRepeatMode(mode: RepeatMode) {
+        val c = controller ?: run {
+            _state.update { it.copy(repeatMode = mode) }
+            return
+        }
+        when (mode) {
+            RepeatMode.OFF -> {
+                c.repeatMode = Player.REPEAT_MODE_OFF
+            }
+            RepeatMode.ALL -> {
+                c.repeatMode = Player.REPEAT_MODE_ALL
+            }
+            RepeatMode.ONE -> {
+                c.repeatMode = Player.REPEAT_MODE_ONE
+            }
+        }
+        _state.update { it.copy(repeatMode = mode) }
+    }
+
+    private fun handlePlaybackEnded() {
+        val c = controller ?: return
+        if (_state.value.repeatMode == RepeatMode.OFF &&
+            !c.hasNextMediaItem() &&
+            c.currentMediaItemIndex >= c.mediaItemCount - 1
+        ) {
+            c.pause()
+            c.seekTo(0)
+            _state.update { it.copy(isPlaying = false, positionMs = 0L) }
         }
     }
 

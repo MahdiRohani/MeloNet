@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object RegisterRoute
 @Serializable data object HomeRoute
 @Serializable data object SearchRoute
+@Serializable data object LocalMusicRoute
 @Serializable data object DownloadsRoute
 @Serializable data object PlaylistsRoute
 @Serializable data object ProfileRoute
@@ -45,6 +46,9 @@ data class UserProfileRoute(val userId: Int)
 data class PlayerRoute(val songId: String)
 
 @Serializable data object ConversationsRoute
+
+@Serializable
+data class AddSongsRoute(val playlistId: Int)
 
 @Serializable
 data class ChatRoute(

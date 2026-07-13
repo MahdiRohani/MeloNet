@@ -4,10 +4,14 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.melonet.app.core.common.DispatchersProvider
+import com.melonet.app.core.common.Result
+import com.melonet.app.core.network.safeApiCall
 import com.melonet.app.data.local.SearchHistoryDao
 import com.melonet.app.data.local.SearchHistoryEntity
+import com.melonet.app.data.mapper.SearchMapper
 import com.melonet.app.data.model.SearchFilter
 import com.melonet.app.data.model.SearchResultItem
+import com.melonet.app.data.model.Song
 import com.melonet.app.data.paging.SearchPagingSource
 import com.melonet.app.data.remote.SearchApi
 import kotlinx.coroutines.flow.Flow
@@ -47,6 +51,29 @@ class SearchRepository(
 
     suspend fun deleteHistory(query: String) = withContext(dispatchers.io) {
         searchHistoryDao.delete(query)
+    }
+
+    suspend fun searchSongs(query: String, limit: Int = 20): List<Song> = withContext(dispatchers.io) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return@withContext emptyList()
+        when (
+            val result = safeApiCall {
+                searchApi.search(
+                    query = trimmed,
+                    type = SearchFilter.SONG.apiValue,
+                    page = 1,
+                    limit = limit,
+                )
+            }
+        ) {
+            is Result.Success -> {
+                val response = result.data ?: return@withContext emptyList()
+                SearchMapper.toResultItems(response, SearchFilter.SONG)
+                    .filterIsInstance<SearchResultItem.SongItem>()
+                    .map { it.song }
+            }
+            is Result.Error -> emptyList()
+        }
     }
 
     private fun Flow<List<SearchHistoryEntity>>.mapToQueries(): Flow<List<String>> =

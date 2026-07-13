@@ -2,6 +2,7 @@ package com.melonet.app.data.paging
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.melonet.app.data.local.LocalPlaylistDao
 import com.melonet.app.data.mapper.PlaylistMapper
 import com.melonet.app.data.mapper.SongMapper
 import com.melonet.app.data.model.Playlist
@@ -13,6 +14,7 @@ import java.io.IOException
 class PlaylistSongsPagingSource(
     private val playlistApi: PlaylistApi,
     private val playlistId: Int,
+    private val localPlaylistDao: LocalPlaylistDao,
 ) : PagingSource<Int, Song>() {
 
     override fun getRefreshKey(state: PagingState<Int, Song>): Int? {
@@ -31,7 +33,26 @@ class PlaylistSongsPagingSource(
                 limit = params.loadSize,
             )
             response.error?.let { return LoadResult.Error(IOException(it.message)) }
-            val items = response.data?.map(SongMapper::toModel).orEmpty()
+            val apiItems = response.data?.map(SongMapper::toModel).orEmpty()
+            val localItems = if (page == 1) {
+                localPlaylistDao.getSongsForPlaylist(playlistId).map { entity ->
+                    Song(
+                        id = entity.songId,
+                        title = entity.title,
+                        artistName = entity.artistName,
+                        coverUrl = entity.coverUrl,
+                        audioUrl = entity.audioUrl,
+                        category = if (entity.isLocal) "local" else "app",
+                        lyrics = "",
+                        durationSec = entity.durationSec,
+                    )
+                }
+            } else {
+                emptyList()
+            }
+            val items = localItems + apiItems.filter { apiSong ->
+                localItems.none { it.id == apiSong.id }
+            }
             val hasMore = response.meta?.hasMore == true
             LoadResult.Page(
                 data = items,

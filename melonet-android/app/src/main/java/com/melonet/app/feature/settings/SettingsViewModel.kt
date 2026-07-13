@@ -16,10 +16,6 @@ class SettingsViewModel(
     override fun createInitialState() = SettingsContract.State()
 
     init {
-        settingsRepository.languageFlow
-            .onEach { language -> setState { copy(language = language) } }
-            .launchIn(viewModelScope)
-
         settingsRepository.themeModeFlow
             .onEach { themeMode -> setState { copy(themeMode = themeMode) } }
             .launchIn(viewModelScope)
@@ -27,7 +23,6 @@ class SettingsViewModel(
 
     override fun handleEvent(event: SettingsContract.Event) {
         when (event) {
-            is SettingsContract.Event.LanguageSelected -> setLanguage(event.language)
             is SettingsContract.Event.ThemeSelected -> setTheme(event.mode)
             SettingsContract.Event.LogoutClicked -> logout()
             SettingsContract.Event.PrivacyPolicyClicked -> {
@@ -39,13 +34,6 @@ class SettingsViewModel(
 
     private companion object {
         const val PRIVACY_POLICY_URL = "https://melonet.app/privacy"
-    }
-
-    private fun setLanguage(language: String) {
-        viewModelScope.launch {
-            settingsRepository.setLanguage(language)
-            setEffect { SettingsContract.Effect.RecreateActivity }
-        }
     }
 
     private fun setTheme(mode: com.melonet.app.data.model.ThemeMode) {

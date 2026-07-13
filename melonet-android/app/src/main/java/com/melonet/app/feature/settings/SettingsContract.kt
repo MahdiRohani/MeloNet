@@ -7,13 +7,11 @@ import com.melonet.app.data.model.ThemeMode
 
 object SettingsContract {
     data class State(
-        val language: String = "fa",
         val themeMode: ThemeMode = ThemeMode.SYSTEM,
         val isLoggingOut: Boolean = false,
     ) : UiState
 
     sealed interface Event : UiEvent {
-        data class LanguageSelected(val language: String) : Event
         data class ThemeSelected(val mode: ThemeMode) : Event
         data object LogoutClicked : Event
         data object PrivacyPolicyClicked : Event

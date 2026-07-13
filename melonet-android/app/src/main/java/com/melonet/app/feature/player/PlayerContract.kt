@@ -4,6 +4,7 @@ import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
 import com.melonet.app.data.model.DownloadStatus
+import com.melonet.app.data.model.RepeatMode
 import com.melonet.app.data.model.Song
 
 object PlayerContract {
@@ -23,6 +24,8 @@ object PlayerContract {
         val isPremium: Boolean = false,
         val downloadStatus: DownloadStatus? = null,
         val showUpgradeDialog: Boolean = false,
+        val shuffleEnabled: Boolean = false,
+        val repeatMode: RepeatMode = RepeatMode.OFF,
     ) : UiState
 
     sealed interface Event : UiEvent {
@@ -41,6 +44,8 @@ object PlayerContract {
         data class UpdateGradient(val colors: List<Long>) : Event
         data object DownloadClicked : Event
         data object DismissUpgradeDialog : Event
+        data object ToggleShuffle : Event
+        data object CycleRepeatMode : Event
     }
 
     sealed interface Effect : UiEffect {

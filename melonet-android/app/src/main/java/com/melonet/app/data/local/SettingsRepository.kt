@@ -26,7 +26,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     val languageFlow: Flow<String> = context.settingsDataStore.data.map { prefs ->
-        prefs[LANGUAGE] ?: "fa"
+        prefs[LANGUAGE] ?: "en"
     }
 
     val isPremiumFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->

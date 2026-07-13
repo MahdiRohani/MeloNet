@@ -18,6 +18,7 @@ import com.melonet.app.data.remote.SearchApi
 import com.melonet.app.data.remote.ChatApi
 import com.melonet.app.data.remote.SocialApi
 import com.melonet.app.data.repository.AuthRepository
+import com.melonet.app.data.repository.CatalogRepository
 import com.melonet.app.data.repository.HomeRepository
 import com.melonet.app.data.repository.LibraryRepository
 import androidx.work.WorkManager
@@ -33,11 +34,15 @@ import com.melonet.app.data.repository.UserRepository
 import com.melonet.app.feature.auth.AuthViewModel
 import com.melonet.app.feature.auth.LoginViewModel
 import com.melonet.app.feature.auth.RegisterViewModel
+import com.melonet.app.feature.catalog.CatalogViewModel
 import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.PlayerViewModel
 import com.melonet.app.feature.playlists.LibrarySongsViewModel
 import com.melonet.app.feature.playlists.PlaylistDetailViewModel
+import com.melonet.app.data.repository.LocalMusicRepository
+import com.melonet.app.feature.localmusic.LocalMusicViewModel
+import com.melonet.app.feature.playlists.AddSongsViewModel
 import com.melonet.app.feature.playlists.PlaylistsViewModel
 import com.melonet.app.data.realtime.ChatWebSocketClient
 import com.melonet.app.data.repository.ChatRepository
@@ -128,10 +133,12 @@ val appModule = module {
     single { get<MeloNetDatabase>().playHistoryDao() }
     single { get<MeloNetDatabase>().downloadDao() }
     single { get<MeloNetDatabase>().chatMessageDao() }
+    single { get<MeloNetDatabase>().localPlaylistDao() }
     single { DownloadStorage(androidContext()) }
     single { WorkManager.getInstance(androidContext()) }
 
     single { HomeRepository(homeApi = get(), dispatchers = get()) }
+    single { CatalogRepository(catalogApi = get()) }
     single {
         SearchRepository(
             searchApi = get(),
@@ -163,7 +170,8 @@ val appModule = module {
             dispatchers = get(),
         )
     }
-    single { PlaylistRepository(playlistApi = get(), dispatchers = get()) }
+    single { LocalMusicRepository(context = androidContext(), dispatchers = get()) }
+    single { PlaylistRepository(playlistApi = get(), localPlaylistDao = get(), dispatchers = get()) }
     single {
         LibraryRepository(
             libraryApi = get(),
@@ -198,6 +206,7 @@ val appModule = module {
     viewModel { LoginViewModel(authRepository = get()) }
     viewModel { RegisterViewModel(authRepository = get()) }
     viewModel { HomeViewModel(homeRepository = get()) }
+    viewModel { CatalogViewModel(catalogRepository = get()) }
     viewModel { ProfileViewModel(userRepository = get()) }
     viewModel { EditProfileViewModel(userRepository = get(), authRepository = get(), appContext = androidContext()) }
     viewModel { SettingsViewModel(settingsRepository = get(), authRepository = get()) }
@@ -209,6 +218,8 @@ val appModule = module {
     viewModel { PlayerViewModel(playbackManager = get(), downloadRepository = get(), userRepository = get()) }
     viewModel { PlaylistsViewModel(playlistRepository = get()) }
     viewModel { PlaylistDetailViewModel(playlistRepository = get()) }
+    viewModel { AddSongsViewModel(playlistRepository = get(), localMusicRepository = get(), searchRepository = get()) }
+    viewModel { LocalMusicViewModel(localMusicRepository = get()) }
     viewModel { LibrarySongsViewModel(libraryRepository = get()) }
     viewModel { DownloadsViewModel(downloadRepository = get(), userRepository = get()) }
 }

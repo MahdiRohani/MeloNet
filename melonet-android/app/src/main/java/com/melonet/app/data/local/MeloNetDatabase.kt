@@ -10,8 +10,9 @@ import androidx.room.RoomDatabase
         PlayHistoryEntity::class,
         DownloadEntity::class,
         ChatMessageEntity::class,
+        LocalPlaylistSongEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class MeloNetDatabase : RoomDatabase() {
@@ -20,4 +21,5 @@ abstract class MeloNetDatabase : RoomDatabase() {
     abstract fun playHistoryDao(): PlayHistoryDao
     abstract fun downloadDao(): DownloadDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun localPlaylistDao(): LocalPlaylistDao
 }

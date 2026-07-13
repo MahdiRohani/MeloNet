@@ -17,6 +17,9 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
@@ -47,6 +50,7 @@ import coil.request.SuccessResult
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.DownloadStatus
+import com.melonet.app.data.model.RepeatMode
 import com.melonet.app.feature.player.component.AudioVisualizer
 import com.melonet.app.feature.player.component.DynamicPlayerBackground
 import com.melonet.app.feature.player.component.RotatingCover
@@ -216,6 +220,40 @@ fun PlayerScreen(
             }
 
             Spacer(modifier = Modifier.height(spacing.md))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.lg),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.ToggleShuffle) }) {
+                    Icon(
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = stringResource(R.string.cd_shuffle),
+                        tint = if (state.shuffleEnabled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+                        },
+                    )
+                }
+                IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.CycleRepeatMode) }) {
+                    Icon(
+                        imageVector = when (state.repeatMode) {
+                            RepeatMode.ONE -> Icons.Default.RepeatOne
+                            else -> Icons.Default.Repeat
+                        },
+                        contentDescription = stringResource(R.string.cd_repeat),
+                        tint = if (state.repeatMode != RepeatMode.OFF) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
+                        },
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

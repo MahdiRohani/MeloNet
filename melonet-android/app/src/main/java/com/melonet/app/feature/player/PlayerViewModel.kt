@@ -38,6 +38,8 @@ class PlayerViewModel(
                         durationMs = playback.durationMs,
                         playbackSpeed = playback.playbackSpeed,
                         sleepTimerMinutesLeft = playback.sleepTimerMinutesLeft,
+                        shuffleEnabled = playback.shuffleEnabled,
+                        repeatMode = playback.repeatMode,
                     )
                 }
             }
@@ -89,6 +91,8 @@ class PlayerViewModel(
             is PlayerContract.Event.UpdateGradient -> setState { copy(gradientColors = event.colors) }
             PlayerContract.Event.DownloadClicked -> handleDownloadClick()
             PlayerContract.Event.DismissUpgradeDialog -> setState { copy(showUpgradeDialog = false) }
+            PlayerContract.Event.ToggleShuffle -> playbackManager.toggleShuffle()
+            PlayerContract.Event.CycleRepeatMode -> playbackManager.cycleRepeatMode()
         }
     }
 
