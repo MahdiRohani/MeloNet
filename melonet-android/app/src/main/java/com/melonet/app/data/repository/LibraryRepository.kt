@@ -45,6 +45,17 @@ class PlaylistRepository(
         }
     }
 
+    suspend fun getUserPlaylists(): Result<List<Playlist>> = withContext(dispatchers.io) {
+        when (
+            val result = safeApiCall {
+                playlistApi.getPlaylists(PlaylistScope.MINE.apiValue, page = 1, limit = 50)
+            }
+        ) {
+            is Result.Success -> Result.Success(result.data.map(PlaylistMapper::toModel))
+            is Result.Error -> result
+        }
+    }
+
     suspend fun createPlaylist(title: String): Result<Playlist> = withContext(dispatchers.io) {
         when (
             val result = safeApiCall {
@@ -136,6 +147,18 @@ class LibraryRepository(
             }
         },
     ).flow
+
+    fun observeIsLiked(songId: String): Flow<Boolean> = likedSongDao.observeIsLiked(songId)
+
+    suspend fun likeSong(song: Song): Result<Unit> = withContext(dispatchers.io) {
+        when (val result = safeApiCall { libraryApi.likeSong(song.id) }) {
+            is Result.Success -> {
+                likedSongDao.insert(song.toLikedEntity())
+                Result.Success(Unit)
+            }
+            is Result.Error -> result
+        }
+    }
 
     suspend fun unlikeSong(songId: String): Result<Unit> = withContext(dispatchers.io) {
         when (val result = safeApiCall { libraryApi.unlikeSong(songId) }) {

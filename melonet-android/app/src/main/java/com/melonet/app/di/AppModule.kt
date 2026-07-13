@@ -223,7 +223,15 @@ val appModule = module {
     viewModel { ConversationsViewModel(chatRepository = get()) }
     viewModel { ChatViewModel(chatRepository = get(), socialRepository = get()) }
     viewModel { SearchViewModel(searchRepository = get()) }
-    viewModel { PlayerViewModel(playbackManager = get(), downloadRepository = get(), userRepository = get()) }
+    viewModel {
+        PlayerViewModel(
+            playbackManager = get(),
+            downloadRepository = get(),
+            userRepository = get(),
+            libraryRepository = get(),
+            playlistRepository = get(),
+        )
+    }
     viewModel { PlaylistsViewModel(playlistRepository = get()) }
     viewModel { PlaylistDetailViewModel(playlistRepository = get()) }
     viewModel { AddSongsViewModel(playlistRepository = get(), localMusicRepository = get(), searchRepository = get()) }

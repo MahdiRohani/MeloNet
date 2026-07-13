@@ -14,6 +14,12 @@ interface LikedSongDao {
     @Query("SELECT * FROM liked_songs ORDER BY cachedAt DESC LIMIT :limit OFFSET :offset")
     suspend fun getPage(offset: Int, limit: Int): List<LikedSongEntity>
 
+    @Query("SELECT EXISTS(SELECT 1 FROM liked_songs WHERE songId = :songId)")
+    fun observeIsLiked(songId: String): Flow<Boolean>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(song: LikedSongEntity)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(songs: List<LikedSongEntity>)
 

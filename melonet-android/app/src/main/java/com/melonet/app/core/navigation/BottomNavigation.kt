@@ -35,7 +35,7 @@ sealed class BottomNavEntry<T : Any>(
     data object Chat : BottomNavEntry<ConversationsRoute>(
         R.string.nav_chat,
         Icons.AutoMirrored.Filled.Chat,
-        ConversationsRoute,
+        ConversationsRoute(),
     )
 
     data object Home : BottomNavEntry<HomeRoute>(

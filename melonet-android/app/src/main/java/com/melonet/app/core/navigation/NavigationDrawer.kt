@@ -46,7 +46,7 @@ val drawerMenuItems = listOf(
     DrawerMenuItem(R.string.nav_profile, Icons.Default.Person, ProfileRoute),
     DrawerMenuItem(R.string.nav_playlists, Icons.AutoMirrored.Filled.QueueMusic, PlaylistsRoute),
     DrawerMenuItem(R.string.nav_local_music, Icons.Default.LibraryMusic, LocalMusicRoute),
-    DrawerMenuItem(R.string.chat_conversations_title, Icons.AutoMirrored.Filled.Chat, ConversationsRoute),
+    DrawerMenuItem(R.string.chat_conversations_title, Icons.AutoMirrored.Filled.Chat, ConversationsRoute()),
     DrawerMenuItem(R.string.nav_downloads, Icons.Default.Download, DownloadsRoute),
     DrawerMenuItem(R.string.settings_title, Icons.Default.Settings, SettingsRoute),
 )

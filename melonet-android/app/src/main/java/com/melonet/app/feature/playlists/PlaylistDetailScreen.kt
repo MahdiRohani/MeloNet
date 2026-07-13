@@ -1,7 +1,9 @@
 package com.melonet.app.feature.playlists
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -28,9 +30,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.melonet.app.R
@@ -98,48 +105,66 @@ fun PlaylistDetailScreen(
         }
 
         state.playlist?.let { playlist ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(spacing.md),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .clip(
+                        androidx.compose.foundation.shape.RoundedCornerShape(
+                            bottomStart = 28.dp,
+                            bottomEnd = 28.dp,
+                        ),
+                    )
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.surface,
+                            ),
+                        ),
+                    )
+                    .padding(spacing.lg),
             ) {
-                MeloImage(
-                    imageUrl = playlist.coverUrl.ifBlank { null },
-                    contentDescription = playlist.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(dimensions.avatarLg)
-                        .clip(MaterialTheme.shapes.large),
-                )
-                Spacer(modifier = Modifier.height(spacing.md))
-                Text(
-                    text = playlist.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(R.string.playlists_song_count, playlist.songCount),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(spacing.md))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                ) {
-                    MeloButton(
-                        text = stringResource(R.string.library_play_all),
-                        onClick = { viewModel.handleEvent(PlaylistDetailContract.Event.PlayAll) },
-                        modifier = Modifier.weight(1f),
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    MeloImage(
+                        imageUrl = playlist.coverUrl.ifBlank { null },
+                        contentDescription = playlist.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(180.dp)
+                            .clip(MaterialTheme.shapes.large)
+                            .shadow(12.dp, MaterialTheme.shapes.large),
                     )
-                    MeloButton(
-                        text = stringResource(R.string.library_shuffle),
-                        onClick = { viewModel.handleEvent(PlaylistDetailContract.Event.ShuffleAll) },
-                        modifier = Modifier.weight(1f),
-                        variant = com.melonet.app.core.designsystem.component.MeloButtonVariant.Outlined,
+                    Spacer(modifier = Modifier.height(spacing.md))
+                    Text(
+                        text = playlist.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
                     )
+                    Text(
+                        text = stringResource(R.string.playlists_song_count, playlist.songCount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(spacing.md))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        MeloButton(
+                            text = stringResource(R.string.library_play_all),
+                            onClick = { viewModel.handleEvent(PlaylistDetailContract.Event.PlayAll) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        MeloButton(
+                            text = stringResource(R.string.library_shuffle),
+                            onClick = { viewModel.handleEvent(PlaylistDetailContract.Event.ShuffleAll) },
+                            modifier = Modifier.weight(1f),
+                            variant = com.melonet.app.core.designsystem.component.MeloButtonVariant.Outlined,
+                        )
+                    }
                 }
             }
         }

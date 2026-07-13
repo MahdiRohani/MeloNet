@@ -123,11 +123,24 @@
 
     <!-- Player -->
     <string name="player_speed_title">Playback speed</string>
-    <string name="player_speed_format">%1$.1fx</string>
+    <string name="player_speed_format">%1$sx</string>
     <string name="player_sleep_timer_title">Sleep timer</string>
     <string name="player_sleep_timer_off">Off</string>
     <string name="player_sleep_timer_minutes">%1$d minutes</string>
     <string name="player_sleep_timer_active">Sleep in %1$d min</string>
+    <string name="player_more_add_to_playlist">Add to playlist</string>
+    <string name="player_more_go_to_artist">Go to artist</string>
+    <string name="player_more_share">Share</string>
+    <string name="player_share_title">Share this song</string>
+    <string name="player_share_chat">Send in MeloNet chat</string>
+    <string name="player_share_external">Share to other apps</string>
+    <string name="player_add_to_playlist_title">Add to playlist</string>
+    <string name="player_playlists_empty">You have no playlists yet</string>
+    <string name="player_added_to_playlist">Added \"%1$s\" to playlist</string>
+    <string name="cd_favorite">Like</string>
+    <string name="cd_share">Share</string>
+    <string name="cd_more">More options</string>
+    <string name="cd_minimize">Minimize player</string>
     <string name="cd_player_back">Back</string>
     <string name="cd_play">Play</string>
     <string name="cd_pause">Pause</string>

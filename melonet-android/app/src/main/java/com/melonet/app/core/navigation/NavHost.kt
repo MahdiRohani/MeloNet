@@ -10,6 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -45,6 +48,7 @@ import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.player.PlayerContract
 import com.melonet.app.feature.player.PlayerScreen
 import com.melonet.app.feature.player.PlayerViewModel
+import com.melonet.app.feature.player.component.FloatingPlayerBubble
 import com.melonet.app.feature.playlists.LibraryListType
 import com.melonet.app.feature.playlists.LibrarySongsScreen
 import com.melonet.app.feature.playlists.LibrarySongsViewModel
@@ -118,8 +122,17 @@ fun MelonetMainScreen() {
     val showBottomBar = showAppShell ||
         currentDestination?.hasRoute(ConversationsRoute::class) == true
 
+    // When the player is minimized to a floating bubble, we hide the bottom
+    // mini-player and show the draggable circular bubble instead.
+    var bubbleVisible by remember { mutableStateOf(false) }
+    // Drop the bubble if playback stops entirely.
+    LaunchedEffect(playerState.currentSong) {
+        if (playerState.currentSong == null) bubbleVisible = false
+    }
+
     val showMiniPlayer = showAppShell &&
         playerState.currentSong != null &&
+        !bubbleVisible &&
         !currentDestination.hasRoute(PlayerRoute::class)
 
     val authenticatedUser = (authState as? AuthState.Authenticated)?.user
@@ -158,6 +171,7 @@ fun MelonetMainScreen() {
     val scope = rememberCoroutineScope()
     val requestAudioPermission = rememberAudioPermissionRequesterWithCallback()
 
+    Box(modifier = Modifier.fillMaxSize()) {
     MelonetNavigationDrawer(
         drawerState = drawerState,
         scope = scope,
@@ -450,7 +464,8 @@ fun MelonetMainScreen() {
                 )
             }
 
-            composable<ConversationsRoute> {
+            composable<ConversationsRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<ConversationsRoute>()
                 val conversationsViewModel: ConversationsViewModel = koinViewModel()
                 ConversationsScreen(
                     viewModel = conversationsViewModel,
@@ -460,6 +475,7 @@ fun MelonetMainScreen() {
                             ChatRoute(
                                 otherUserId = otherUserId,
                                 conversationId = conversationId,
+                                shareSongId = args.shareSongId,
                             ),
                         )
                     },
@@ -523,6 +539,16 @@ fun MelonetMainScreen() {
                     viewModel = playerViewModel,
                     songId = args.songId,
                     onNavigateBack = { navController.popBackStack() },
+                    onMinimize = {
+                        bubbleVisible = true
+                        navController.popBackStack()
+                    },
+                    onNavigateToArtist = { artistId ->
+                        navController.navigate(ArtistDetailRoute(artistId = artistId))
+                    },
+                    onShareToChat = { shareSongId ->
+                        navController.navigate(ConversationsRoute(shareSongId = shareSongId))
+                    },
                 )
             }
 
@@ -543,6 +569,24 @@ fun MelonetMainScreen() {
             }
         }
     }
+    }
+
+        if (bubbleVisible && showBottomBar) {
+            playerState.currentSong?.let { song ->
+                FloatingPlayerBubble(
+                    coverUrl = song.coverUrl,
+                    isPlaying = playerState.isPlaying,
+                    onClick = {
+                        bubbleVisible = false
+                        navController.navigate(PlayerRoute(songId = song.id))
+                    },
+                    onTogglePlayPause = {
+                        playerViewModel.handleEvent(PlayerContract.Event.TogglePlayPause)
+                    },
+                    modifier = Modifier.align(Alignment.TopStart),
+                )
+            }
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 package com.melonet.app.core.designsystem.component
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,14 +13,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,10 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import androidx.compose.ui.unit.dp
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
@@ -98,28 +93,19 @@ fun MiniPlayerBar(
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
 
-    Column(
+    MeloCard(
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = spacing.sm),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        androidx.compose.material3.LinearProgressIndicator(
-            progress = { progress.coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-        )
-        MeloCard(
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(dimensions.miniPlayerHeight),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(spacing.sm),
+                    .height(dimensions.miniPlayerHeight)
+                    .padding(horizontal = spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 MeloImage(
@@ -128,36 +114,60 @@ fun MiniPlayerBar(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(dimensions.iconLg)
-                        .clip(MaterialTheme.shapes.small),
+                        .clip(MaterialTheme.shapes.medium),
                 )
                 Spacer(modifier = Modifier.width(spacing.sm))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                     Text(
                         text = artist,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
-                IconButton(onClick = onPlayPauseClick) {
-                    Icon(
-                        imageVector = if (isPlaying) {
-                            Icons.Default.Pause
-                        } else {
-                            Icons.Default.PlayArrow
-                        },
-                        contentDescription = stringResource(
-                            if (isPlaying) R.string.cd_pause else R.string.cd_play,
-                        ),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    IconButton(onClick = onPlayPauseClick) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = stringResource(
+                                if (isPlaying) R.string.cd_pause else R.string.cd_play,
+                            ),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    }
                 }
+            }
+            // Thin rounded progress line hugging the bottom of the card.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.sm)
+                    .padding(bottom = spacing.xs)
+                    .height(3.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .height(3.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
             }
         }
     }

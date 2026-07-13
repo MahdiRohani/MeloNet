@@ -24,6 +24,9 @@ interface LibraryApi {
         @Query("limit") limit: Int,
     ): ApiResponse<List<SongDto>>
 
+    @POST("api/songs/{id}/like")
+    suspend fun likeSong(@Path("id") id: String): ApiResponse<Unit>
+
     @DELETE("api/songs/{id}/like")
     suspend fun unlikeSong(@Path("id") id: String): ApiResponse<Unit>
 
