@@ -48,6 +48,11 @@ data class PlayerRoute(val songId: String)
 @Serializable
 data class ConversationsRoute(val shareSongId: String? = null)
 
+@Serializable data object KaraokeRoute
+
+@Serializable
+data class KaraokePlayerRoute(val songId: String)
+
 @Serializable
 data class AddSongsRoute(val playlistId: Int)
 

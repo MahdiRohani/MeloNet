@@ -40,6 +40,7 @@ data class PlaybackState(
     val isConnected: Boolean = false,
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
+    val karaokeEnabled: Boolean = false,
 )
 
 class PlaybackManager(
@@ -189,6 +190,24 @@ class PlaybackManager(
             }
             controller?.pause()
             _state.update { it.copy(sleepTimerMinutesLeft = null) }
+        }
+    }
+
+    fun setKaraoke(enabled: Boolean) {
+        _state.update { it.copy(karaokeEnabled = enabled) }
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val args = android.os.Bundle().apply {
+                putBoolean(MelonetPlaybackService.KEY_KARAOKE_ENABLED, enabled)
+            }
+            c.sendCustomCommand(
+                androidx.media3.session.SessionCommand(
+                    MelonetPlaybackService.COMMAND_SET_KARAOKE,
+                    android.os.Bundle.EMPTY,
+                ),
+                args,
+            )
         }
     }
 

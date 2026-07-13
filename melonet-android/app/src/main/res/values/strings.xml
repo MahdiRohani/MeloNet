@@ -271,4 +271,15 @@
     <string name="placeholder_artist_detail">Artist detail — ID: %1$d</string>
     <string name="placeholder_playlist_detail">Playlist detail — ID: %1$d</string>
     <string name="placeholder_user_profile">User profile — ID: %1$d</string>
+
+    <string name="karaoke_title">Karaoke</string>
+    <string name="karaoke_banner_title">Karaoke Mode</string>
+    <string name="karaoke_banner_subtitle">Sing along — instrumental + synced lyrics</string>
+    <string name="karaoke_search_hint">Search any song…</string>
+    <string name="karaoke_empty_title">Pick a song to sing</string>
+    <string name="karaoke_empty_description">Search for any song to play its instrumental version with synced lyrics.</string>
+    <string name="karaoke_no_results">No songs found</string>
+    <string name="karaoke_lyrics_not_found">Lyrics not available for this song</string>
+    <string name="karaoke_mode_instrumental">Instrumental</string>
+    <string name="karaoke_mode_original">Original</string>
 </resources>

@@ -45,6 +45,10 @@ import com.melonet.app.feature.downloads.DownloadsScreen
 import com.melonet.app.feature.downloads.DownloadsViewModel
 import com.melonet.app.feature.home.HomeScreen
 import com.melonet.app.feature.home.HomeViewModel
+import com.melonet.app.feature.karaoke.KaraokePlayerScreen
+import com.melonet.app.feature.karaoke.KaraokePlayerViewModel
+import com.melonet.app.feature.karaoke.KaraokeScreen
+import com.melonet.app.feature.karaoke.KaraokeViewModel
 import com.melonet.app.feature.player.PlayerContract
 import com.melonet.app.feature.player.PlayerScreen
 import com.melonet.app.feature.player.PlayerViewModel
@@ -107,6 +111,8 @@ fun MelonetMainScreen() {
             !destination.hasRoute(LoginRoute::class) &&
             !destination.hasRoute(RegisterRoute::class) &&
             !destination.hasRoute(PlayerRoute::class) &&
+            !destination.hasRoute(KaraokeRoute::class) &&
+            !destination.hasRoute(KaraokePlayerRoute::class) &&
             !destination.hasRoute(ChatRoute::class) &&
             !destination.hasRoute(ConversationsRoute::class) &&
             !destination.hasRoute(SettingsRoute::class) &&
@@ -274,6 +280,28 @@ fun MelonetMainScreen() {
                     viewModel = homeViewModel,
                     onPlaySong = { song, queue -> playSong(song, queue) },
                     onNavigate = { route -> navController.navigate(route) },
+                    onOpenKaraoke = { navController.navigate(KaraokeRoute) },
+                )
+            }
+
+            composable<KaraokeRoute> {
+                val karaokeViewModel: KaraokeViewModel = koinViewModel()
+                KaraokeScreen(
+                    viewModel = karaokeViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onSongSelected = { songId ->
+                        navController.navigate(KaraokePlayerRoute(songId = songId))
+                    },
+                )
+            }
+
+            composable<KaraokePlayerRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<KaraokePlayerRoute>()
+                val karaokePlayerViewModel: KaraokePlayerViewModel = koinViewModel()
+                KaraokePlayerScreen(
+                    viewModel = karaokePlayerViewModel,
+                    songId = args.songId,
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 

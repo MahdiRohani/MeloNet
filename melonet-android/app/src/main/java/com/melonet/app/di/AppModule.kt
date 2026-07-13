@@ -14,6 +14,7 @@ import com.melonet.app.data.remote.AuthApi
 import com.melonet.app.data.remote.CatalogApi
 import com.melonet.app.data.remote.HomeApi
 import com.melonet.app.data.remote.LibraryApi
+import com.melonet.app.data.remote.LyricsApi
 import com.melonet.app.data.remote.PlaylistApi
 import com.melonet.app.data.remote.SearchApi
 import com.melonet.app.data.remote.ChatApi
@@ -23,6 +24,7 @@ import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.CatalogRepository
 import com.melonet.app.data.repository.HomeRepository
 import com.melonet.app.data.repository.LibraryRepository
+import com.melonet.app.data.repository.LyricsRepository
 import androidx.work.WorkManager
 import com.melonet.app.data.local.DownloadStorage
 import com.melonet.app.data.repository.DownloadRepository
@@ -40,6 +42,8 @@ import com.melonet.app.feature.artist.ArtistDetailViewModel
 import com.melonet.app.feature.catalog.CatalogViewModel
 import com.melonet.app.feature.following.FollowingViewModel
 import com.melonet.app.feature.home.HomeViewModel
+import com.melonet.app.feature.karaoke.KaraokePlayerViewModel
+import com.melonet.app.feature.karaoke.KaraokeViewModel
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.PlayerViewModel
 import com.melonet.app.feature.playlists.LibrarySongsViewModel
@@ -128,6 +132,15 @@ val appModule = module {
     single { get<Retrofit>().create(SocialApi::class.java) }
     single { get<Retrofit>().create(ChatApi::class.java) }
 
+    single(named("lyricsRetrofit")) {
+        Retrofit.Builder()
+            .baseUrl("https://lrclib.net/")
+            .client(get(named("noAuthClient")))
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+    single { get<Retrofit>(named("lyricsRetrofit")).create(LyricsApi::class.java) }
+
     single {
         Room.databaseBuilder(androidContext(), MeloNetDatabase::class.java, "melonet.db")
             .fallbackToDestructiveMigration()
@@ -207,6 +220,7 @@ val appModule = module {
     }
     single<OfflineSongResolver> { RoomOfflineSongResolver(downloadRepository = get()) }
     single { PlaybackManager(context = androidContext(), playerRepository = get()) }
+    single { LyricsRepository(lyricsApi = get(), dispatchers = get()) }
 
     viewModel { AuthViewModel(authRepository = get()) }
     viewModel { LoginViewModel(authRepository = get()) }
@@ -230,6 +244,14 @@ val appModule = module {
             userRepository = get(),
             libraryRepository = get(),
             playlistRepository = get(),
+        )
+    }
+    viewModel { KaraokeViewModel(searchRepository = get()) }
+    viewModel {
+        KaraokePlayerViewModel(
+            playbackManager = get(),
+            playerRepository = get(),
+            lyricsRepository = get(),
         )
     }
     viewModel { PlaylistsViewModel(playlistRepository = get()) }
