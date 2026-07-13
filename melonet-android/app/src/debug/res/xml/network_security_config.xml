@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only network security config.
+
+  This file overrides src/main/res/xml/network_security_config.xml for all *debug*
+  build variants. It permits cleartext (HTTP) traffic to ANY host so the app can
+  talk to a backend running on any developer laptop / LAN IP / emulator without
+  having to hardcode a specific address here.
+
+  Release builds do NOT use this file — they fall back to the strict, HTTPS-only
+  config in src/main, so production security is unaffected.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

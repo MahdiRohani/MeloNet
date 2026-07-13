@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.NewReleases
@@ -237,6 +238,7 @@ private fun fallbackLabelForAction(action: QuickAction): String {
         "search" in key -> stringResource(R.string.nav_search)
         "popular" in key || "trending" in key -> stringResource(R.string.home_quick_action_popular)
         "new" in key -> stringResource(R.string.home_quick_action_new)
+        "iranian" in key || "persian" in key -> stringResource(R.string.home_quick_action_iranian)
         "global" in key || "public" in key -> stringResource(R.string.home_quick_action_global)
         else -> action.id
     }
@@ -248,6 +250,7 @@ private fun iconForQuickAction(action: QuickAction): ImageVector {
         "search" in key -> Icons.Default.Search
         "popular" in key || "trending" in key -> Icons.Default.TrendingUp
         "new" in key -> Icons.Default.NewReleases
+        "iranian" in key || "persian" in key -> Icons.Default.Flag
         "global" in key || "public" in key -> Icons.Default.Public
         "liked" in key || "favorite" in key -> Icons.Default.Favorite
         "recent" in key || "history" in key -> Icons.Default.History

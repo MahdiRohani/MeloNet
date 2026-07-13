@@ -27,7 +27,13 @@ type SongListQuery struct {
 	Limit    int
 }
 
+const iranianSearchQuery = "persian"
+
 func (s *CatalogService) ListSongs(ctx context.Context, query SongListQuery) ([]api.SongResponse, domain.Pagination, error) {
+	if isIranianCategory(query.Category) {
+		return s.iranianPage(ctx, query.Page, query.Limit)
+	}
+
 	genre, timeRange := categoryToTrending(query.Category, query.Sort)
 	fetchLimit := query.Page * query.Limit
 	if fetchLimit < 50 {
@@ -71,8 +77,47 @@ func (s *CatalogService) Trending(ctx context.Context, page, limit int) ([]api.S
 }
 
 func (s *CatalogService) CategorySongs(ctx context.Context, category, sort string, page, limit int) ([]api.SongResponse, domain.Pagination, error) {
+	if isIranianCategory(category) {
+		return s.iranianPage(ctx, page, limit)
+	}
 	genre, timeRange := categoryToTrending(category, sort)
 	return s.trendingPage(ctx, genre, timeRange, page, limit)
+}
+
+// IranianSongs returns Persian/Iranian tracks sourced from Audius search.
+func (s *CatalogService) IranianSongs(ctx context.Context, page, limit int) ([]api.SongResponse, domain.Pagination, error) {
+	return s.iranianPage(ctx, page, limit)
+}
+
+func (s *CatalogService) iranianPage(ctx context.Context, page, limit int) ([]api.SongResponse, domain.Pagination, error) {
+	fetchLimit := page * limit
+	if fetchLimit < 50 {
+		fetchLimit = 50
+	}
+	if fetchLimit > 100 {
+		fetchLimit = 100
+	}
+
+	tracks, err := s.audius.SearchTracks(ctx, iranianSearchQuery, fetchLimit)
+	if err != nil {
+		return nil, domain.Pagination{}, err
+	}
+
+	pageTracks, total := audius.Paginate(tracks, page, limit)
+	return audius.TracksToAPI(s.audius.PublicBase(), pageTracks), domain.Pagination{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+	}, nil
+}
+
+func isIranianCategory(category string) bool {
+	switch strings.ToLower(strings.TrimSpace(category)) {
+	case "iranian", "persian", "farsi":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *CatalogService) trendingPage(ctx context.Context, genre, timeRange string, page, limit int) ([]api.SongResponse, domain.Pagination, error) {

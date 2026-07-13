@@ -45,7 +45,6 @@ class SearchViewModel(
 
     init {
         observeHistory()
-        observeDebouncedQueryForHistory()
     }
 
     override fun handleEvent(event: SearchContract.Event) {
@@ -54,6 +53,14 @@ class SearchViewModel(
                 val trimmed = event.query.trim()
                 setState { copy(query = event.query, isSearching = trimmed.isNotBlank()) }
                 queryFlow.value = trimmed
+            }
+            is SearchContract.Event.QuerySubmitted -> {
+                val trimmed = event.query.trim()
+                if (trimmed.isNotBlank()) {
+                    setState { copy(query = trimmed, isSearching = true) }
+                    queryFlow.value = trimmed
+                    viewModelScope.launch { searchRepository.saveHistory(trimmed) }
+                }
             }
             is SearchContract.Event.FilterSelected -> {
                 filterFlow.value = event.filter
@@ -90,18 +97,6 @@ class SearchViewModel(
     private fun observeHistory() {
         searchRepository.observeHistory()
             .onEach { history -> setState { copy(history = history) } }
-            .launchIn(viewModelScope)
-    }
-
-    private fun observeDebouncedQueryForHistory() {
-        queryFlow
-            .debounce(DEBOUNCE_MS)
-            .distinctUntilChanged()
-            .onEach { query ->
-                if (query.isNotBlank()) {
-                    viewModelScope.launch { searchRepository.saveHistory(query) }
-                }
-            }
             .launchIn(viewModelScope)
     }
 

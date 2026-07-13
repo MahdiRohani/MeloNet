@@ -45,17 +45,25 @@ func (s *HomeService) Feed(ctx context.Context) (api.HomeFeedResponse, error) {
 		return api.HomeFeedResponse{}, err
 	}
 
+	// Iranian songs come from Audius search which can be flaky; never fail the whole feed on its behalf.
+	iranian, _, err := s.catalog.IranianSongs(ctx, 1, 10)
+	if err != nil {
+		iranian = nil
+	}
+
 	return api.HomeFeedResponse{
 		Carousel: carouselSongs,
 		QuickActions: []api.QuickActionResponse{
 			{ID: "search", Title: "Search", Target: "search", Icon: "search"},
 			{ID: "popular", Title: "Popular", Target: "catalog/popular", Icon: "trending_up"},
 			{ID: "new", Title: "New Releases", Target: "catalog/new", Icon: "new_releases"},
+			{ID: "iranian", Title: "Iranian", Target: "songs?category=Iranian", Icon: "iranian"},
 			{ID: "global", Title: "Global", Target: "songs?category=Global", Icon: "public"},
 		},
 		Rows: []api.HomeRowResponse{
 			{ID: "popular", Title: "Popular", RowType: "songs", SeeAllPath: "/api/catalog/popular", Items: popular},
 			{ID: "new", Title: "New Releases", RowType: "songs", SeeAllPath: "/api/catalog/new", Items: newest},
+			{ID: "iranian", Title: "Iranian", RowType: "songs", SeeAllPath: "/api/songs?category=Iranian", Items: iranian},
 			{ID: "global", Title: "Electronic", RowType: "songs", SeeAllPath: "/api/songs?category=Global", Items: electronic},
 			{ID: "local", Title: "Hip-Hop", RowType: "songs", SeeAllPath: "/api/songs?category=Popular", Items: hiphop},
 			{ID: "nostalgia", Title: "Ambient", RowType: "songs", SeeAllPath: "/api/songs?category=Nostalgia", Items: ambient},

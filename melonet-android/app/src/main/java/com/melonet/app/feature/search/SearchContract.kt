@@ -17,6 +17,7 @@ object SearchContract {
 
     sealed interface Event : UiEvent {
         data class QueryChanged(val query: String) : Event
+        data class QuerySubmitted(val query: String) : Event
         data class FilterSelected(val filter: SearchFilter) : Event
         data class HistoryItemClicked(val query: String) : Event
         data class HistoryItemDeleted(val query: String) : Event

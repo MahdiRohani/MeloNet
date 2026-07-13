@@ -14,6 +14,34 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(keystorePropertiesFile.inputStream())
 }
 
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+/**
+ * Resolves the base URL used by the `dev` flavor to reach the backend.
+ *
+ * Override it (no code changes needed) via, in priority order:
+ *   1. Gradle property:   ./gradlew ... -PmelonetDevApiBaseUrl=http://192.168.1.50:8080/
+ *   2. Environment var:   MELONET_DEV_API_BASE_URL=http://192.168.1.50:8080/
+ *   3. local.properties:  melonet.devApiBaseUrl=http://192.168.1.50:8080/
+ *
+ * Default: http://10.0.2.2:8080/ which is the Android emulator's alias for the
+ * host machine's localhost, so running the backend locally + an emulator works
+ * with no configuration. For a physical device, set your laptop's LAN IP using
+ * one of the overrides above (local.properties is easiest and is git-ignored).
+ */
+fun resolveDevApiBaseUrl(): String {
+    val fromGradle = (project.findProperty("melonetDevApiBaseUrl") as String?)?.takeIf { it.isNotBlank() }
+    val fromEnv = System.getenv("MELONET_DEV_API_BASE_URL")?.takeIf { it.isNotBlank() }
+    val fromLocal = localProperties.getProperty("melonet.devApiBaseUrl")?.takeIf { it.isNotBlank() }
+    val url = (fromGradle ?: fromEnv ?: fromLocal ?: "http://10.0.2.2:8080/").trim()
+    return if (url.endsWith("/")) url else "$url/"
+}
+
 android {
     namespace = "com.melonet.app"
     compileSdk = 36
@@ -45,7 +73,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "environment"
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.31.181:8080/\"")
+            buildConfigField("String", "API_BASE_URL", "\"${resolveDevApiBaseUrl()}\"")
         }
         create("staging") {
             dimension = "environment"

@@ -85,6 +85,7 @@ fun SearchScreen(
         MeloSearchBar(
             query = state.query,
             onQueryChange = { viewModel.handleEvent(SearchContract.Event.QueryChanged(it)) },
+            onSearch = { viewModel.handleEvent(SearchContract.Event.QuerySubmitted(it)) },
             placeholder = stringResource(R.string.search_hint),
             modifier = Modifier.padding(top = spacing.sm),
         )
