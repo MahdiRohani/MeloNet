@@ -264,11 +264,16 @@ Created by migrations (`000005_auth_premium`):
 
 ## Android client base URLs
 
-| Environment | Base URL |
-|-------------|----------|
-| Emulator | `http://10.0.2.2:8080` |
-| Physical device (same Wi‑Fi) | `http://<your-pc-ip>:8080` |
-| Local API on host | `http://localhost:8080` |
+The `dev` flavor **auto-detects your laptop's current LAN IP at build time**, so changing Wi‑Fi no longer requires editing a hardcoded address.
+
+| Scenario | What to do |
+|----------|------------|
+| Phone + laptop on same Wi‑Fi | `make sync-dev-url` in `melonet-backend`, then rebuild the app |
+| Android emulator | Works with auto-detect, or set `melonet.devApiBaseUrl=http://10.0.2.2:8080/` |
+| USB (any network) | `make adb-reverse` then `make sync-dev-url-usb` and rebuild |
+| Force a URL | `local.properties`: `melonet.devApiBaseUrl=http://x.x.x.x:8080/` |
+
+`make docker-up` also runs `sync-dev-url` so `PUBLIC_BASE_URL` (media links) matches the current IP.
 
 ---
 

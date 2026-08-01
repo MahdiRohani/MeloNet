@@ -16,8 +16,12 @@ object KaraokePlayerContract {
         val durationMs: Long = 0L,
         val lyrics: Lyrics = Lyrics.EMPTY,
         val isLoadingLyrics: Boolean = true,
+        val lyricsReady: Boolean = false,
         val currentLineIndex: Int = -1,
         val karaokeEnabled: Boolean = true,
+        val isRecording: Boolean = false,
+        val recordingSeconds: Int = 0,
+        val permissionNeeded: Boolean = false,
     ) : UiState
 
     sealed interface Event : UiEvent {
@@ -25,7 +29,15 @@ object KaraokePlayerContract {
         data class SeekTo(val positionMs: Long) : Event
         data object ToggleVocals : Event
         data class LineClicked(val index: Int) : Event
+        data object StartRecording : Event
+        data object StopRecording : Event
+        data object PermissionGranted : Event
+        data object PermissionDenied : Event
     }
 
-    sealed interface Effect : UiEffect
+    sealed interface Effect : UiEffect {
+        data object RequestMicPermission : Effect
+        data class RecordingSaved(val recordingId: Long) : Effect
+        data class ShowMessage(val message: String) : Effect
+    }
 }

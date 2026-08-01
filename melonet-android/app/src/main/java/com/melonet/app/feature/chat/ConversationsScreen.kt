@@ -14,9 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -55,6 +56,7 @@ fun ConversationsScreen(
     viewModel: ConversationsViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToChat: (Int, Int, String) -> Unit,
+    onNewChat: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     val conversations = viewModel.conversations.collectAsLazyPagingItems()
@@ -78,67 +80,84 @@ fun ConversationsScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = stringResource(R.string.chat_conversations_title),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
+        Column(modifier = Modifier.fillMaxSize()) {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.chat_conversations_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
                     )
-                }
-            },
-        )
+                },
+                actions = {
+                    IconButton(onClick = onNewChat) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.chat_new_title),
+                        )
+                    }
+                },
+            )
 
-        when (conversations.loadState.refresh) {
-            is LoadState.Loading if conversations.itemCount == 0 -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            when (conversations.loadState.refresh) {
+                is LoadState.Loading if conversations.itemCount == 0 -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
-            is LoadState.Error if conversations.itemCount == 0 -> {
-                ErrorState(
-                    message = stringResource(R.string.chat_error_title),
-                    onRetry = { conversations.retry() },
-                )
-            }
-            else -> {
-                if (conversations.itemCount == 0) {
-                    EmptyState(
-                        title = stringResource(R.string.chat_empty_title),
-                        description = stringResource(R.string.chat_empty_description),
+                is LoadState.Error if conversations.itemCount == 0 -> {
+                    ErrorState(
+                        message = stringResource(R.string.chat_error_title),
+                        onRetry = { conversations.retry() },
                     )
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(vertical = spacing.sm),
-                    ) {
-                        items(
-                            count = conversations.itemCount,
-                            key = conversations.itemKey { it.id },
-                        ) { index ->
-                            val conversation = conversations[index] ?: return@items
-                            ConversationRow(
-                                conversation = conversation,
-                                onClick = {
-                                    viewModel.handleEvent(
-                                        ConversationsContract.Event.ConversationClicked(conversation),
-                                    )
-                                },
-                            )
+                }
+                else -> {
+                    if (conversations.itemCount == 0) {
+                        EmptyState(
+                            title = stringResource(R.string.chat_empty_title),
+                            description = stringResource(R.string.chat_empty_description),
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(vertical = spacing.sm),
+                        ) {
+                            items(
+                                count = conversations.itemCount,
+                                key = conversations.itemKey { it.id },
+                            ) { index ->
+                                val conversation = conversations[index] ?: return@items
+                                ConversationRow(
+                                    conversation = conversation,
+                                    onClick = {
+                                        viewModel.handleEvent(
+                                            ConversationsContract.Event.ConversationClicked(conversation),
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = onNewChat,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(spacing.lg),
+            containerColor = MaterialTheme.colorScheme.primary,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = stringResource(R.string.chat_new_title),
+                tint = MaterialTheme.colorScheme.onPrimary,
+            )
         }
     }
 }

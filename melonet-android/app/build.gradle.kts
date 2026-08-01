@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import java.util.Properties
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -22,24 +24,87 @@ val localProperties = Properties().apply {
 }
 
 /**
+ * Picks the host LAN IPv4 so a phone/emulator on the *current* Wi‑Fi can reach
+ * the backend, without hardcoding an IP that breaks when you change networks.
+ *
+ * Prefers Wi‑Fi / Ethernet; skips docker, VPN, and bridge interfaces.
+ */
+fun detectLanIp(): String? {
+    val preferred = mutableListOf<String>()
+    val others = mutableListOf<String>()
+    val interfaces = runCatching { NetworkInterface.getNetworkInterfaces()?.toList() }
+        .getOrNull()
+        .orEmpty()
+
+    for (iface in interfaces) {
+        if (!iface.isUp || iface.isLoopback || iface.isVirtual) continue
+        val name = iface.name.lowercase()
+        if (name.startsWith("docker") ||
+            name.startsWith("br-") ||
+            name.startsWith("veth") ||
+            name.startsWith("tun") ||
+            name.startsWith("tap") ||
+            name.startsWith("virbr") ||
+            name.startsWith("vmnet") ||
+            name.startsWith("wg") ||
+            name.startsWith("zt") ||
+            name.startsWith("tailscale")
+        ) {
+            continue
+        }
+        for (addr in iface.inetAddresses) {
+            if (addr !is Inet4Address || addr.isLoopbackAddress || !addr.isSiteLocalAddress) continue
+            val ip = addr.hostAddress ?: continue
+            val isPreferred = name.startsWith("wl") ||
+                name.startsWith("wlan") ||
+                name.startsWith("en") ||
+                name.startsWith("eth")
+            if (isPreferred) preferred += ip else others += ip
+        }
+    }
+    return preferred.firstOrNull() ?: others.firstOrNull()
+}
+
+/**
  * Resolves the base URL used by the `dev` flavor to reach the backend.
  *
- * Override it (no code changes needed) via, in priority order:
+ * Priority:
  *   1. Gradle property:   ./gradlew ... -PmelonetDevApiBaseUrl=http://192.168.1.50:8080/
  *   2. Environment var:   MELONET_DEV_API_BASE_URL=http://192.168.1.50:8080/
- *   3. local.properties:  melonet.devApiBaseUrl=http://192.168.1.50:8080/
+ *   3. local.properties:  melonet.devApiBaseUrl=http://…  (or `auto` / blank → detect)
+ *   4. Auto-detected LAN IP of this machine (works across Wi‑Fi changes)
+ *   5. Fallback:          http://10.0.2.2:8080/  (Android emulator → host loopback)
  *
- * Default: http://10.0.2.2:8080/ which is the Android emulator's alias for the
- * host machine's localhost, so running the backend locally + an emulator works
- * with no configuration. For a physical device, set your laptop's LAN IP using
- * one of the overrides above (local.properties is easiest and is git-ignored).
+ * Tip: USB debugging without caring about Wi‑Fi:
+ *   adb reverse tcp:8080 tcp:8080
+ *   then force: melonet.devApiBaseUrl=http://127.0.0.1:8080/
  */
 fun resolveDevApiBaseUrl(): String {
+    fun normalize(raw: String): String {
+        val url = raw.trim()
+        return if (url.endsWith("/")) url else "$url/"
+    }
+
     val fromGradle = (project.findProperty("melonetDevApiBaseUrl") as String?)?.takeIf { it.isNotBlank() }
     val fromEnv = System.getenv("MELONET_DEV_API_BASE_URL")?.takeIf { it.isNotBlank() }
-    val fromLocal = localProperties.getProperty("melonet.devApiBaseUrl")?.takeIf { it.isNotBlank() }
-    val url = (fromGradle ?: fromEnv ?: fromLocal ?: "http://10.0.2.2:8080/").trim()
-    return if (url.endsWith("/")) url else "$url/"
+    val fromLocalRaw = localProperties.getProperty("melonet.devApiBaseUrl")?.trim().orEmpty()
+    val fromLocal = fromLocalRaw.takeIf { it.isNotBlank() && !it.equals("auto", ignoreCase = true) }
+
+    val explicit = fromGradle ?: fromEnv ?: fromLocal
+    if (explicit != null) {
+        val url = normalize(explicit)
+        logger.lifecycle("MeloNet dev API_BASE_URL (override) = $url")
+        return url
+    }
+
+    val lanIp = detectLanIp()
+    val url = if (lanIp != null) {
+        normalize("http://$lanIp:8080/")
+    } else {
+        normalize("http://10.0.2.2:8080/")
+    }
+    logger.lifecycle("MeloNet dev API_BASE_URL (auto) = $url")
+    return url
 }
 
 android {

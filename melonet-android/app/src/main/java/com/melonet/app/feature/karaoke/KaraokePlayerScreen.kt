@@ -1,7 +1,12 @@
 package com.melonet.app.feature.karaoke
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,9 +25,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -36,30 +44,72 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
+import androidx.core.content.ContextCompat
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.feature.player.component.PlayerProgressBar
-import androidx.compose.ui.res.stringResource
 
 @Composable
 fun KaraokePlayerScreen(
     viewModel: KaraokePlayerViewModel,
     songId: String,
     onNavigateBack: () -> Unit,
+    onRecordingSaved: (Long) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
     val listState = rememberLazyListState()
+    val context = LocalContext.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            viewModel.handleEvent(KaraokePlayerContract.Event.PermissionGranted)
+        } else {
+            viewModel.handleEvent(KaraokePlayerContract.Event.PermissionDenied)
+        }
+    }
 
     LaunchedEffect(songId) {
         viewModel.start(songId)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                KaraokePlayerContract.Effect.RequestMicPermission -> {
+                    val granted = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO,
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (granted) {
+                        viewModel.handleEvent(KaraokePlayerContract.Event.PermissionGranted)
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+                is KaraokePlayerContract.Effect.RecordingSaved -> onRecordingSaved(effect.recordingId)
+                is KaraokePlayerContract.Effect.ShowMessage -> {
+                    val text = when (effect.message) {
+                        "record_saved" -> context.getString(R.string.karaoke_record_saved)
+                        "record_failed" -> context.getString(R.string.karaoke_record_failed)
+                        "mic_permission_denied" -> context.getString(R.string.karaoke_mic_permission)
+                        else -> effect.message
+                    }
+                    android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     LaunchedEffect(state.currentLineIndex) {
@@ -109,11 +159,14 @@ fun KaraokePlayerScreen(
                 label = {
                     Text(
                         stringResource(
-                            if (state.karaokeEnabled) R.string.karaoke_mode_instrumental else R.string.karaoke_mode_original,
+                            if (state.karaokeEnabled) R.string.karaoke_mode_instrumental
+                            else R.string.karaoke_mode_original,
                         ),
                     )
                 },
-                leadingIcon = { Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                leadingIcon = {
+                    Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp))
+                },
             )
         }
 
@@ -124,7 +177,17 @@ fun KaraokePlayerScreen(
             contentAlignment = Alignment.Center,
         ) {
             when {
-                state.isLoadingLyrics -> CircularProgressIndicator()
+                state.isLoadingLyrics -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(spacing.md))
+                        Text(
+                            text = stringResource(R.string.karaoke_loading_lyrics),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 state.lyrics.isEmpty -> {
                     Text(
                         text = stringResource(R.string.karaoke_lyrics_not_found),
@@ -161,6 +224,33 @@ fun KaraokePlayerScreen(
                 .fillMaxWidth()
                 .padding(horizontal = spacing.lg, vertical = spacing.md),
         ) {
+            if (state.isRecording) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = spacing.sm),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.FiberManualRecord,
+                        contentDescription = null,
+                        tint = Color.Red,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(modifier = Modifier.size(spacing.xs))
+                    Text(
+                        text = stringResource(
+                            R.string.karaoke_recording,
+                            formatSeconds(state.recordingSeconds),
+                        ),
+                        color = Color.Red,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
             PlayerProgressBar(
                 positionMs = state.positionMs,
                 durationMs = state.durationMs,
@@ -171,24 +261,53 @@ fun KaraokePlayerScreen(
                 thumbColor = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.height(spacing.sm))
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .size(dimensions.playerPlayButtonSize)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { viewModel.handleEvent(KaraokePlayerContract.Event.TogglePlayPause) }) {
+                IconButton(
+                    onClick = {
+                        if (state.isRecording) {
+                            viewModel.handleEvent(KaraokePlayerContract.Event.StopRecording)
+                        } else {
+                            viewModel.handleEvent(KaraokePlayerContract.Event.StartRecording)
+                        }
+                    },
+                    enabled = state.lyricsReady,
+                ) {
                     Icon(
-                        imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = stringResource(
-                            if (state.isPlaying) R.string.cd_pause else R.string.cd_play,
-                        ),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(dimensions.iconLg),
+                        imageVector = if (state.isRecording) Icons.Default.Stop else Icons.Default.Mic,
+                        contentDescription = stringResource(R.string.karaoke_record),
+                        tint = if (state.isRecording) Color.Red else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp),
                     )
                 }
+
+                Box(
+                    modifier = Modifier
+                        .size(dimensions.playerPlayButtonSize)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    IconButton(
+                        onClick = { viewModel.handleEvent(KaraokePlayerContract.Event.TogglePlayPause) },
+                        enabled = state.lyricsReady,
+                    ) {
+                        Icon(
+                            imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = stringResource(
+                                if (state.isPlaying) R.string.cd_pause else R.string.cd_play,
+                            ),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(dimensions.iconLg),
+                        )
+                    }
+                }
+
+                // Spacer symmetry for mic button
+                Spacer(modifier = Modifier.size(48.dp))
             }
         }
     }
@@ -226,4 +345,10 @@ private fun LyricRow(
             .clickable(onClick = onClick)
             .padding(vertical = 2.dp),
     )
+}
+
+private fun formatSeconds(total: Int): String {
+    val m = total / 60
+    val s = total % 60
+    return "%d:%02d".format(m, s)
 }

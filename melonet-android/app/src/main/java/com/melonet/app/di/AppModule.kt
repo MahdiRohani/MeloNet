@@ -43,7 +43,11 @@ import com.melonet.app.feature.catalog.CatalogViewModel
 import com.melonet.app.feature.following.FollowingViewModel
 import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.karaoke.KaraokePlayerViewModel
+import com.melonet.app.feature.karaoke.KaraokeRecordingsViewModel
+import com.melonet.app.feature.karaoke.KaraokeTakePlayerViewModel
 import com.melonet.app.feature.karaoke.KaraokeViewModel
+import com.melonet.app.feature.chat.NewChatViewModel
+import com.melonet.app.data.repository.KaraokeRecordingRepository
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.PlayerViewModel
 import com.melonet.app.feature.playlists.LibrarySongsViewModel
@@ -152,6 +156,7 @@ val appModule = module {
     single { get<MeloNetDatabase>().downloadDao() }
     single { get<MeloNetDatabase>().chatMessageDao() }
     single { get<MeloNetDatabase>().localPlaylistDao() }
+    single { get<MeloNetDatabase>().karaokeRecordingDao() }
     single { DownloadStorage(androidContext()) }
     single { WorkManager.getInstance(androidContext()) }
 
@@ -221,6 +226,13 @@ val appModule = module {
     single<OfflineSongResolver> { RoomOfflineSongResolver(downloadRepository = get()) }
     single { PlaybackManager(context = androidContext(), playerRepository = get()) }
     single { LyricsRepository(lyricsApi = get(), dispatchers = get()) }
+    single {
+        KaraokeRecordingRepository(
+            context = androidContext(),
+            dao = get(),
+            dispatchers = get(),
+        )
+    }
 
     viewModel { AuthViewModel(authRepository = get()) }
     viewModel { LoginViewModel(authRepository = get()) }
@@ -228,7 +240,13 @@ val appModule = module {
     viewModel { HomeViewModel(homeRepository = get()) }
     viewModel { CatalogViewModel(catalogRepository = get()) }
     viewModel { ArtistDetailViewModel(artistRepository = get()) }
-    viewModel { FollowingViewModel(socialRepository = get(), artistRepository = get()) }
+    viewModel {
+        FollowingViewModel(
+            socialRepository = get(),
+            artistRepository = get(),
+            searchRepository = get(),
+        )
+    }
     viewModel { ProfileViewModel(userRepository = get()) }
     viewModel { EditProfileViewModel(userRepository = get(), authRepository = get(), appContext = androidContext()) }
     viewModel { SettingsViewModel(settingsRepository = get(), authRepository = get()) }
@@ -252,8 +270,17 @@ val appModule = module {
             playbackManager = get(),
             playerRepository = get(),
             lyricsRepository = get(),
+            karaokeRecordingRepository = get(),
         )
     }
+    viewModel { KaraokeRecordingsViewModel(repository = get()) }
+    viewModel {
+        KaraokeTakePlayerViewModel(
+            repository = get(),
+            playbackManager = get(),
+        )
+    }
+    viewModel { NewChatViewModel(searchRepository = get()) }
     viewModel { PlaylistsViewModel(playlistRepository = get()) }
     viewModel { PlaylistDetailViewModel(playlistRepository = get()) }
     viewModel { AddSongsViewModel(playlistRepository = get(), localMusicRepository = get(), searchRepository = get()) }

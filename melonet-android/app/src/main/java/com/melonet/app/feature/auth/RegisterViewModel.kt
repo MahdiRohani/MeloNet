@@ -1,5 +1,6 @@
 package com.melonet.app.feature.auth
 
+import android.util.Patterns
 import androidx.lifecycle.viewModelScope
 import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.BaseViewModel
@@ -27,20 +28,19 @@ class RegisterViewModel(
 
     private fun register() {
         val state = uiState.value
-        if (state.username.isBlank() || state.email.isBlank() ||
-            state.displayName.isBlank() || state.password.isBlank()
-        ) {
-            setState { copy(error = "required_fields") }
+        val validationError = validateRegisterInput(state)
+        if (validationError != null) {
+            setState { copy(error = validationError) }
             return
         }
 
         viewModelScope.launch {
             setState { copy(isLoading = true, error = null) }
             when (val result = authRepository.register(
-                username = state.username,
-                email = state.email,
+                username = state.username.trim(),
+                email = state.email.trim(),
                 password = state.password,
-                displayName = state.displayName,
+                displayName = state.displayName.trim(),
             )) {
                 is Result.Success -> {
                     setState { copy(isLoading = false) }
@@ -48,7 +48,7 @@ class RegisterViewModel(
                 }
                 is Result.Error -> {
                     val message = when (val error = result.error) {
-                        is AppError.Network -> error.message
+                        is AppError.Network -> mapNetworkRegisterError(error)
                         AppError.Unauthorized -> "registration_failed"
                         is AppError.Unknown -> error.message
                     }
@@ -57,5 +57,39 @@ class RegisterViewModel(
                 }
             }
         }
+    }
+
+    private fun validateRegisterInput(state: RegisterContract.State): String? {
+        if (state.username.isBlank() || state.email.isBlank() ||
+            state.displayName.isBlank() || state.password.isBlank()
+        ) {
+            return "required_fields"
+        }
+        if (!USERNAME_PATTERN.matches(state.username.trim())) {
+            return "invalid_username"
+        }
+        val email = state.email.trim()
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            return "invalid_email"
+        }
+        if (state.password.length < 8) {
+            return "invalid_password"
+        }
+        return null
+    }
+
+    private fun mapNetworkRegisterError(error: AppError.Network): String {
+        val msg = error.message.lowercase()
+        return when {
+            error.code == "user_exists" || "already exists" in msg -> "user_exists"
+            "email" in msg -> "invalid_email"
+            "username" in msg -> "invalid_username"
+            "password" in msg -> "invalid_password"
+            else -> error.message.ifBlank { "registration_failed" }
+        }
+    }
+
+    companion object {
+        private val USERNAME_PATTERN = Regex("^[a-zA-Z0-9_]{3,32}$")
     }
 }

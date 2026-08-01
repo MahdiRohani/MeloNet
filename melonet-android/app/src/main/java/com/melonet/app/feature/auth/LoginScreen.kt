@@ -175,5 +175,9 @@ internal fun resolveAuthError(error: String): String = when (error) {
     "required_fields" -> stringResource(R.string.auth_error_required_fields)
     "invalid_credentials" -> stringResource(R.string.auth_error_invalid_credentials)
     "registration_failed" -> stringResource(R.string.auth_error_registration_failed)
+    "invalid_email" -> stringResource(R.string.auth_error_invalid_email)
+    "invalid_username" -> stringResource(R.string.auth_error_invalid_username)
+    "invalid_password" -> stringResource(R.string.auth_error_invalid_password)
+    "user_exists" -> stringResource(R.string.auth_error_user_exists)
     else -> error
 }

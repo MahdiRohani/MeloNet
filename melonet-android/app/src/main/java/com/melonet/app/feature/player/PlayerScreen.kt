@@ -117,9 +117,13 @@ fun PlayerScreen(
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, effect.text)
                     }
-                    context.startActivity(
-                        Intent.createChooser(send, context.getString(R.string.player_more_share)),
-                    )
+                    val chooser = Intent.createChooser(
+                        send,
+                        context.getString(R.string.player_more_share),
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(chooser)
                 }
                 is PlayerContract.Effect.ShowMessage -> {
                     android.widget.Toast.makeText(

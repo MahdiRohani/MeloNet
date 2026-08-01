@@ -47,8 +47,14 @@ import com.melonet.app.feature.home.HomeScreen
 import com.melonet.app.feature.home.HomeViewModel
 import com.melonet.app.feature.karaoke.KaraokePlayerScreen
 import com.melonet.app.feature.karaoke.KaraokePlayerViewModel
+import com.melonet.app.feature.karaoke.KaraokeRecordingsScreen
+import com.melonet.app.feature.karaoke.KaraokeRecordingsViewModel
 import com.melonet.app.feature.karaoke.KaraokeScreen
+import com.melonet.app.feature.karaoke.KaraokeTakePlayerScreen
+import com.melonet.app.feature.karaoke.KaraokeTakePlayerViewModel
 import com.melonet.app.feature.karaoke.KaraokeViewModel
+import com.melonet.app.feature.chat.NewChatScreen
+import com.melonet.app.feature.chat.NewChatViewModel
 import com.melonet.app.feature.player.PlayerContract
 import com.melonet.app.feature.player.PlayerScreen
 import com.melonet.app.feature.player.PlayerViewModel
@@ -113,6 +119,9 @@ fun MelonetMainScreen() {
             !destination.hasRoute(PlayerRoute::class) &&
             !destination.hasRoute(KaraokeRoute::class) &&
             !destination.hasRoute(KaraokePlayerRoute::class) &&
+            !destination.hasRoute(KaraokeRecordingsRoute::class) &&
+            !destination.hasRoute(KaraokeTakeRoute::class) &&
+            !destination.hasRoute(NewChatRoute::class) &&
             !destination.hasRoute(ChatRoute::class) &&
             !destination.hasRoute(ConversationsRoute::class) &&
             !destination.hasRoute(SettingsRoute::class) &&
@@ -292,6 +301,7 @@ fun MelonetMainScreen() {
                     onSongSelected = { songId ->
                         navController.navigate(KaraokePlayerRoute(songId = songId))
                     },
+                    onOpenMyTakes = { navController.navigate(KaraokeRecordingsRoute) },
                 )
             }
 
@@ -302,6 +312,43 @@ fun MelonetMainScreen() {
                     viewModel = karaokePlayerViewModel,
                     songId = args.songId,
                     onNavigateBack = { navController.popBackStack() },
+                    onRecordingSaved = { recordingId ->
+                        navController.navigate(KaraokeTakeRoute(recordingId = recordingId))
+                    },
+                )
+            }
+
+            composable<KaraokeRecordingsRoute> {
+                val recordingsViewModel: KaraokeRecordingsViewModel = koinViewModel()
+                KaraokeRecordingsScreen(
+                    viewModel = recordingsViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onPlayRecording = { id ->
+                        navController.navigate(KaraokeTakeRoute(recordingId = id))
+                    },
+                )
+            }
+
+            composable<KaraokeTakeRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<KaraokeTakeRoute>()
+                val takeViewModel: KaraokeTakePlayerViewModel = koinViewModel()
+                KaraokeTakePlayerScreen(
+                    recordingId = args.recordingId,
+                    viewModel = takeViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<NewChatRoute> {
+                val newChatViewModel: NewChatViewModel = koinViewModel()
+                NewChatScreen(
+                    viewModel = newChatViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenChat = { userId ->
+                        navController.navigate(ChatRoute(otherUserId = userId)) {
+                            popUpTo(ConversationsRoute()) { inclusive = false }
+                        }
+                    },
                 )
             }
 
@@ -507,6 +554,7 @@ fun MelonetMainScreen() {
                             ),
                         )
                     },
+                    onNewChat = { navController.navigate(NewChatRoute) },
                 )
             }
 

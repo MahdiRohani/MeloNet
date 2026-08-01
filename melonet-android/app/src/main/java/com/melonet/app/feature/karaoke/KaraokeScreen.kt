@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -39,6 +40,7 @@ fun KaraokeScreen(
     viewModel: KaraokeViewModel,
     onNavigateBack: () -> Unit,
     onSongSelected: (String) -> Unit,
+    onOpenMyTakes: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
@@ -53,6 +55,11 @@ fun KaraokeScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.cd_player_back),
                         )
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onOpenMyTakes) {
+                        Text(stringResource(R.string.karaoke_open_my_takes))
                     }
                 },
             )

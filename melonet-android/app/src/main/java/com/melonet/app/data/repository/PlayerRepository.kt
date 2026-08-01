@@ -18,7 +18,7 @@ class PlayerRepository(
     private val dispatchers: DispatchersProvider,
 ) {
     suspend fun getSong(id: String): Result<Song> = withContext(dispatchers.io) {
-        if (id.startsWith("local_")) {
+        if (id.startsWith("local_") || id.startsWith("karaoke_")) {
             return@withContext Result.Error(
                 com.melonet.app.core.common.AppError.Unknown("Local song must be played from queue"),
             )
@@ -31,7 +31,7 @@ class PlayerRepository(
 
     suspend fun recordPlay(songId: String, durationSec: Int, source: String): Result<Unit> =
         withContext(dispatchers.io) {
-            if (songId.startsWith("local_")) {
+            if (songId.startsWith("local_") || songId.startsWith("karaoke_")) {
                 return@withContext Result.Success(Unit)
             }
             when (
@@ -51,7 +51,11 @@ class PlayerRepository(
         }
 
     suspend fun resolveAudioUri(song: Song): String {
-        if (song.id.startsWith("local_") || song.category == "local") {
+        if (song.id.startsWith("local_") ||
+            song.id.startsWith("karaoke_") ||
+            song.category == "local" ||
+            song.category == "karaoke"
+        ) {
             return song.audioUrl
         }
         val localPath = offlineSongResolver.localPathFor(song.id)

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -230,8 +231,8 @@ private fun ChatInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = spacing.sm, vertical = spacing.xs),
+        verticalAlignment = Alignment.Bottom,
     ) {
         OutlinedTextField(
             value = text,
@@ -239,22 +240,42 @@ private fun ChatInputBar(
             modifier = Modifier.weight(1f),
             placeholder = { Text(stringResource(R.string.chat_input_hint)) },
             maxLines = 4,
+            shape = RoundedCornerShape(24.dp),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { onSend() }),
         )
         Spacer(modifier = Modifier.width(spacing.sm))
-        IconButton(
-            onClick = onSend,
-            enabled = text.isNotBlank() && !isSending,
+        Box(
+            modifier = Modifier
+                .padding(bottom = spacing.xs)
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(
+                    if (text.isNotBlank() && !isSending) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            contentAlignment = Alignment.Center,
         ) {
-            if (isSending) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = stringResource(R.string.chat_send),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+            IconButton(
+                onClick = onSend,
+                enabled = text.isNotBlank() && !isSending,
+            ) {
+                if (isSending) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = stringResource(R.string.chat_send),
+                        tint = if (text.isNotBlank()) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             }
         }
     }
@@ -268,16 +289,26 @@ private fun MessageBubble(
 ) {
     val spacing = MeloNetTheme.spacing
     val bubbleColor = if (message.isMine) {
-        MaterialTheme.colorScheme.primaryContainer
+        MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }
+    val textColor = if (message.isMine) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val metaColor = if (message.isMine) {
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     val alignment = if (message.isMine) Alignment.CenterEnd else Alignment.CenterStart
     val shape = RoundedCornerShape(
-        topStart = spacing.md,
-        topEnd = spacing.md,
-        bottomStart = if (message.isMine) spacing.md else spacing.xs,
-        bottomEnd = if (message.isMine) spacing.xs else spacing.md,
+        topStart = 18.dp,
+        topEnd = 18.dp,
+        bottomStart = if (message.isMine) 18.dp else 4.dp,
+        bottomEnd = if (message.isMine) 4.dp else 18.dp,
     )
 
     Box(
@@ -286,36 +317,37 @@ private fun MessageBubble(
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(max = 300.dp)
                 .clip(shape)
                 .background(bubbleColor)
-                .padding(spacing.sm),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             when (message.msgType) {
                 MessageType.SONG -> SongShareCard(
                     message = message,
                     onClick = { message.songId?.let(onSongClick) },
+                    isMine = message.isMine,
                 )
                 else -> Text(
                     text = message.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = textColor,
                 )
             }
             Row(
                 modifier = Modifier
                     .align(Alignment.End)
-                    .padding(top = spacing.xs),
+                    .padding(top = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             ) {
                 Text(
                     text = formatMessageTime(message.createdAt),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = metaColor,
                 )
                 if (message.isMine) {
-                    MessageReceiptIcon(status = status)
+                    MessageReceiptIcon(status = status, tint = metaColor)
                 }
             }
         }
@@ -326,14 +358,20 @@ private fun MessageBubble(
 private fun SongShareCard(
     message: ChatMessage,
     onClick: () -> Unit,
+    isMine: Boolean,
 ) {
     val spacing = MeloNetTheme.spacing
+    val bg = if (isMine) {
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(spacing.sm))
             .clickable(onClick = onClick)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+            .background(bg)
             .padding(spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -350,32 +388,27 @@ private fun SongShareCard(
             Text(
                 text = message.songTitle ?: stringResource(R.string.chat_song_preview),
                 style = MaterialTheme.typography.titleSmall,
+                color = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = message.songArtist.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isMine) {
+                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = stringResource(R.string.chat_tap_to_play),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = spacing.xs),
             )
         }
     }
 }
 
 @Composable
-private fun MessageReceiptIcon(status: MessageStatus) {
-    val tint = when (status) {
-        MessageStatus.READ -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+private fun MessageReceiptIcon(status: MessageStatus, tint: androidx.compose.ui.graphics.Color) {
     when (status) {
         MessageStatus.PENDING, MessageStatus.SENT -> {
             Icon(
@@ -393,7 +426,11 @@ private fun MessageReceiptIcon(status: MessageStatus) {
                     else -> stringResource(R.string.chat_status_delivered)
                 },
                 modifier = Modifier.size(14.dp),
-                tint = tint,
+                tint = if (status == MessageStatus.READ) {
+                    MaterialTheme.colorScheme.tertiaryContainer
+                } else {
+                    tint
+                },
             )
         }
     }

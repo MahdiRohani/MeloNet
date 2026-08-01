@@ -11,6 +11,7 @@ import com.melonet.app.data.local.SearchHistoryEntity
 import com.melonet.app.data.mapper.SearchMapper
 import com.melonet.app.data.model.SearchFilter
 import com.melonet.app.data.model.SearchResultItem
+import com.melonet.app.data.model.SearchUser
 import com.melonet.app.data.model.Song
 import com.melonet.app.data.paging.SearchPagingSource
 import com.melonet.app.data.remote.SearchApi
@@ -80,6 +81,29 @@ class SearchRepository(
                 SearchMapper.toResultItems(response, SearchFilter.SONG)
                     .filterIsInstance<SearchResultItem.SongItem>()
                     .map { it.song }
+            }
+            is Result.Error -> emptyList()
+        }
+    }
+
+    suspend fun searchUsers(query: String, limit: Int = 20): List<SearchUser> = withContext(dispatchers.io) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return@withContext emptyList()
+        when (
+            val result = safeApiCall {
+                searchApi.search(
+                    query = trimmed,
+                    type = SearchFilter.USER.apiValue,
+                    page = 1,
+                    limit = limit,
+                )
+            }
+        ) {
+            is Result.Success -> {
+                val response = result.data ?: return@withContext emptyList()
+                SearchMapper.toResultItems(response, SearchFilter.USER)
+                    .filterIsInstance<SearchResultItem.UserItem>()
+                    .map { it.user }
             }
             is Result.Error -> emptyList()
         }

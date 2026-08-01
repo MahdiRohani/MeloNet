@@ -138,6 +138,28 @@ class PlaybackManager(
         }
     }
 
+    /** Prepare the song but keep it paused (used by karaoke until lyrics are ready). */
+    fun preparePaused(song: Song, queue: List<Song> = listOf(song)) {
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+            playRecordedForSongId = null
+            c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
+            c.prepare()
+            c.pause()
+            _state.update { it.copy(currentSong = song, queue = queue, isPlaying = false) }
+        }
+    }
+
+    fun resume() {
+        controller?.play()
+    }
+
+    fun pause() {
+        controller?.pause()
+    }
+
     fun playSongId(songId: String, queue: List<Song> = emptyList()) {
         scope.launch {
             val existing = _state.value.queue.find { it.id == songId }

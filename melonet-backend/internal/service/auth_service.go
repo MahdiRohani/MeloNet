@@ -306,13 +306,16 @@ var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
 
 func validateRegister(req api.RegisterRequest) error {
 	if !usernamePattern.MatchString(req.Username) {
-		return ErrInvalidInput
+		return fmt.Errorf("%w: username must be 3-32 characters (letters, numbers, underscore)", ErrInvalidInput)
 	}
-	if !strings.Contains(req.Email, "@") {
-		return ErrInvalidInput
+	email := strings.TrimSpace(req.Email)
+	at := strings.Index(email, "@")
+	dot := strings.LastIndex(email, ".")
+	if at < 1 || dot <= at+1 || dot == len(email)-1 {
+		return fmt.Errorf("%w: enter a valid email address (e.g. name@example.com)", ErrInvalidInput)
 	}
 	if len(req.Password) < 8 {
-		return ErrInvalidInput
+		return fmt.Errorf("%w: password must be at least 8 characters", ErrInvalidInput)
 	}
 	return nil
 }
