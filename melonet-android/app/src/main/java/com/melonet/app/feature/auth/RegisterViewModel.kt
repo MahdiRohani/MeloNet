@@ -47,46 +47,37 @@ class RegisterViewModel(
                     setEffect { RegisterContract.Effect.NavigateToMain }
                 }
                 is Result.Error -> {
-                    val message = when (val error = result.error) {
-                        is AppError.Network -> mapNetworkRegisterError(error)
-                        AppError.Unauthorized -> "registration_failed"
-                        is AppError.Unknown -> error.message
+                    val error = when (result.error) {
+                        AppError.Unauthorized -> AppError.Http(
+                            code = "registration_failed",
+                            httpStatus = 401,
+                        )
+                        else -> result.error
                     }
-                    setState { copy(isLoading = false, error = message) }
-                    setEffect { RegisterContract.Effect.ShowError(message) }
+                    setState { copy(isLoading = false, error = error) }
+                    setEffect { RegisterContract.Effect.ShowError(error) }
                 }
             }
         }
     }
 
-    private fun validateRegisterInput(state: RegisterContract.State): String? {
+    private fun validateRegisterInput(state: RegisterContract.State): AppError? {
         if (state.username.isBlank() || state.email.isBlank() ||
             state.displayName.isBlank() || state.password.isBlank()
         ) {
-            return "required_fields"
+            return AppError.Validation(code = "required_fields")
         }
         if (!USERNAME_PATTERN.matches(state.username.trim())) {
-            return "invalid_username"
+            return AppError.Validation(field = "username", code = "invalid_username")
         }
         val email = state.email.trim()
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            return "invalid_email"
+            return AppError.Validation(field = "email", code = "invalid_email")
         }
         if (state.password.length < 8) {
-            return "invalid_password"
+            return AppError.Validation(field = "password", code = "invalid_password")
         }
         return null
-    }
-
-    private fun mapNetworkRegisterError(error: AppError.Network): String {
-        val msg = error.message.lowercase()
-        return when {
-            error.code == "user_exists" || "already exists" in msg -> "user_exists"
-            "email" in msg -> "invalid_email"
-            "username" in msg -> "invalid_username"
-            "password" in msg -> "invalid_password"
-            else -> error.message.ifBlank { "registration_failed" }
-        }
     }
 
     companion object {

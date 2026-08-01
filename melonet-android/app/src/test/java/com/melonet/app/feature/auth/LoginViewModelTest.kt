@@ -1,5 +1,6 @@
 package com.melonet.app.feature.auth
 
+import com.melonet.app.core.common.AppError
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.testutil.MainDispatcherRule
 import io.mockk.coEvery
@@ -25,7 +26,7 @@ class LoginViewModelTest {
 
         viewModel.handleEvent(LoginContract.Event.Submit)
 
-        assertEquals("required_fields", viewModel.uiState.value.error)
+        assertEquals(AppError.Validation(code = "required_fields"), viewModel.uiState.value.error)
     }
 
     @Test
@@ -54,7 +55,7 @@ class LoginViewModelTest {
     fun submitWithInvalidCredentials_setsError() = runTest {
         val repository = mockk<AuthRepository>()
         coEvery { repository.login("mahdi", "wrong") } returns com.melonet.app.core.common.Result.Error(
-            com.melonet.app.core.common.AppError.Unauthorized,
+            AppError.Unauthorized,
         )
         val viewModel = LoginViewModel(repository)
 
@@ -62,7 +63,10 @@ class LoginViewModelTest {
         viewModel.handleEvent(LoginContract.Event.PasswordChanged("wrong"))
         viewModel.handleEvent(LoginContract.Event.Submit)
 
-        assertEquals("invalid_credentials", viewModel.uiState.value.error)
+        assertEquals(
+            AppError.Http(code = "invalid_credentials", httpStatus = 401),
+            viewModel.uiState.value.error,
+        )
         assertFalse(viewModel.uiState.value.isLoading)
     }
 }

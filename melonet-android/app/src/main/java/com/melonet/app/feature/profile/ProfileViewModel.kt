@@ -71,12 +71,8 @@ class ProfileViewModel(
                     if (result.error is AppError.Unauthorized) {
                         setState { copy(isLoading = false) }
                     } else {
-                        val message = when (val error = result.error) {
-                            is AppError.Network -> error.message
-                            is AppError.Unknown -> error.message
-                            AppError.Unauthorized -> return@launch
-                        }
-                        setState { copy(isLoading = false, error = message) }
+                        setState { copy(isLoading = false, error = result.error) }
+                        setEffect { ProfileContract.Effect.ShowError(result.error) }
                     }
                 }
             }

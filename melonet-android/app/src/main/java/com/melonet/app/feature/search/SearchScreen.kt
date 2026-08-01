@@ -51,12 +51,14 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.melonet.app.R
+import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloFilterChip
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.component.MeloSearchBar
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.core.network.toAppError
 import com.melonet.app.data.model.Artist
 import com.melonet.app.data.model.SearchFilter
 import com.melonet.app.data.model.SearchResultItem
@@ -144,8 +146,9 @@ fun SearchScreen(
                 }
                 searchResults.loadState.refresh is LoadState.Error && searchResults.itemCount == 0 -> {
                     val errorMessage = (searchResults.loadState.refresh as LoadState.Error)
-                        .error.message
-                        ?: stringResource(R.string.search_error_title)
+                        .error
+                        .toAppError()
+                        .displayMessage(context)
                     ErrorState(
                         message = errorMessage,
                         onRetry = { searchResults.retry() },

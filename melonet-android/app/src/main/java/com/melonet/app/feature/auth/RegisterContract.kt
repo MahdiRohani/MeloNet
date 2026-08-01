@@ -1,5 +1,6 @@
 package com.melonet.app.feature.auth
 
+import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
@@ -12,7 +13,7 @@ object RegisterContract {
         val displayName: String = "",
         val password: String = "",
         val isLoading: Boolean = false,
-        val error: String? = null,
+        val error: AppError? = null,
         val isPasswordVisible: Boolean = false,
     ) : UiState
 
@@ -29,6 +30,6 @@ object RegisterContract {
     sealed interface Effect : UiEffect {
         data object NavigateToMain : Effect
         data object NavigateToLogin : Effect
-        data class ShowError(val message: String) : Effect
+        data class ShowError(val error: AppError) : Effect
     }
 }

@@ -1,5 +1,6 @@
 package com.melonet.app.feature.profile
 
+import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
@@ -12,7 +13,7 @@ object EditProfileContract {
         val avatarUrl: String = "",
         val isSaving: Boolean = false,
         val isUploadingAvatar: Boolean = false,
-        val error: String? = null,
+        val error: AppError? = null,
     ) : UiState
 
     sealed interface Event : UiEvent {
@@ -26,6 +27,6 @@ object EditProfileContract {
 
     sealed interface Effect : UiEffect {
         data object NavigateBack : Effect
-        data class ShowError(val message: String) : Effect
+        data class ShowError(val error: AppError) : Effect
     }
 }

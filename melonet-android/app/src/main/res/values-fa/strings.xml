@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Errors -->
+    <string name="error_timeout">اتصال طول کشید؛ دوباره تلاش کنید</string>
+    <string name="error_no_connection">اینترنت در دسترس نیست</string>
+    <string name="error_unauthorized">برای ادامه وارد شوید</string>
+    <string name="error_invalid_credentials">نام کاربری یا رمز اشتباه است</string>
+    <string name="error_forbidden">اجازهٔ انجام این کار را ندارید</string>
+    <string name="error_not_found">مورد درخواستی پیدا نشد</string>
+    <string name="error_server">خطایی در سرور رخ داد؛ دوباره تلاش کنید</string>
+    <string name="error_rate_limited">درخواست‌های زیاد؛ کمی صبر کنید و دوباره تلاش کنید</string>
+    <string name="error_user_exists">این نام کاربری یا ایمیل قبلاً ثبت شده است</string>
+    <string name="error_validation">ورودی را بررسی کنید و دوباره تلاش کنید</string>
+    <string name="error_unknown">مشکلی پیش آمد؛ دوباره تلاش کنید</string>
+
+    <!-- Auth errors -->
+    <string name="auth_error_required_fields">لطفاً همهٔ فیلدها را پر کنید</string>
+    <string name="auth_error_invalid_credentials">نام کاربری یا رمز اشتباه است</string>
+    <string name="auth_error_registration_failed">ثبت‌نام ناموفق بود؛ دوباره تلاش کنید</string>
+    <string name="auth_error_invalid_email">یک ایمیل معتبر وارد کنید (مثلاً name@example.com)</string>
+    <string name="auth_error_invalid_username">نام کاربری باید ۳ تا ۳۲ کاراکتر باشد (حروف، عدد، زیرخط)</string>
+    <string name="auth_error_invalid_password">رمز عبور باید حداقل ۸ کاراکتر باشد</string>
+    <string name="auth_error_user_exists">این نام کاربری یا ایمیل قبلاً ثبت شده است</string>
+</resources>

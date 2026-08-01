@@ -77,7 +77,17 @@
     <string name="following_empty_artists">You\'re not following any artists yet</string>
 
     <!-- Errors -->
+    <string name="error_timeout">The connection took too long. Please try again.</string>
+    <string name="error_no_connection">No internet connection</string>
     <string name="error_unauthorized">Please sign in to continue</string>
+    <string name="error_invalid_credentials">Invalid username or password</string>
+    <string name="error_forbidden">You don\'t have permission to do that</string>
+    <string name="error_not_found">The requested item was not found</string>
+    <string name="error_server">Something went wrong on the server. Please try again.</string>
+    <string name="error_rate_limited">Too many requests. Please wait and try again.</string>
+    <string name="error_user_exists">This username or email is already registered</string>
+    <string name="error_validation">Please check your input and try again</string>
+    <string name="error_unknown">Something went wrong. Please try again.</string>
 
     <!-- Search -->
     <string name="search_hint">Search songs, artists, users…</string>

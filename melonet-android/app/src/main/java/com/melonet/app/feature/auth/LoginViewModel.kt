@@ -28,7 +28,8 @@ class LoginViewModel(
         val password = uiState.value.password
 
         if (login.isBlank() || password.isBlank()) {
-            setState { copy(error = "required_fields") }
+            val error = AppError.Validation(code = "required_fields")
+            setState { copy(error = error) }
             return
         }
 
@@ -40,13 +41,15 @@ class LoginViewModel(
                     setEffect { LoginContract.Effect.NavigateToMain }
                 }
                 is Result.Error -> {
-                    val message = when (val error = result.error) {
-                        is AppError.Network -> error.message
-                        AppError.Unauthorized -> "invalid_credentials"
-                        is AppError.Unknown -> error.message
+                    val error = when (result.error) {
+                        AppError.Unauthorized -> AppError.Http(
+                            code = "invalid_credentials",
+                            httpStatus = 401,
+                        )
+                        else -> result.error
                     }
-                    setState { copy(isLoading = false, error = message) }
-                    setEffect { LoginContract.Effect.ShowError(message) }
+                    setState { copy(isLoading = false, error = error) }
+                    setEffect { LoginContract.Effect.ShowError(error) }
                 }
             }
         }

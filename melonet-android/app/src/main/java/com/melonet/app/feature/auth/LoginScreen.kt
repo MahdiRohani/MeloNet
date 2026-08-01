@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.melonet.app.R
+import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.LoadingState
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloTextField
@@ -49,6 +51,7 @@ fun LoginScreen(
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -144,7 +147,7 @@ fun LoginScreen(
         state.error?.let { error ->
             Spacer(modifier = Modifier.height(spacing.sm))
             Text(
-                text = resolveAuthError(error),
+                text = error.displayMessage(context),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -168,16 +171,4 @@ fun LoginScreen(
             )
         }
     }
-}
-
-@Composable
-internal fun resolveAuthError(error: String): String = when (error) {
-    "required_fields" -> stringResource(R.string.auth_error_required_fields)
-    "invalid_credentials" -> stringResource(R.string.auth_error_invalid_credentials)
-    "registration_failed" -> stringResource(R.string.auth_error_registration_failed)
-    "invalid_email" -> stringResource(R.string.auth_error_invalid_email)
-    "invalid_username" -> stringResource(R.string.auth_error_invalid_username)
-    "invalid_password" -> stringResource(R.string.auth_error_invalid_password)
-    "user_exists" -> stringResource(R.string.auth_error_user_exists)
-    else -> error
 }

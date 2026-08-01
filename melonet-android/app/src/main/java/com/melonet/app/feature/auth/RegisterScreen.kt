@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.melonet.app.R
+import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.LoadingState
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloTextField
@@ -49,6 +51,7 @@ fun RegisterScreen(
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -162,7 +165,7 @@ fun RegisterScreen(
         state.error?.let { error ->
             Spacer(modifier = Modifier.height(spacing.sm))
             Text(
-                text = resolveAuthError(error),
+                text = error.displayMessage(context),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )

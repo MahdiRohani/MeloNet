@@ -2,11 +2,14 @@ package com.melonet.app.data.paging
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.melonet.app.core.common.AppError
+import com.melonet.app.core.common.AppErrorException
+import com.melonet.app.core.network.mapServerError
+import com.melonet.app.core.network.toAppError
 import com.melonet.app.data.mapper.SearchMapper
 import com.melonet.app.data.model.SearchFilter
 import com.melonet.app.data.model.SearchResultItem
 import com.melonet.app.data.remote.SearchApi
-import java.io.IOException
 
 class SearchPagingSource(
     private val searchApi: SearchApi,
@@ -32,10 +35,18 @@ class SearchPagingSource(
             )
             val error = response.error
             if (error != null) {
-                return LoadResult.Error(IOException(error.message))
+                return LoadResult.Error(
+                    AppErrorException(
+                        mapServerError(
+                            code = error.code,
+                            message = error.message,
+                            httpStatus = 0,
+                        ),
+                    ),
+                )
             }
             val data = response.data
-                ?: return LoadResult.Error(IOException("Empty search response"))
+                ?: return LoadResult.Error(AppErrorException(AppError.Unknown("Empty search response")))
             val items = SearchMapper.toResultItems(data, filter)
             val hasMore = response.meta?.hasMore == true
             LoadResult.Page(
@@ -44,7 +55,7 @@ class SearchPagingSource(
                 nextKey = if (hasMore) page + 1 else null,
             )
         } catch (e: Exception) {
-            LoadResult.Error(e)
+            LoadResult.Error(AppErrorException(e.toAppError()))
         }
     }
 }

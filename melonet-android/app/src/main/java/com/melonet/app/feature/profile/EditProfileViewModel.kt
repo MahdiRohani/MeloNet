@@ -3,7 +3,6 @@ package com.melonet.app.feature.profile
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
-import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
 import com.melonet.app.data.repository.AuthRepository
@@ -48,7 +47,7 @@ class EditProfileViewModel(
                     )
                 }
                 is Result.Error -> setEffect {
-                    EditProfileContract.Effect.ShowError(result.error.toMessage())
+                    EditProfileContract.Effect.ShowError(result.error)
                 }
             }
         }
@@ -71,7 +70,7 @@ class EditProfileViewModel(
                 }
                 is Result.Error -> {
                     setState { copy(isSaving = false) }
-                    setEffect { EditProfileContract.Effect.ShowError(result.error.toMessage()) }
+                    setEffect { EditProfileContract.Effect.ShowError(result.error) }
                 }
             }
         }
@@ -99,15 +98,9 @@ class EditProfileViewModel(
                 }
                 is Result.Error -> {
                     setState { copy(isUploadingAvatar = false) }
-                    setEffect { EditProfileContract.Effect.ShowError(result.error.toMessage()) }
+                    setEffect { EditProfileContract.Effect.ShowError(result.error) }
                 }
             }
         }
-    }
-
-    private fun AppError.toMessage(): String = when (this) {
-        is AppError.Network -> message
-        is AppError.Unknown -> message
-        AppError.Unauthorized -> "Unauthorized"
     }
 }

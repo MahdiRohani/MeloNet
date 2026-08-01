@@ -1,8 +1,9 @@
 package com.melonet.app.feature.profile
 
+import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.UiEffect
-import com.melonet.app.core.common.UiState
 import com.melonet.app.core.common.UiEvent
+import com.melonet.app.core.common.UiState
 
 object ProfileContract {
 
@@ -11,7 +12,7 @@ object ProfileContract {
         val avatarUrl: String = "",
         val isPremium: Boolean = false,
         val isLoading: Boolean = false,
-        val error: String? = null
+        val error: AppError? = null,
     ) : UiState
 
     sealed interface Event : UiEvent {
@@ -27,7 +28,7 @@ object ProfileContract {
     }
 
     sealed interface Effect : UiEffect {
-        data class ShowError(val message: String) : Effect
+        data class ShowError(val error: AppError) : Effect
         data object NavigateToEditProfile : Effect
         data object NavigateToLikedSongs : Effect
         data object NavigateToMyPlaylists : Effect
