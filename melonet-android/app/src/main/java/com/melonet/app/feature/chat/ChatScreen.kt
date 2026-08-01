@@ -101,6 +101,7 @@ import com.melonet.app.data.repository.ChatRepository
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.component.PlayerProgressBar
 import org.koin.compose.koinInject
+import androidx.compose.runtime.snapshotFlow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -191,16 +192,26 @@ fun ChatScreen(
         }
     }
 
-    val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
-    LaunchedEffect(imeBottomPx) {
-        if (imeBottomPx > 0 && listItems.isNotEmpty()) {
-            listState.animateScrollToItem(listItems.lastIndex)
-        }
+    // Keep the latest messages pinned while IME insets animate.
+    // Instant scrollToItem (not animate*) avoids fighting the layout resize.
+    val density = LocalDensity.current
+    val imeInsets = WindowInsets.ime
+    val listItemsState = rememberUpdatedState(listItems)
+    LaunchedEffect(listState, imeInsets) {
+        snapshotFlow { imeInsets.getBottom(density) }
+            .collect { imeBottom ->
+                if (imeBottom <= 0) return@collect
+                val items = listItemsState.value
+                if (items.isNotEmpty() && nearBottomState.value) {
+                    listState.scrollToItem(items.lastIndex)
+                }
+            }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .background(scheme.background),
     ) {
         TopAppBar(
@@ -469,7 +480,6 @@ private fun ChatInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(scheme.surface.copy(alpha = 0.96f))
-            .imePadding()
             .padding(horizontal = spacing.sm, vertical = spacing.sm),
     ) {
         if (replyDraft != null) {

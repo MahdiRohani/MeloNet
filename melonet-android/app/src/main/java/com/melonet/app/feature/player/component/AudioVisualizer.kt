@@ -53,12 +53,10 @@ fun AudioVisualizer(
         @Suppress("UNUSED_EXPRESSION")
         frameKey
         if (alpha <= 0.01f) return@Canvas
-        val gap = size.width * 0.018f
+        val gap = size.width * 0.012f
         val barWidth = (size.width - gap * (barCount - 1)) / barCount
         val maxHeight = size.height
-        val brush = Brush.verticalGradient(
-            listOf(primaryColor.copy(alpha = 0.55f), primaryColor, secondaryColor),
-        )
+        val brush = Brush.verticalGradient(listOf(primaryColor, secondaryColor))
         val corner = CornerRadius(barWidth / 2f, barWidth / 2f)
         for (index in 0 until barCount) {
             val sample = if (magnitudes.isNotEmpty()) {
@@ -66,9 +64,7 @@ fun AudioVisualizer(
             } else {
                 0.05f
             }
-            // Emphasize contrast between quiet/loud bars for clearer motion.
-            val h = (maxHeight * sample.coerceIn(0.02f, 1f).let { it * it * (3f - 2f * it) })
-                .coerceAtLeast(3f)
+            val h = (maxHeight * sample.coerceIn(0.02f, 1f)).coerceAtLeast(2f)
             val x = index * (barWidth + gap)
             val y = maxHeight - h
             drawRoundRect(

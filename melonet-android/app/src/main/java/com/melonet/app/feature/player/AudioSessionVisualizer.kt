@@ -92,12 +92,12 @@ class AudioSessionVisualizer(
             if (amp > framePeak) framePeak = amp
         }
 
-        // Soft auto-gain: expand quiet passages without flattening loud ones.
-        val targetGain = (0.92f / framePeak).coerceIn(1f, 6f)
+        // Soft auto-gain: keep relative bar motion without stretching waves to full height.
+        val targetGain = (0.55f / framePeak).coerceIn(1f, 2.2f)
         gain = gain * 0.85f + targetGain * 0.15f
 
         for (i in out.indices) {
-            val boosted = (raw[i] * gain).coerceIn(0f, 1f)
+            val boosted = (raw[i] * gain * 0.72f).coerceIn(0f, 1f)
             // Fast attack / slower release so bars feel lively, not a fixed pulse.
             smoothed[i] = if (boosted > smoothed[i]) {
                 smoothed[i] * 0.35f + boosted * 0.65f
