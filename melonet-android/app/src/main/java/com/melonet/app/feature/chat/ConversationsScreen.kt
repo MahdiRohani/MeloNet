@@ -59,6 +59,7 @@ import com.melonet.app.data.model.Conversation
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.model.MessageType
 import com.melonet.app.data.repository.ChatRepository
+import com.melonet.app.feature.chat.ChatReplyCodec
 import org.koin.compose.koinInject
 import java.time.Instant
 import java.time.LocalDate
@@ -225,7 +226,7 @@ private fun ConversationRow(
     val preview = lastMessage?.let { message ->
         when (message.msgType) {
             MessageType.SONG -> stringResource(R.string.chat_song_preview)
-            else -> message.content
+            else -> ChatReplyCodec.conversationPreview(message.content)
         }
     }.orEmpty()
     val hasUnread = conversation.unreadCount > 0

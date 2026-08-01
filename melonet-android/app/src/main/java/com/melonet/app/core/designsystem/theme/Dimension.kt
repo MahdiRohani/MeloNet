@@ -20,7 +20,7 @@ data class Dimensions(
     val miniPlayerHeight: Dp = 64.dp,
     val playerCoverSize: Dp = 280.dp,
     val playerPlayButtonSize: Dp = 72.dp,
-    val visualizerHeight: Dp = 72.dp,
+    val visualizerHeight: Dp = 96.dp,
     val bottomBarHeight: Dp = 80.dp,
     val topBarHeight: Dp = 56.dp,
     val shimmerLabelWidth: Dp = 48.dp,

@@ -58,10 +58,12 @@ fun MelonetNavigationDrawer(
     drawerState: DrawerState,
     scope: CoroutineScope,
     onNavigate: (Any) -> Unit,
+    gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = gesturesEnabled,
         drawerContent = {
             ModalDrawerSheet(
                 modifier = Modifier

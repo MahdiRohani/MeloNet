@@ -10,6 +10,12 @@ import com.melonet.app.data.model.ChatPeer
 import com.melonet.app.data.model.MessageStatus
 
 object ChatContract {
+    data class ReplyDraft(
+        val messageId: String,
+        val author: String,
+        val preview: String,
+    )
+
     data class State(
         val isLoading: Boolean = true,
         val conversationId: Int = 0,
@@ -20,6 +26,7 @@ object ChatContract {
         val connectionState: ChatConnectionState = ChatConnectionState.Offline,
         val statusOverrides: Map<Long, MessageStatus> = emptyMap(),
         val tailMessages: List<ChatMessage> = emptyList(),
+        val replyDraft: ReplyDraft? = null,
         val error: AppError? = null,
         val shareHandled: Boolean = false,
     ) : UiState
@@ -33,6 +40,8 @@ object ChatContract {
         data class RetryMessage(val localId: String) : Event
         data class CancelMessage(val localId: String) : Event
         data class CopyMessage(val text: String) : Event
+        data class ReplyToMessage(val message: ChatMessage, val authorLabel: String) : Event
+        data object CancelReply : Event
         data object ScreenVisible : Event
         data object ScreenHidden : Event
     }

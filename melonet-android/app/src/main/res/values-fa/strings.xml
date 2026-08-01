@@ -41,6 +41,9 @@
     <string name="chat_retry_message">تلاش دوباره</string>
     <string name="chat_cancel_message">حذف</string>
     <string name="chat_copy_message">کپی شد</string>
+    <string name="chat_reply_to">پاسخ به %1$s</string>
+    <string name="chat_reply_you">شما</string>
+    <string name="chat_cancel_reply">لغو پاسخ</string>
     <string name="chat_today">امروز</string>
     <string name="chat_yesterday">دیروز</string>
     <string name="chat_search_conversations_hint">جستجوی گفت‌وگو…</string>

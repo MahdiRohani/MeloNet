@@ -12,6 +12,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,6 +38,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -61,6 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -71,6 +73,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -95,9 +98,8 @@ import com.melonet.app.data.model.ChatMessage
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.model.MessageType
 import com.melonet.app.data.repository.ChatRepository
-import com.melonet.app.feature.player.PlaybackAudioBridge
 import com.melonet.app.feature.player.PlaybackManager
-import com.melonet.app.feature.player.component.AudioVisualizer
+import com.melonet.app.feature.player.component.PlayerProgressBar
 import org.koin.compose.koinInject
 import java.time.Instant
 import java.time.LocalDate
@@ -327,6 +329,19 @@ fun ChatScreen(
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         viewModel.handleEvent(ChatContract.Event.CopyMessage(item.message.content))
                                     },
+                                    onSwipeReply = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        val authorLabel = if (item.message.isMine) {
+                                            context.getString(R.string.chat_reply_you)
+                                        } else {
+                                            state.otherUser?.displayName?.ifBlank { null }
+                                                ?: state.otherUser?.username
+                                                ?: context.getString(R.string.chat_title)
+                                        }
+                                        viewModel.handleEvent(
+                                            ChatContract.Event.ReplyToMessage(item.message, authorLabel),
+                                        )
+                                    },
                                 )
                             }
                             ChatListItem.Typing -> TypingBubble()
@@ -338,7 +353,9 @@ fun ChatScreen(
                     text = state.inputText,
                     isSending = state.isSending,
                     enabled = !state.isSending,
+                    replyDraft = state.replyDraft,
                     onTextChange = { viewModel.handleEvent(ChatContract.Event.InputChanged(it)) },
+                    onCancelReply = { viewModel.handleEvent(ChatContract.Event.CancelReply) },
                     onSend = {
                         if (state.isSending) return@ChatInputBar
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -439,76 +456,125 @@ private fun ChatInputBar(
     text: String,
     isSending: Boolean,
     enabled: Boolean,
+    replyDraft: ChatContract.ReplyDraft?,
     onTextChange: (String) -> Unit,
+    onCancelReply: () -> Unit,
     onSend: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
     val scheme = MaterialTheme.colorScheme
     val canSend = text.isNotBlank() && enabled && !isSending
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(scheme.surface.copy(alpha = 0.96f))
-            .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = spacing.sm, vertical = spacing.sm),
-        verticalAlignment = Alignment.Bottom,
     ) {
+        if (replyDraft != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = spacing.xs)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.surfaceVariant.copy(alpha = 0.7f))
+                    .padding(horizontal = spacing.sm, vertical = spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(36.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(scheme.primary),
+                )
+                Spacer(modifier = Modifier.width(spacing.sm))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.chat_reply_to, replyDraft.author),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = scheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = replyDraft.preview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                IconButton(onClick = onCancelReply, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.chat_cancel_reply),
+                        tint = scheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
         Row(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(28.dp))
-                .background(scheme.surfaceVariant.copy(alpha = 0.85f))
-                .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
         ) {
-            BasicTextField(
-                value = text,
-                onValueChange = onTextChange,
+            Row(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 8.dp),
-                enabled = enabled,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
-                cursorBrush = SolidColor(scheme.primary),
-                maxLines = 4,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
-                decorationBox = { inner ->
-                    Box {
-                        if (text.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.chat_input_hint),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = scheme.onSurfaceVariant,
-                            )
-                        }
-                        inner()
-                    }
-                },
-            )
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(if (canSend) scheme.primary else scheme.outline.copy(alpha = 0.35f))
-                    .clickable(enabled = canSend, onClick = onSend),
-                contentAlignment = Alignment.Center,
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(scheme.surfaceVariant.copy(alpha = 0.85f))
+                    .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (isSending) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = scheme.onPrimary,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = stringResource(R.string.chat_send),
-                        tint = if (canSend) scheme.onPrimary else scheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
+                BasicTextField(
+                    value = text,
+                    onValueChange = onTextChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 8.dp),
+                    enabled = enabled,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
+                    cursorBrush = SolidColor(scheme.primary),
+                    maxLines = 4,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+                    decorationBox = { inner ->
+                        Box {
+                            if (text.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.chat_input_hint),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = scheme.onSurfaceVariant,
+                                )
+                            }
+                            inner()
+                        }
+                    },
+                )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (canSend) scheme.primary else scheme.outline.copy(alpha = 0.35f))
+                        .clickable(enabled = canSend, onClick = onSend),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = scheme.onPrimary,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = stringResource(R.string.chat_send),
+                            tint = if (canSend) scheme.onPrimary else scheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
         }
@@ -524,8 +590,10 @@ private fun MessageBubble(
     onRetry: () -> Unit,
     onCancel: () -> Unit,
     onLongPressCopy: () -> Unit,
+    onSwipeReply: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
+    val density = LocalDensity.current
     var appeared by remember(message.stableKey) { mutableStateOf(false) }
     LaunchedEffect(message.stableKey) { appeared = true }
     val enterAlpha by animateFloatAsState(
@@ -539,19 +607,22 @@ private fun MessageBubble(
         label = "bubble_offset",
     )
 
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    val replyThresholdPx = with(density) { 56.dp.toPx() }
+
     val bubbleColor = when {
         status == MessageStatus.FAILED -> MaterialTheme.colorScheme.errorContainer
-        message.isMine -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.surfaceVariant
+        message.isMine -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
     }
     val textColor = when {
         status == MessageStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer
-        message.isMine -> MaterialTheme.colorScheme.onPrimary
+        message.isMine -> MaterialTheme.colorScheme.onPrimaryContainer
         else -> MaterialTheme.colorScheme.onSurface
     }
     val metaColor = when {
         status == MessageStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
-        message.isMine -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+        message.isMine -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val alignment = if (message.isMine) Alignment.CenterEnd else Alignment.CenterStart
@@ -561,6 +632,7 @@ private fun MessageBubble(
         bottomStart = if (message.isMine) 18.dp else 5.dp,
         bottomEnd = if (message.isMine) 5.dp else 18.dp,
     )
+    val parsed = remember(message.content) { ChatReplyCodec.parse(message.content) }
 
     Box(
         modifier = Modifier
@@ -571,7 +643,45 @@ private fun MessageBubble(
             },
         contentAlignment = alignment,
     ) {
-        Column(horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start) {
+        // Reply affordance peeking behind the bubble while swiping.
+        if (dragOffsetPx > 8f) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Reply,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(
+                    alpha = (dragOffsetPx / replyThresholdPx).coerceIn(0.25f, 1f),
+                ),
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 4.dp)
+                    .size(20.dp),
+            )
+        }
+        Column(
+            horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start,
+            modifier = Modifier
+                .graphicsLayer { translationX = dragOffsetPx }
+                .pointerInput(message.stableKey) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (dragOffsetPx >= replyThresholdPx) {
+                                onSwipeReply()
+                            }
+                            dragOffsetPx = 0f
+                        },
+                        onDragCancel = {
+                            dragOffsetPx = 0f
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            // Telegram-style: swipe right to reply.
+                            if (dragAmount > 0f || dragOffsetPx > 0f) {
+                                change.consume()
+                                dragOffsetPx = (dragOffsetPx + dragAmount).coerceIn(0f, replyThresholdPx * 1.35f)
+                            }
+                        },
+                    )
+                },
+        ) {
             Column(
                 modifier = Modifier
                     .widthIn(max = 320.dp)
@@ -580,13 +690,21 @@ private fun MessageBubble(
                     .combinedClickable(
                         onClick = {},
                         onLongClick = {
-                            if (message.msgType == MessageType.TEXT && message.content.isNotBlank()) {
+                            if (message.msgType == MessageType.TEXT && parsed.body.isNotBlank()) {
                                 onLongPressCopy()
                             }
                         },
                     )
                     .padding(horizontal = 12.dp, vertical = 9.dp),
             ) {
+                if (parsed.replyToId != null) {
+                    ReplyQuote(
+                        author = parsed.replyAuthor.orEmpty(),
+                        preview = parsed.replyPreview.orEmpty(),
+                        isMine = message.isMine && status != MessageStatus.FAILED,
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
                 when (message.msgType) {
                     MessageType.SONG -> SongShareCard(
                         message = message,
@@ -594,7 +712,7 @@ private fun MessageBubble(
                         onOpenPlayer = onOpenPlayer,
                     )
                     else -> Text(
-                        text = message.content,
+                        text = parsed.body,
                         style = MaterialTheme.typography.bodyLarge,
                         color = textColor,
                     )
@@ -638,6 +756,58 @@ private fun MessageBubble(
 }
 
 @Composable
+private fun ReplyQuote(
+    author: String,
+    preview: String,
+    isMine: Boolean,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val accent = if (isMine) scheme.onPrimaryContainer else scheme.primary
+    val bg = if (isMine) {
+        scheme.onPrimaryContainer.copy(alpha = 0.12f)
+    } else {
+        scheme.onSurface.copy(alpha = 0.06f)
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(32.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(accent),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(
+                text = author,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = preview,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isMine) {
+                    scheme.onPrimaryContainer.copy(alpha = 0.8f)
+                } else {
+                    scheme.onSurfaceVariant
+                },
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
 private fun SongShareCard(
     message: ChatMessage,
     isMine: Boolean,
@@ -646,7 +816,6 @@ private fun SongShareCard(
     val spacing = MeloNetTheme.spacing
     val playbackManager: PlaybackManager = koinInject()
     val playback by playbackManager.state.collectAsState()
-    val fftMagnitudes by PlaybackAudioBridge.fftMagnitudes.collectAsState()
 
     val songId = message.songId
     val hasMeta = !message.songTitle.isNullOrBlank()
@@ -654,24 +823,27 @@ private fun SongShareCard(
     val isThisSong = songId != null && playback.currentSong?.id == songId
     val isPlayingThis = isThisSong && playback.isPlaying
     val isBuffering = isThisSong && playback.isLoading
-    val progress = if (isThisSong && playback.durationMs > 0L) {
-        (playback.positionMs.toFloat() / playback.durationMs).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
 
     val bg = if (isMine) {
-        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f)
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f)
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
     }
-    val titleColor = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val titleColor = if (isMine) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     val subtitleColor = if (isMine) {
-        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val accent = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+    val accent = if (isMine) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
 
     fun togglePlayback() {
         val id = songId ?: return
@@ -733,7 +905,7 @@ private fun SongShareCard(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(accent.copy(alpha = if (isMine) 0.22f else 0.16f))
+                    .background(accent.copy(alpha = if (isMine) 0.18f else 0.14f))
                     .clickable(enabled = songId != null && !loadingMeta, onClick = ::togglePlayback),
                 contentAlignment = Alignment.Center,
             ) {
@@ -757,35 +929,42 @@ private fun SongShareCard(
             }
         }
 
-        if (isThisSong) {
-            Spacer(modifier = Modifier.height(spacing.sm))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(accent.copy(alpha = 0.2f)),
+        if (isThisSong && playback.durationMs > 0L) {
+            Spacer(modifier = Modifier.height(spacing.xs))
+            PlayerProgressBar(
+                positionMs = playback.positionMs,
+                durationMs = playback.durationMs,
+                isPlaying = isPlayingThis,
+                onSeek = { playbackManager.seekTo(it) },
+                activeColor = accent,
+                trackColor = accent.copy(alpha = 0.22f),
+                thumbColor = accent,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(accent),
+                Text(
+                    text = formatChatDuration(playback.positionMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = subtitleColor,
                 )
-            }
-            if (isPlayingThis || isBuffering) {
-                Spacer(modifier = Modifier.height(spacing.xs))
-                AudioVisualizer(
-                    isPlaying = isPlayingThis,
-                    magnitudes = fftMagnitudes,
-                    barCount = 28,
-                    height = 28.dp,
-                    modifier = Modifier.fillMaxWidth(),
+                Text(
+                    text = formatChatDuration(playback.durationMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = subtitleColor,
                 )
             }
         }
     }
+}
+
+private fun formatChatDuration(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }
 
 @Composable

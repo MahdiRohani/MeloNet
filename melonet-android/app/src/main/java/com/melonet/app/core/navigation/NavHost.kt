@@ -174,6 +174,9 @@ fun MelonetMainScreen() {
         val userId = authenticatedUser?.id
         if (userId != null && userId > 0) {
             chatRepository.setCurrentUserId(userId)
+            if (settingsRepository.consumeChatHistoryWipe()) {
+                chatRepository.clearAllLocalMessages()
+            }
             if (isOnline) {
                 chatRepository.connect()
                 chatRepository.refreshUnreadCount()
@@ -212,6 +215,7 @@ fun MelonetMainScreen() {
     MelonetNavigationDrawer(
         drawerState = drawerState,
         scope = scope,
+        gesturesEnabled = showAppShell,
         onNavigate = { route -> navController.navigate(route) },
     ) {
     Scaffold(

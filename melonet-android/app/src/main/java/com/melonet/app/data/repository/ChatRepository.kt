@@ -114,6 +114,13 @@ class ChatRepository(
 
     fun getCachedPeer(userId: Int): ChatPeer? = peerCache[userId]
 
+    suspend fun clearAllLocalMessages() = withContext(dispatchers.io) {
+        chatMessageDao.deleteAll()
+        _messageUpdates.emit(Unit)
+        _conversationUpdates.emit(Unit)
+        _unreadCount.value = 0
+    }
+
     fun conversations(): Flow<PagingData<Conversation>> = Pager(
         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
         pagingSourceFactory = {

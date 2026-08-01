@@ -306,6 +306,9 @@
     <string name="chat_retry_message">Retry</string>
     <string name="chat_cancel_message">Remove</string>
     <string name="chat_copy_message">Copied</string>
+    <string name="chat_reply_to">Reply to %1$s</string>
+    <string name="chat_reply_you">You</string>
+    <string name="chat_cancel_reply">Cancel reply</string>
     <string name="chat_today">Today</string>
     <string name="chat_yesterday">Yesterday</string>
     <string name="chat_search_conversations_hint">Search conversations…</string>

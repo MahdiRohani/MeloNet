@@ -8,14 +8,16 @@ import kotlin.math.sqrt
 
 /**
  * Captures waveform amplitudes from the ExoPlayer audio session for the player visualizer.
- * Bars reflect local temporal energy plus overall RMS so motion is predominantly vertical.
+ * Bars emphasize local temporal contrast (with light auto-gain) so motion reads clearly vertical.
  */
 class AudioSessionVisualizer(
-    private val barCount: Int = 48,
+    private val barCount: Int = 40,
     private val onMagnitudes: (FloatArray) -> Unit,
 ) {
     private var visualizer: Visualizer? = null
     private val output = FloatArray(barCount)
+    private val smoothed = FloatArray(barCount)
+    private var gain = 1f
 
     fun attach(audioSessionId: Int) {
         release()
@@ -61,38 +63,48 @@ class AudioSessionVisualizer(
         } catch (_: Exception) {
         }
         visualizer = null
+        gain = 1f
+        smoothed.fill(0f)
         onMagnitudes(FloatArray(barCount))
     }
 
-    /**
-     * Each bar = local waveform amplitude for a time slice, lifted by global RMS
-     * so louder playback raises the whole set of bars rather than shifting peaks sideways.
-     */
     private fun mapWaveformToBars(waveform: ByteArray, out: FloatArray) {
         val n = waveform.size
-        var sumSq = 0.0
-        for (b in waveform) {
-            val centered = (b.toInt() and 0xFF) - 128
-            sumSq += centered * centered.toDouble()
-        }
-        val rms = (sqrt(sumSq / n) / 128.0).toFloat().coerceIn(0f, 1f)
+        var framePeak = 0.001f
+        val raw = FloatArray(out.size)
 
-        for (i in out.indices) {
-            val start = (i * n) / out.size
-            val end = ((i + 1) * n) / out.size
-            val count = (end - start).coerceAtLeast(1)
-            var localSumSq = 0.0
+        for (i in raw.indices) {
+            val start = (i * n) / raw.size
+            val end = ((i + 1) * n) / raw.size
             var localPeak = 0f
+            var localSumSq = 0.0
+            val count = (end - start).coerceAtLeast(1)
             for (k in start until end) {
                 val centered = ((waveform[k].toInt() and 0xFF) - 128).toFloat()
-                localSumSq += centered * centered
                 val a = abs(centered)
                 if (a > localPeak) localPeak = a
+                localSumSq += centered * centered
             }
-            val localRms = (sqrt(localSumSq / count) / 128.0).toFloat()
-            val localAmp = localRms * 0.6f + (localPeak / 128f) * 0.4f
-            // Mix local detail with global loudness so volume changes read as up/down.
-            out[i] = (localAmp * 0.55f + rms * 0.45f).coerceIn(0.03f, 1f)
+            val localRms = sqrt(localSumSq / count).toFloat()
+            // Prefer peak detail so neighboring bars differ clearly.
+            val amp = (localPeak * 0.75f + localRms * 0.25f) / 128f
+            raw[i] = amp
+            if (amp > framePeak) framePeak = amp
+        }
+
+        // Soft auto-gain: expand quiet passages without flattening loud ones.
+        val targetGain = (0.92f / framePeak).coerceIn(1f, 6f)
+        gain = gain * 0.85f + targetGain * 0.15f
+
+        for (i in out.indices) {
+            val boosted = (raw[i] * gain).coerceIn(0f, 1f)
+            // Fast attack / slower release so bars feel lively, not a fixed pulse.
+            smoothed[i] = if (boosted > smoothed[i]) {
+                smoothed[i] * 0.35f + boosted * 0.65f
+            } else {
+                smoothed[i] * 0.72f + boosted * 0.28f
+            }
+            out[i] = smoothed[i].coerceIn(0.02f, 1f)
         }
     }
 }

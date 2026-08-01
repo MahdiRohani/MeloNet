@@ -89,12 +89,33 @@ class ChatViewModel(
             is ChatContract.Event.RetryMessage -> retryMessage(event.localId)
             is ChatContract.Event.CancelMessage -> cancelMessage(event.localId)
             is ChatContract.Event.CopyMessage -> {
-                if (event.text.isNotBlank()) {
-                    setEffect { ChatContract.Effect.CopyToClipboard(event.text) }
+                val body = ChatReplyCodec.displayBody(event.text)
+                if (body.isNotBlank()) {
+                    setEffect { ChatContract.Effect.CopyToClipboard(body) }
                 }
             }
+            is ChatContract.Event.ReplyToMessage -> setReplyDraft(event.message, event.authorLabel)
+            ChatContract.Event.CancelReply -> setState { copy(replyDraft = null) }
             ChatContract.Event.ScreenVisible -> Unit
             ChatContract.Event.ScreenHidden -> stopTyping()
+        }
+    }
+
+    private fun setReplyDraft(message: ChatMessage, authorLabel: String) {
+        val parsed = ChatReplyCodec.parse(message.content)
+        val preview = when (message.msgType) {
+            com.melonet.app.data.model.MessageType.SONG ->
+                message.songTitle?.ifBlank { null } ?: "Song"
+            else -> parsed.body.ifBlank { message.content }.take(80)
+        }
+        setState {
+            copy(
+                replyDraft = ChatContract.ReplyDraft(
+                    messageId = message.serverId?.toString() ?: message.localId,
+                    author = authorLabel,
+                    preview = preview,
+                ),
+            )
         }
     }
 
@@ -201,10 +222,21 @@ class ChatViewModel(
         val text = uiState.value.inputText.trim()
         val conversationId = uiState.value.conversationId
         if (text.isBlank() || conversationId == 0 || receiverId == 0) return
+        val reply = uiState.value.replyDraft
+        val payload = if (reply != null) {
+            ChatReplyCodec.encode(
+                replyToId = reply.messageId,
+                author = reply.author,
+                preview = reply.preview,
+                body = text,
+            )
+        } else {
+            text
+        }
         viewModelScope.launch {
-            setState { copy(isSending = true, inputText = "") }
+            setState { copy(isSending = true, inputText = "", replyDraft = null) }
             stopTyping()
-            val pending = chatRepository.sendTextMessage(conversationId, receiverId, text)
+            val pending = chatRepository.sendTextMessage(conversationId, receiverId, payload)
             setState {
                 copy(
                     isSending = false,

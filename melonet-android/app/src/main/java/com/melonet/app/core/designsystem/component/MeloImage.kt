@@ -17,6 +17,7 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
 import com.melonet.app.R
+import com.melonet.app.core.network.MediaUrl
 
 @Composable
 fun MeloImage(
@@ -26,7 +27,8 @@ fun MeloImage(
     contentScale: ContentScale = ContentScale.Crop,
     targetSize: Dp? = null,
 ) {
-    if (imageUrl.isNullOrBlank()) {
+    val resolvedUrl = MediaUrl.resolve(imageUrl)
+    if (resolvedUrl.isNullOrBlank()) {
         MeloImagePlaceholder(modifier = modifier)
         return
     }
@@ -37,7 +39,7 @@ fun MeloImage(
 
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(context)
-            .data(imageUrl)
+            .data(resolvedUrl)
             .crossfade(true)
             .apply {
                 if (pixelSize != null) {

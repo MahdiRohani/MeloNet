@@ -33,6 +33,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,6 +53,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.palette.graphics.Palette
 import coil.ImageLoader
 import coil.request.ImageRequest
@@ -65,6 +69,7 @@ import com.melonet.app.core.designsystem.component.PremiumSubscriptionCard
 import com.melonet.app.core.designsystem.component.ProfileAvatar
 import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.core.network.MediaUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -86,14 +91,25 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val imageLoader = remember { ImageLoader(context) }
     val scheme = MaterialTheme.colorScheme
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     var heroColors by remember { mutableStateOf<List<Color>>(emptyList()) }
     var contentEntered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentEntered = true }
 
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshIfNeeded()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     LaunchedEffect(state.avatarUrl) {
-        val url = state.avatarUrl
-        heroColors = if (url.isBlank()) {
+        val url = MediaUrl.resolve(state.avatarUrl)
+        heroColors = if (url.isNullOrBlank()) {
             emptyList()
         } else {
             extractAvatarPalette(context, imageLoader, url)
@@ -128,12 +144,18 @@ fun ProfileScreen(
         label = "profile_enter_offset",
     )
 
-    val gradientColors = if (heroColors.size >= 2) {
-        heroColors + listOf(scheme.background)
+    val gradientColors = if (heroColors.isNotEmpty()) {
+        listOf(
+            heroColors.first().copy(alpha = 0.28f),
+            (heroColors.getOrNull(1) ?: heroColors.first()).copy(alpha = 0.12f),
+            scheme.surface.copy(alpha = 0.92f),
+            scheme.background,
+        )
     } else {
         listOf(
-            scheme.primary.copy(alpha = 0.45f),
-            scheme.tertiary.copy(alpha = 0.22f),
+            scheme.primary.copy(alpha = 0.16f),
+            scheme.secondary.copy(alpha = 0.08f),
+            scheme.surface,
             scheme.background,
         )
     }
@@ -142,18 +164,27 @@ fun ProfileScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = scheme.background,
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(Brush.verticalGradient(gradientColors))
-                .verticalScroll(rememberScrollState())
-                .graphicsLayer {
-                    alpha = enterAlpha
-                    translationY = enterOffset
-                }
-                .padding(bottom = spacing.xl),
+                .padding(padding),
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp)
+                    .background(Brush.verticalGradient(gradientColors)),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .graphicsLayer {
+                        alpha = enterAlpha
+                        translationY = enterOffset
+                    }
+                    .padding(bottom = spacing.xl),
+            ) {
             ProfileHeroHeader(
                 userName = state.userName.ifBlank { stringResource(R.string.profile_guest_user) },
                 username = state.username,
@@ -213,6 +244,7 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .padding(horizontal = spacing.md),
             )
+            }
         }
     }
 }

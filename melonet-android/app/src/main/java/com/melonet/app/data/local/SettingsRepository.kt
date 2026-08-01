@@ -38,6 +38,7 @@ class SettingsRepository(private val context: Context) {
         val BUBBLE_X = stringPreferencesKey("bubble_offset_x")
         val BUBBLE_Y = stringPreferencesKey("bubble_offset_y")
         val BUBBLE_HAS_POS = booleanPreferencesKey("bubble_has_pos")
+        val CHAT_HISTORY_WIPED_V1 = booleanPreferencesKey("chat_history_wiped_v1")
     }
 
     val isDarkModeFlow: Flow<Boolean?> = context.settingsDataStore.data.map { prefs ->
@@ -177,5 +178,13 @@ class SettingsRepository(private val context: Context) {
             prefs.remove(CACHED_BIO)
             prefs.remove(CACHED_IS_PREMIUM)
         }
+    }
+
+    /** One-shot local chat wipe after product reset; returns true only the first time. */
+    suspend fun consumeChatHistoryWipe(): Boolean {
+        val prefs = context.settingsDataStore.data.first()
+        if (prefs[CHAT_HISTORY_WIPED_V1] == true) return false
+        context.settingsDataStore.edit { it[CHAT_HISTORY_WIPED_V1] = true }
+        return true
     }
 }

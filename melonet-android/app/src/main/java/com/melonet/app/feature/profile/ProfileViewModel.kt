@@ -48,6 +48,11 @@ class ProfileViewModel(
         }
     }
 
+    /** Refresh profile when returning from Edit Profile / avatar upload. */
+    fun refreshIfNeeded() {
+        handleEvent(ProfileContract.Event.Load)
+    }
+
     private fun observePremiumStatus() {
         userRepository.isPremiumFlow
             .onEach { isPremium -> setState { copy(isPremium = isPremium) } }

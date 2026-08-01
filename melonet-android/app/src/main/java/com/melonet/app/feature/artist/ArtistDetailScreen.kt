@@ -5,12 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -20,18 +21,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -59,6 +63,7 @@ fun ArtistDetailScreen(
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
     val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
     val songs = viewModel.songs.collectAsLazyPagingItems()
 
     LaunchedEffect(artistId) {
@@ -79,36 +84,33 @@ fun ArtistDetailScreen(
         }
     }
 
-    Column(
+    val firstSongId = songs.itemSnapshotList.items.firstOrNull()?.id
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(scheme.background),
     ) {
-        TopAppBar(
-            title = { Text(state.artist?.name ?: stringResource(R.string.artist_title)) },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.cd_player_back),
-                    )
-                }
-            },
-        )
-
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = spacing.xl),
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
-            item(key = "header") {
-                ArtistHeader(
+            item(key = "hero") {
+                ArtistHeroHeader(
                     name = state.artist?.name.orEmpty(),
                     imageUrl = state.artist?.imageUrl,
                     songCount = state.artist?.songCount ?: 0,
                     isFollowing = state.artist?.isFollowing == true,
                     isFollowLoading = state.isFollowLoading,
+                    canPlay = firstSongId != null,
                     onToggleFollow = { viewModel.handleEvent(ArtistDetailContract.Event.ToggleFollow) },
+                    onPlayAll = {
+                        firstSongId?.let { id ->
+                            viewModel.handleEvent(ArtistDetailContract.Event.SongClicked(id))
+                        }
+                    },
+                    onBack = onNavigateBack,
                 )
             }
 
@@ -129,7 +131,7 @@ fun ArtistDetailScreen(
                                 .padding(spacing.xl),
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            CircularProgressIndicator(color = scheme.primary)
                         }
                     }
                 }
@@ -166,7 +168,7 @@ fun ArtistDetailScreen(
                                     .padding(spacing.md),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                CircularProgressIndicator(color = scheme.primary)
                             }
                         }
                     }
@@ -176,50 +178,106 @@ fun ArtistDetailScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ArtistHeader(
+private fun ArtistHeroHeader(
     name: String,
     imageUrl: String?,
     songCount: Int,
     isFollowing: Boolean,
     isFollowLoading: Boolean,
+    canPlay: Boolean,
     onToggleFollow: () -> Unit,
+    onPlayAll: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
-    Column(
+    val scheme = MaterialTheme.colorScheme
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(spacing.lg),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            .height(320.dp),
     ) {
         MeloImage(
             imageUrl = imageUrl?.ifBlank { null },
             contentDescription = name,
             contentScale = ContentScale.Crop,
+            targetSize = 420.dp,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
             modifier = Modifier
-                .size(140.dp)
-                .clip(CircleShape),
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Transparent,
+                            scheme.background.copy(alpha = 0.55f),
+                            scheme.background,
+                        ),
+                    ),
+                ),
         )
-        Text(
-            text = name,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+        TopAppBar(
+            title = {},
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.cd_player_back),
+                        tint = Color.White,
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         )
-        if (songCount > 0) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(horizontal = spacing.lg)
+                .padding(bottom = spacing.lg),
+        ) {
             Text(
-                text = pluralStringResource(R.plurals.artist_song_count, songCount, songCount),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = name.ifBlank { stringResource(R.string.artist_title) },
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = scheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
+            if (songCount > 0) {
+                Spacer(modifier = Modifier.height(spacing.xs))
+                Text(
+                    text = pluralStringResource(R.plurals.artist_song_count, songCount, songCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.height(spacing.md))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                MeloButton(
+                    text = stringResource(R.string.library_play_all),
+                    onClick = onPlayAll,
+                    enabled = canPlay,
+                    variant = MeloButtonVariant.Primary,
+                    modifier = Modifier.weight(1f),
+                )
+                MeloButton(
+                    text = stringResource(
+                        if (isFollowing) R.string.social_unfollow else R.string.social_follow,
+                    ),
+                    onClick = onToggleFollow,
+                    enabled = !isFollowLoading,
+                    variant = if (isFollowing) MeloButtonVariant.Outlined else MeloButtonVariant.Secondary,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
-        MeloButton(
-            text = stringResource(
-                if (isFollowing) R.string.social_unfollow else R.string.social_follow,
-            ),
-            onClick = onToggleFollow,
-            enabled = !isFollowLoading,
-            variant = if (isFollowing) MeloButtonVariant.Outlined else MeloButtonVariant.Primary,
-        )
     }
 }
