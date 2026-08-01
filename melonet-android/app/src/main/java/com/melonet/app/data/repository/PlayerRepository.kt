@@ -15,6 +15,7 @@ class PlayerRepository(
     private val catalogApi: CatalogApi,
     private val libraryApi: LibraryApi,
     private val offlineSongResolver: OfflineSongResolver,
+    private val downloadRepository: DownloadRepository,
     private val dispatchers: DispatchersProvider,
 ) {
     suspend fun getSong(id: String): Result<Song> = withContext(dispatchers.io) {
@@ -25,7 +26,14 @@ class PlayerRepository(
         }
         when (val result = safeApiCall { catalogApi.getSong(id) }) {
             is Result.Success -> Result.Success(SongMapper.toModel(result.data))
-            is Result.Error -> result
+            is Result.Error -> {
+                val offline = downloadRepository.getCompletedSong(id)
+                if (offline != null) {
+                    Result.Success(offline)
+                } else {
+                    result
+                }
+            }
         }
     }
 
@@ -61,6 +69,10 @@ class PlayerRepository(
         val localPath = offlineSongResolver.localPathFor(song.id)
         if (!localPath.isNullOrBlank() && File(localPath).exists()) {
             return localPath
+        }
+        // Completed downloads may already carry the on-device path as audioUrl.
+        if (song.audioUrl.isNotBlank() && !song.audioUrl.startsWith("http") && File(song.audioUrl).exists()) {
+            return song.audioUrl
         }
         return song.audioUrl
     }

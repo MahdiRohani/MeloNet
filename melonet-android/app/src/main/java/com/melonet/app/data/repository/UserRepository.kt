@@ -29,10 +29,18 @@ class UserRepository(
         when (val result = safeApiCall { authApi.getCurrentUser() }) {
             is Result.Success -> {
                 val user = UserMapper.toModel(result.data)
-                settingsRepository.setPremiumStatus(user.isPremium)
+                settingsRepository.saveCachedUser(user)
                 Result.Success(user)
             }
-            is Result.Error -> result
+            is Result.Error -> {
+                if (result.error is AppError.Timeout || result.error is AppError.NoConnection) {
+                    val cached = settingsRepository.getCachedUser()
+                    if (cached != null) {
+                        return@withContext Result.Success(cached)
+                    }
+                }
+                result
+            }
         }
     }
 
@@ -54,7 +62,7 @@ class UserRepository(
         ) {
             is Result.Success -> {
                 val user = UserMapper.toModel(result.data)
-                settingsRepository.setPremiumStatus(user.isPremium)
+                settingsRepository.saveCachedUser(user)
                 Result.Success(user)
             }
             is Result.Error -> result
@@ -65,7 +73,7 @@ class UserRepository(
         when (val result = safeApiCall { authApi.uploadAvatar(avatar) }) {
             is Result.Success -> {
                 val user = UserMapper.toModel(result.data)
-                settingsRepository.setPremiumStatus(user.isPremium)
+                settingsRepository.saveCachedUser(user)
                 Result.Success(user)
             }
             is Result.Error -> result

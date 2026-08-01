@@ -28,7 +28,7 @@ data class DownloadItem(
         title = title,
         artistName = artistName,
         coverUrl = coverUrl,
-        audioUrl = audioUrl,
+        audioUrl = filePath.ifBlank { audioUrl },
         category = "",
         lyrics = "",
         durationSec = 0,

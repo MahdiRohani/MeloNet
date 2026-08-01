@@ -8,6 +8,8 @@ import okhttp3.Authenticator
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import retrofit2.HttpException
+import java.io.IOException
 
 class TokenAuthenticator(
     private val tokenManager: TokenManager,
@@ -19,24 +21,44 @@ class TokenAuthenticator(
 
         val refreshToken = runBlocking { tokenManager.getRefreshToken() } ?: return null
 
-        val tokenResponse = runBlocking {
+        val tokens = runBlocking {
             try {
-                refreshAuthApi.refresh(RefreshTokenRequestDto(refreshToken)).data
+                val body = refreshAuthApi.refresh(RefreshTokenRequestDto(refreshToken))
+                val data = body.data
+                when {
+                    data != null -> RefreshResult.Success(data.accessToken, data.refreshToken)
+                    body.error?.code in AUTH_FAILURE_CODES -> RefreshResult.AuthFailed
+                    else -> RefreshResult.AuthFailed
+                }
+            } catch (e: HttpException) {
+                if (e.code() == 401 || e.code() == 403) {
+                    RefreshResult.AuthFailed
+                } else {
+                    RefreshResult.Transient
+                }
+            } catch (_: IOException) {
+                // Offline / timeout — keep tokens so offline session can continue.
+                RefreshResult.Transient
             } catch (_: Exception) {
+                RefreshResult.Transient
+            }
+        }
+
+        return when (tokens) {
+            is RefreshResult.Success -> {
+                runBlocking {
+                    tokenManager.saveTokens(tokens.accessToken, tokens.refreshToken)
+                }
+                response.request.newBuilder()
+                    .header("Authorization", "Bearer ${tokens.accessToken}")
+                    .build()
+            }
+            RefreshResult.AuthFailed -> {
+                runBlocking { tokenManager.clearTokens() }
                 null
             }
-        } ?: run {
-            runBlocking { tokenManager.clearTokens() }
-            return null
+            RefreshResult.Transient -> null
         }
-
-        runBlocking {
-            tokenManager.saveTokens(tokenResponse.accessToken, tokenResponse.refreshToken)
-        }
-
-        return response.request.newBuilder()
-            .header("Authorization", "Bearer ${tokenResponse.accessToken}")
-            .build()
     }
 
     private fun responseCount(response: Response): Int {
@@ -47,5 +69,15 @@ class TokenAuthenticator(
             prior = prior.priorResponse
         }
         return count
+    }
+
+    private sealed interface RefreshResult {
+        data class Success(val accessToken: String, val refreshToken: String) : RefreshResult
+        data object AuthFailed : RefreshResult
+        data object Transient : RefreshResult
+    }
+
+    private companion object {
+        val AUTH_FAILURE_CODES = setOf("unauthorized", "invalid_credentials", "forbidden")
     }
 }

@@ -84,6 +84,13 @@ class DownloadRepository(
         if (path.isNotBlank() && File(path).exists()) path else null
     }
 
+    suspend fun getCompletedSong(songId: String): Song? = withContext(dispatchers.io) {
+        val entity = downloadDao.getBySongId(songId) ?: return@withContext null
+        if (entity.status != DownloadStatus.COMPLETED.name) return@withContext null
+        if (entity.filePath.isBlank() || !File(entity.filePath).exists()) return@withContext null
+        entity.toDownloadItem().toSong()
+    }
+
     private fun enqueueWork(songId: String) {
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(workDataOf(DownloadWorker.KEY_SONG_ID to songId))

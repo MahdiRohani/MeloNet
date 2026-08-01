@@ -152,12 +152,16 @@ fun MelonetMainScreen() {
 
     val authenticatedUser = (authState as? AuthState.Authenticated)?.user
 
-    LaunchedEffect(authenticatedUser?.id) {
+    LaunchedEffect(authenticatedUser?.id, isOnline) {
         val userId = authenticatedUser?.id
-        if (userId != null) {
+        if (userId != null && userId > 0) {
             chatRepository.setCurrentUserId(userId)
-            chatRepository.connect()
-            chatRepository.refreshUnreadCount()
+            if (isOnline) {
+                chatRepository.connect()
+                chatRepository.refreshUnreadCount()
+            } else {
+                chatRepository.disconnect()
+            }
         } else {
             chatRepository.disconnect()
         }

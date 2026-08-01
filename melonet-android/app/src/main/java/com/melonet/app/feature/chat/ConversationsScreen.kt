@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,10 +41,12 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.melonet.app.R
+import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.core.network.toAppError
 import com.melonet.app.data.model.Conversation
 import com.melonet.app.data.model.MessageType
 import java.time.Instant
@@ -61,6 +64,7 @@ fun ConversationsScreen(
     val state by viewModel.uiState.collectAsState()
     val conversations = viewModel.conversations.collectAsLazyPagingItems()
     val spacing = MeloNetTheme.spacing
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.handleEvent(ConversationsContract.Event.ScreenVisible)
@@ -111,8 +115,12 @@ fun ConversationsScreen(
                     }
                 }
                 is LoadState.Error if conversations.itemCount == 0 -> {
+                    val errorMessage = (conversations.loadState.refresh as LoadState.Error)
+                        .error
+                        .toAppError()
+                        .displayMessage(context)
                     ErrorState(
-                        message = stringResource(R.string.chat_error_title),
+                        message = errorMessage,
                         onRetry = { conversations.retry() },
                     )
                 }

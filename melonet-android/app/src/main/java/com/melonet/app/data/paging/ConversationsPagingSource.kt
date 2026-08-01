@@ -2,10 +2,13 @@ package com.melonet.app.data.paging
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.melonet.app.core.common.AppError
+import com.melonet.app.core.common.AppErrorException
+import com.melonet.app.core.network.mapServerError
+import com.melonet.app.core.network.toAppError
 import com.melonet.app.data.mapper.ChatMapper
 import com.melonet.app.data.model.Conversation
 import com.melonet.app.data.remote.ChatApi
-import java.io.IOException
 
 class ConversationsPagingSource(
     private val chatApi: ChatApi,
@@ -24,9 +27,18 @@ class ConversationsPagingSource(
             val response = chatApi.listConversations(page = page, limit = params.loadSize)
             val error = response.error
             if (error != null) {
-                return LoadResult.Error(IOException(error.message))
+                return LoadResult.Error(
+                    AppErrorException(
+                        mapServerError(
+                            code = error.code,
+                            message = error.message,
+                            httpStatus = 0,
+                        ),
+                    ),
+                )
             }
-            val data = response.data ?: return LoadResult.Error(IOException("Empty response"))
+            val data = response.data
+                ?: return LoadResult.Error(AppErrorException(AppError.Unknown("Empty response")))
             val items = data.map(ChatMapper::toConversation)
             val total = response.meta?.total ?: items.size
             val hasMore = page * params.loadSize < total
@@ -36,7 +48,7 @@ class ConversationsPagingSource(
                 nextKey = if (hasMore) page + 1 else null,
             )
         } catch (e: Exception) {
-            LoadResult.Error(e)
+            LoadResult.Error(AppErrorException(e.toAppError()))
         }
     }
 }

@@ -13,6 +13,8 @@
     <string name="error_validation">ورودی را بررسی کنید و دوباره تلاش کنید</string>
     <string name="error_unknown">مشکلی پیش آمد؛ دوباره تلاش کنید</string>
 
+    <string name="offline_banner_message">آفلاین هستید؛ بعضی قابلیت‌ها در دسترس نیست</string>
+
     <!-- Auth errors -->
     <string name="auth_error_required_fields">لطفاً همهٔ فیلدها را پر کنید</string>
     <string name="auth_error_invalid_credentials">نام کاربری یا رمز اشتباه است</string>

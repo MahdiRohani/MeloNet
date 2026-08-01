@@ -200,6 +200,7 @@ val appModule = module {
             catalogApi = get(),
             libraryApi = get(),
             offlineSongResolver = get(),
+            downloadRepository = get(),
             dispatchers = get(),
         )
     }
