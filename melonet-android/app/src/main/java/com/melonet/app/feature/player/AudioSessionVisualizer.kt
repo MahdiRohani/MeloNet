@@ -1,13 +1,14 @@
 package com.melonet.app.feature.player
 
 import android.media.audiofx.Visualizer
-import kotlin.math.log10
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * Captures FFT magnitudes from the ExoPlayer audio session for the player visualizer.
+ * Captures waveform amplitudes from the ExoPlayer audio session for the player visualizer.
+ * Bars reflect local temporal energy plus overall RMS so motion is predominantly vertical.
  */
 class AudioSessionVisualizer(
     private val barCount: Int = 48,
@@ -30,21 +31,21 @@ class AudioSessionVisualizer(
                         visualizer: Visualizer?,
                         waveform: ByteArray?,
                         samplingRate: Int,
-                    ) = Unit
+                    ) {
+                        if (waveform == null || waveform.isEmpty()) return
+                        mapWaveformToBars(waveform, output)
+                        onMagnitudes(output.copyOf())
+                    }
 
                     override fun onFftDataCapture(
                         visualizer: Visualizer?,
                         fft: ByteArray?,
                         samplingRate: Int,
-                    ) {
-                        if (fft == null || fft.size < 4) return
-                        mapFftToBars(fft, output)
-                        onMagnitudes(output.copyOf())
-                    }
+                    ) = Unit
                 },
                 Visualizer.getMaxCaptureRate() / 2,
-                false,
                 true,
+                false,
             )
             viz.enabled = true
             visualizer = viz
@@ -63,22 +64,35 @@ class AudioSessionVisualizer(
         onMagnitudes(FloatArray(barCount))
     }
 
-    private fun mapFftToBars(fft: ByteArray, out: FloatArray) {
-        val n = fft.size / 2
-        val usable = (n - 1).coerceAtLeast(1)
+    /**
+     * Each bar = local waveform amplitude for a time slice, lifted by global RMS
+     * so louder playback raises the whole set of bars rather than shifting peaks sideways.
+     */
+    private fun mapWaveformToBars(waveform: ByteArray, out: FloatArray) {
+        val n = waveform.size
+        var sumSq = 0.0
+        for (b in waveform) {
+            val centered = (b.toInt() and 0xFF) - 128
+            sumSq += centered * centered.toDouble()
+        }
+        val rms = (sqrt(sumSq / n) / 128.0).toFloat().coerceIn(0f, 1f)
+
         for (i in out.indices) {
-            val start = 1 + (i * usable) / out.size
-            val end = 1 + ((i + 1) * usable) / out.size
-            var maxMag = 0f
-            for (k in start until end.coerceAtMost(n)) {
-                val re = fft[k * 2].toInt()
-                val im = fft[k * 2 + 1].toInt()
-                val mag = sqrt((re * re + im * im).toFloat())
-                if (mag > maxMag) maxMag = mag
+            val start = (i * n) / out.size
+            val end = ((i + 1) * n) / out.size
+            val count = (end - start).coerceAtLeast(1)
+            var localSumSq = 0.0
+            var localPeak = 0f
+            for (k in start until end) {
+                val centered = ((waveform[k].toInt() and 0xFF) - 128).toFloat()
+                localSumSq += centered * centered
+                val a = abs(centered)
+                if (a > localPeak) localPeak = a
             }
-            // Convert to a pleasant 0..1 display range.
-            val db = if (maxMag > 1f) 20f * log10(maxMag) else 0f
-            out[i] = ((db - 5f) / 45f).coerceIn(0.02f, 1f)
+            val localRms = (sqrt(localSumSq / count) / 128.0).toFloat()
+            val localAmp = localRms * 0.6f + (localPeak / 128f) * 0.4f
+            // Mix local detail with global loudness so volume changes read as up/down.
+            out[i] = (localAmp * 0.55f + rms * 0.45f).coerceIn(0.03f, 1f)
         }
     }
 }

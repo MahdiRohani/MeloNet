@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.Brush
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
 /**
- * FFT-driven visualizer. Bars follow [magnitudes]; on pause the whole canvas
+ * Waveform-driven visualizer. Bars grow from the bottom; on pause the canvas
  * fades out via alpha instead of collapsing bar heights to zero.
  */
 @Composable
@@ -38,7 +38,7 @@ fun AudioVisualizer(
         label = "visualizer_alpha",
     )
 
-    // contentHashCode forces Canvas invalidation when FFT frames change.
+    // contentHashCode forces Canvas invalidation when amplitude frames change.
     val frameKey = remember(magnitudes) { magnitudes.contentHashCode() }
 
     Canvas(
@@ -54,20 +54,22 @@ fun AudioVisualizer(
         val barWidth = (size.width - gap * (barCount - 1)) / barCount
         val maxHeight = size.height
         val brush = Brush.verticalGradient(listOf(primaryColor, secondaryColor))
+        val corner = CornerRadius(barWidth / 2f, barWidth / 2f)
         for (index in 0 until barCount) {
             val sample = if (magnitudes.isNotEmpty()) {
                 magnitudes[(index * magnitudes.size) / barCount]
             } else {
-                0.08f
+                0.06f
             }
-            val h = (maxHeight * sample.coerceIn(0.04f, 1f)).coerceAtLeast(barWidth)
+            val h = maxHeight * sample.coerceIn(0.04f, 1f)
             val x = index * (barWidth + gap)
-            val y = (maxHeight - h) / 2f
+            // Bottom-anchored so amplitude reads as vertical growth.
+            val y = maxHeight - h
             drawRoundRect(
                 brush = brush,
                 topLeft = Offset(x, y),
                 size = Size(barWidth, h),
-                cornerRadius = CornerRadius(barWidth / 2f),
+                cornerRadius = corner,
             )
         }
     }
