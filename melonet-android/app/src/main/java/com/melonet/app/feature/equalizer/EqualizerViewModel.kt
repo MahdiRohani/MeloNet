@@ -5,6 +5,8 @@ import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.data.local.EqualizerSettings
 import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.feature.player.EqualizerController
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -13,12 +15,16 @@ class EqualizerViewModel(
     private val settingsRepository: SettingsRepository,
 ) : BaseViewModel<EqualizerContract.State, EqualizerContract.Event, EqualizerContract.Effect>() {
 
+    private var persistJob: Job? = null
+
     override fun createInitialState() = EqualizerContract.State()
 
     init {
         handleEvent(EqualizerContract.Event.Load)
         settingsRepository.equalizerSettingsFlow
             .onEach { settings ->
+                // Ignore DataStore echoes while a local optimistic edit is pending.
+                if (persistJob?.isActive == true) return@onEach
                 EqualizerController.updateSettings(settings)
                 setState { copy(settings = settings) }
             }
@@ -55,56 +61,56 @@ class EqualizerViewModel(
     }
 
     private fun selectPreset(name: String) {
-        viewModelScope.launch {
-            EqualizerController.applyNamedPreset(name)
-            val next = EqualizerController.currentSettings().copy(selectedPresetName = name)
-            settingsRepository.saveEqualizerSettings(next)
-            EqualizerController.updateSettings(next)
-            refreshHardwareInfo()
-        }
+        EqualizerController.applyNamedPreset(name)
+        val next = EqualizerController.currentSettings().copy(selectedPresetName = name)
+        applyOptimistic(next, persistImmediately = true)
+        refreshHardwareInfo()
     }
 
     private fun updateBand(index: Int, level: Int) {
-        viewModelScope.launch {
-            val current = uiState.value.settings
-            val bands = current.bandLevelsMilliBel
-                .toMutableList()
-                .also { list ->
-                    while (list.size <= index) list.add(0)
-                    list[index] = level
-                }
-            val next = current.copy(
-                usePreset = false,
-                selectedPresetName = "Custom",
-                bandLevelsMilliBel = bands,
-                enabled = true,
-            )
-            settingsRepository.saveEqualizerSettings(next)
-            EqualizerController.updateSettings(next)
-        }
+        val current = uiState.value.settings
+        val bands = current.bandLevelsMilliBel
+            .toMutableList()
+            .also { list ->
+                while (list.size <= index) list.add(0)
+                list[index] = level
+            }
+        val next = current.copy(
+            usePreset = false,
+            selectedPresetName = "Custom",
+            bandLevelsMilliBel = bands,
+            enabled = true,
+        )
+        applyOptimistic(next)
     }
 
     private fun updateBass(strength: Int) {
-        viewModelScope.launch {
-            val next = uiState.value.settings.copy(bassBoostStrength = strength.coerceIn(0, 1000))
-            settingsRepository.saveEqualizerSettings(next)
-            EqualizerController.updateSettings(next)
-        }
+        val next = uiState.value.settings.copy(bassBoostStrength = strength.coerceIn(0, 1000))
+        applyOptimistic(next)
     }
 
     private fun updateVirtualizer(strength: Int) {
-        viewModelScope.launch {
-            val next = uiState.value.settings.copy(virtualizerStrength = strength.coerceIn(0, 1000))
-            settingsRepository.saveEqualizerSettings(next)
-            EqualizerController.updateSettings(next)
-        }
+        val next = uiState.value.settings.copy(virtualizerStrength = strength.coerceIn(0, 1000))
+        applyOptimistic(next)
     }
 
     private fun updateEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            val next = uiState.value.settings.copy(enabled = enabled)
+        val next = uiState.value.settings.copy(enabled = enabled)
+        applyOptimistic(next, persistImmediately = true)
+    }
+
+    /** UI + hardware immediately; DataStore debounced unless [persistImmediately]. */
+    private fun applyOptimistic(next: EqualizerSettings, persistImmediately: Boolean = false) {
+        setState { copy(settings = next) }
+        EqualizerController.updateSettings(next)
+        persistJob?.cancel()
+        persistJob = viewModelScope.launch {
+            if (!persistImmediately) delay(PERSIST_DEBOUNCE_MS)
             settingsRepository.saveEqualizerSettings(next)
-            EqualizerController.updateSettings(next)
         }
+    }
+
+    private companion object {
+        const val PERSIST_DEBOUNCE_MS = 400L
     }
 }
