@@ -28,8 +28,11 @@ import com.melonet.app.core.designsystem.component.MeloTopBar
 import com.melonet.app.core.designsystem.component.MiniPlayerBar
 import com.melonet.app.core.designsystem.component.OfflineBanner
 import com.melonet.app.core.network.NetworkConnectivityMonitor
+import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.model.AuthState
 import com.melonet.app.data.model.Song
+import com.melonet.app.feature.equalizer.EqualizerScreen
+import com.melonet.app.feature.equalizer.EqualizerViewModel
 import com.melonet.app.feature.auth.AuthViewModel
 import com.melonet.app.feature.auth.LoginScreen
 import com.melonet.app.feature.auth.LoginViewModel
@@ -104,10 +107,16 @@ fun MelonetMainScreen() {
     val playerViewModel: PlayerViewModel = koinViewModel(viewModelStoreOwner = viewModelStoreOwner)
     val chatRepository: ChatRepository = koinInject()
     val networkMonitor: NetworkConnectivityMonitor = koinInject()
+    val settingsRepository: SettingsRepository = koinInject()
     val isOnline by networkMonitor.isOnline.collectAsState(initial = true)
     val authState by authViewModel.authState.collectAsState()
     val playerState by playerViewModel.uiState.collectAsState()
     val unreadCount by chatRepository.unreadCount.collectAsState()
+
+    var bubbleOffset by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    LaunchedEffect(Unit) {
+        bubbleOffset = settingsRepository.getBubblePosition()
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -125,6 +134,7 @@ fun MelonetMainScreen() {
             !destination.hasRoute(ChatRoute::class) &&
             !destination.hasRoute(ConversationsRoute::class) &&
             !destination.hasRoute(SettingsRoute::class) &&
+            !destination.hasRoute(EqualizerRoute::class) &&
             !destination.hasRoute(EditProfileRoute::class) &&
             !destination.hasRoute(UserProfileRoute::class) &&
             !destination.hasRoute(UserListRoute::class) &&
@@ -623,12 +633,21 @@ fun MelonetMainScreen() {
                         bubbleVisible = true
                         navController.popBackStack()
                     },
+                    onOpenEqualizer = { navController.navigate(EqualizerRoute) },
                     onNavigateToArtist = { artistId ->
                         navController.navigate(ArtistDetailRoute(artistId = artistId))
                     },
                     onShareToChat = { shareSongId ->
                         navController.navigate(ConversationsRoute(shareSongId = shareSongId))
                     },
+                )
+            }
+
+            composable<EqualizerRoute> {
+                val equalizerViewModel: EqualizerViewModel = koinViewModel()
+                EqualizerScreen(
+                    viewModel = equalizerViewModel,
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 
@@ -655,13 +674,14 @@ fun MelonetMainScreen() {
             playerState.currentSong?.let { song ->
                 FloatingPlayerBubble(
                     coverUrl = song.coverUrl,
-                    isPlaying = playerState.isPlaying,
                     onClick = {
                         bubbleVisible = false
                         navController.navigate(PlayerRoute(songId = song.id))
                     },
-                    onTogglePlayPause = {
-                        playerViewModel.handleEvent(PlayerContract.Event.TogglePlayPause)
+                    initialOffset = bubbleOffset,
+                    onPositionChanged = { x, y ->
+                        bubbleOffset = x to y
+                        scope.launch { settingsRepository.saveBubblePosition(x, y) }
                     },
                     modifier = Modifier.align(Alignment.TopStart),
                 )

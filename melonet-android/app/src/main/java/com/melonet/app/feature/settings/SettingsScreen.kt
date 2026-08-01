@@ -99,6 +99,24 @@ fun SettingsScreen(
                 }
             }
 
+            SettingsSection(title = stringResource(R.string.settings_crossfade)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    listOf(0, 2, 5, 8).forEach { seconds ->
+                        MeloFilterChip(
+                            label = if (seconds == 0) {
+                                stringResource(R.string.settings_crossfade_off)
+                            } else {
+                                stringResource(R.string.settings_crossfade_seconds, seconds)
+                            },
+                            selected = state.crossfadeSeconds == seconds,
+                            onClick = {
+                                viewModel.handleEvent(SettingsContract.Event.CrossfadeSelected(seconds))
+                            },
+                        )
+                    }
+                }
+            }
+
             MeloButton(
                 text = stringResource(R.string.settings_logout),
                 onClick = { viewModel.handleEvent(SettingsContract.Event.LogoutClicked) },

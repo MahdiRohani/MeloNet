@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
@@ -12,7 +14,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -26,6 +27,7 @@ class MelonetPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var player: ExoPlayer
     private val karaokeProcessor = KaraokeAudioProcessor()
+    private var sessionVisualizer: AudioSessionVisualizer? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -72,6 +74,24 @@ class MelonetPlaybackService : MediaSessionService() {
             .build()
         player.volume = 1f
 
+        sessionVisualizer = AudioSessionVisualizer { magnitudes ->
+            PlaybackAudioBridge.updateFft(magnitudes)
+        }
+        player.addListener(object : Player.Listener {
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                PlaybackAudioBridge.updateAudioSessionId(audioSessionId)
+                sessionVisualizer?.attach(audioSessionId)
+                EqualizerController.onAudioSessionChanged(audioSessionId)
+            }
+        })
+        // Session id may already be assigned before the listener is attached.
+        val initialSession = player.audioSessionId
+        if (initialSession != C.AUDIO_SESSION_ID_UNSET) {
+            PlaybackAudioBridge.updateAudioSessionId(initialSession)
+            sessionVisualizer?.attach(initialSession)
+            EqualizerController.onAudioSessionChanged(initialSession)
+        }
+
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(MelonetSessionCallback())
             .build()
@@ -111,6 +131,10 @@ class MelonetPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        sessionVisualizer?.release()
+        sessionVisualizer = null
+        PlaybackAudioBridge.clearFft()
+        EqualizerController.release()
         mediaSession?.run {
             player.release()
             release()

@@ -19,11 +19,15 @@ class SettingsViewModel(
         settingsRepository.themeModeFlow
             .onEach { themeMode -> setState { copy(themeMode = themeMode) } }
             .launchIn(viewModelScope)
+        settingsRepository.crossfadeSecondsFlow
+            .onEach { seconds -> setState { copy(crossfadeSeconds = seconds) } }
+            .launchIn(viewModelScope)
     }
 
     override fun handleEvent(event: SettingsContract.Event) {
         when (event) {
             is SettingsContract.Event.ThemeSelected -> setTheme(event.mode)
+            is SettingsContract.Event.CrossfadeSelected -> setCrossfade(event.seconds)
             SettingsContract.Event.LogoutClicked -> logout()
             SettingsContract.Event.PrivacyPolicyClicked -> {
                 setEffect { SettingsContract.Effect.OpenPrivacyPolicy(PRIVACY_POLICY_URL) }
@@ -40,6 +44,12 @@ class SettingsViewModel(
         viewModelScope.launch {
             settingsRepository.setThemeMode(mode)
             setEffect { SettingsContract.Effect.RecreateActivity }
+        }
+    }
+
+    private fun setCrossfade(seconds: Int) {
+        viewModelScope.launch {
+            settingsRepository.setCrossfadeSeconds(seconds)
         }
     }
 

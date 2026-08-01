@@ -15,6 +15,16 @@
 
     <string name="offline_banner_message">آفلاین هستید؛ بعضی قابلیت‌ها در دسترس نیست</string>
 
+    <string name="equalizer_title">اکولایزر</string>
+    <string name="equalizer_enabled">روشن</string>
+    <string name="equalizer_presets">پیش‌فرض‌ها</string>
+    <string name="equalizer_bands">باندها</string>
+    <string name="equalizer_bass_boost">تقویت باس</string>
+    <string name="equalizer_virtualizer">ورتچوالایزر</string>
+    <string name="equalizer_reset">بازگشت به حالت عادی</string>
+    <string name="settings_crossfade">کراس‌فید</string>
+    <string name="settings_crossfade_off">خاموش</string>
+
     <!-- Auth errors -->
     <string name="auth_error_required_fields">لطفاً همهٔ فیلدها را پر کنید</string>
     <string name="auth_error_invalid_credentials">نام کاربری یا رمز اشتباه است</string>

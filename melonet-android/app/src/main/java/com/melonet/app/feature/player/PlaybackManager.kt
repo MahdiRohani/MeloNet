@@ -11,6 +11,7 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.melonet.app.core.common.Result
+import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.model.RepeatMode
 import com.melonet.app.data.model.Song
 import com.melonet.app.data.repository.PlayerRepository
@@ -32,7 +33,9 @@ data class PlaybackState(
     val currentSong: Song? = null,
     val queue: List<Song> = emptyList(),
     val isPlaying: Boolean = false,
+    /** True only while initially buffering a newly started track — not during seek. */
     val isLoading: Boolean = false,
+    val isSeeking: Boolean = false,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val playbackSpeed: Float = 1f,
@@ -41,11 +44,13 @@ data class PlaybackState(
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val karaokeEnabled: Boolean = false,
+    val crossfadeSeconds: Int = 3,
 )
 
 class PlaybackManager(
     private val context: Context,
     private val playerRepository: PlayerRepository,
+    private val settingsRepository: SettingsRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -56,7 +61,13 @@ class PlaybackManager(
     private var controller: MediaController? = null
     private var progressJob: Job? = null
     private var sleepTimerJob: Job? = null
+    private var crossfadeJob: Job? = null
     private var playRecordedForSongId: String? = null
+    private var awaitingInitialReady: Boolean = false
+    private var isSeekingInternal: Boolean = false
+    private var seekTargetMs: Long = 0L
+    private var crossfadeActive: Boolean = false
+    private var skipCrossfadeOnce: Boolean = false
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -65,26 +76,85 @@ class PlaybackManager(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            _state.update { it.copy(isLoading = playbackState == Player.STATE_BUFFERING) }
-            if (playbackState == Player.STATE_READY) {
-                controller?.let { c ->
-                    _state.update { it.copy(durationMs = c.duration.coerceAtLeast(0L)) }
+            when (playbackState) {
+                Player.STATE_BUFFERING -> {
+                    if (awaitingInitialReady && !isSeekingInternal) {
+                        _state.update { it.copy(isLoading = true) }
+                    }
+                }
+                Player.STATE_READY -> {
+                    awaitingInitialReady = false
+                    val finishingSeek = isSeekingInternal
+                    if (finishingSeek) {
+                        clearSeeking()
+                    }
+                    controller?.let { c ->
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                durationMs = c.duration.coerceAtLeast(0L),
+                                positionMs = if (finishingSeek) {
+                                    seekTargetMs
+                                } else {
+                                    c.currentPosition.coerceAtLeast(0L)
+                                },
+                            )
+                        }
+                    }
                     maybeRecordPlay()
                 }
+                Player.STATE_ENDED -> handlePlaybackEnded()
+                else -> Unit
             }
-            if (playbackState == Player.STATE_ENDED) {
-                handlePlaybackEnded()
+        }
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            if (isSeekingInternal &&
+                (reason == Player.DISCONTINUITY_REASON_SEEK ||
+                    reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT)
+            ) {
+                clearSeeking()
+                _state.update {
+                    it.copy(positionMs = newPosition.positionMs.coerceAtLeast(0L))
+                }
             }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             updateCurrentSongFromPlayer()
+            awaitingInitialReady = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK ||
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
+            if (!crossfadeActive) {
+                controller?.volume = 1f
+            } else if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
+            ) {
+                scope.launch { fadeVolume(from = 0f, to = 1f, durationMs = crossfadeMs()) }
+            }
+            playRecordedForSongId = null
         }
 
         override fun onPlaybackParametersChanged(
             playbackParameters: androidx.media3.common.PlaybackParameters,
         ) {
             _state.update { it.copy(playbackSpeed = playbackParameters.speed) }
+        }
+    }
+
+    init {
+        scope.launch {
+            settingsRepository.crossfadeSecondsFlow.collect { seconds ->
+                _state.update { it.copy(crossfadeSeconds = seconds) }
+            }
+        }
+        scope.launch {
+            val eq = settingsRepository.getEqualizerSettings()
+            EqualizerController.updateSettings(eq)
         }
     }
 
@@ -118,6 +188,7 @@ class PlaybackManager(
 
     fun disconnect() {
         stopProgressUpdates()
+        crossfadeJob?.cancel()
         controller?.removeListener(playerListener)
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controller = null
@@ -129,26 +200,42 @@ class PlaybackManager(
         scope.launch {
             connectAndAwait()
             val c = controller ?: return@launch
+            cancelCrossfade(resetVolume = true)
             val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
             playRecordedForSongId = null
+            awaitingInitialReady = true
+            isSeekingInternal = false
+            c.volume = 1f
             c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
             c.prepare()
             c.play()
-            _state.update { it.copy(currentSong = song, queue = queue) }
+            _state.update {
+                it.copy(
+                    currentSong = song,
+                    queue = queue,
+                    isLoading = true,
+                    isSeeking = false,
+                    positionMs = 0L,
+                )
+            }
         }
     }
 
-    /** Prepare the song but keep it paused (used by karaoke until lyrics are ready). */
     fun preparePaused(song: Song, queue: List<Song> = listOf(song)) {
         scope.launch {
             connectAndAwait()
             val c = controller ?: return@launch
+            cancelCrossfade(resetVolume = true)
             val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
             playRecordedForSongId = null
+            awaitingInitialReady = true
+            c.volume = 1f
             c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
             c.prepare()
             c.pause()
-            _state.update { it.copy(currentSong = song, queue = queue, isPlaying = false) }
+            _state.update {
+                it.copy(currentSong = song, queue = queue, isPlaying = false, isLoading = true)
+            }
         }
     }
 
@@ -157,6 +244,7 @@ class PlaybackManager(
     }
 
     fun pause() {
+        cancelCrossfade(resetVolume = true)
         controller?.pause()
     }
 
@@ -175,19 +263,41 @@ class PlaybackManager(
 
     fun togglePlayPause() {
         val c = controller ?: return
-        if (c.isPlaying) c.pause() else c.play()
+        if (c.isPlaying) {
+            cancelCrossfade(resetVolume = true)
+            c.pause()
+        } else {
+            c.play()
+        }
     }
 
     fun skipNext() {
+        skipCrossfadeOnce = true
+        cancelCrossfade(resetVolume = true)
         controller?.seekToNextMediaItem()
     }
 
     fun skipPrevious() {
+        skipCrossfadeOnce = true
+        cancelCrossfade(resetVolume = true)
         controller?.seekToPreviousMediaItem()
     }
 
     fun seekTo(positionMs: Long) {
-        controller?.seekTo(positionMs)
+        val c = controller ?: return
+        val target = positionMs.coerceAtLeast(0L)
+        // Seeking near the end should not trigger an in-progress crossfade mid-scrub.
+        cancelCrossfade(resetVolume = true)
+        isSeekingInternal = true
+        seekTargetMs = target
+        _state.update {
+            it.copy(
+                positionMs = target,
+                isSeeking = true,
+                isLoading = false,
+            )
+        }
+        c.seekTo(target)
     }
 
     fun setSpeed(speed: Float) {
@@ -254,26 +364,22 @@ class PlaybackManager(
             _state.update { it.copy(repeatMode = mode) }
             return
         }
-        when (mode) {
-            RepeatMode.OFF -> {
-                c.repeatMode = Player.REPEAT_MODE_OFF
-            }
-            RepeatMode.ALL -> {
-                c.repeatMode = Player.REPEAT_MODE_ALL
-            }
-            RepeatMode.ONE -> {
-                c.repeatMode = Player.REPEAT_MODE_ONE
-            }
+        c.repeatMode = when (mode) {
+            RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+            RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+            RepeatMode.ONE -> Player.REPEAT_MODE_ONE
         }
         _state.update { it.copy(repeatMode = mode) }
     }
 
     private fun handlePlaybackEnded() {
         val c = controller ?: return
+        if (_state.value.repeatMode == RepeatMode.ONE) return
         if (_state.value.repeatMode == RepeatMode.OFF &&
             !c.hasNextMediaItem() &&
             c.currentMediaItemIndex >= c.mediaItemCount - 1
         ) {
+            cancelCrossfade(resetVolume = true)
             c.pause()
             c.seekTo(0)
             _state.update { it.copy(isPlaying = false, positionMs = 0L) }
@@ -320,7 +426,7 @@ class PlaybackManager(
         _state.update {
             it.copy(
                 isPlaying = c.isPlaying,
-                isLoading = c.playbackState == Player.STATE_BUFFERING,
+                isLoading = c.playbackState == Player.STATE_BUFFERING && awaitingInitialReady,
                 positionMs = c.currentPosition.coerceAtLeast(0L),
                 durationMs = c.duration.coerceAtLeast(0L),
             )
@@ -341,20 +447,84 @@ class PlaybackManager(
         progressJob = scope.launch {
             while (true) {
                 controller?.let { c ->
-                    _state.update {
-                        it.copy(
-                            positionMs = c.currentPosition.coerceAtLeast(0L),
-                            durationMs = c.duration.coerceAtLeast(0L),
-                        )
+                    if (!isSeekingInternal) {
+                        val position = c.currentPosition.coerceAtLeast(0L)
+                        val duration = c.duration.coerceAtLeast(0L)
+                        _state.update {
+                            it.copy(positionMs = position, durationMs = duration)
+                        }
+                        maybeStartCrossfade(position, duration)
                     }
                 }
-                delay(500L)
+                delay(200L)
             }
         }
     }
 
     private fun stopProgressUpdates() {
         progressJob?.cancel()
+    }
+
+    private fun maybeStartCrossfade(positionMs: Long, durationMs: Long) {
+        if (skipCrossfadeOnce) {
+            skipCrossfadeOnce = false
+            return
+        }
+        val fadeMs = crossfadeMs()
+        if (fadeMs <= 0L || crossfadeActive || isSeekingInternal) return
+        if (durationMs <= 0L || positionMs <= 0L) return
+        val remaining = durationMs - positionMs
+        if (remaining > fadeMs || remaining <= 0L) return
+
+        val c = controller ?: return
+        if (_state.value.repeatMode == RepeatMode.ONE) return
+        if (!c.hasNextMediaItem() && _state.value.repeatMode == RepeatMode.OFF) return
+
+        crossfadeActive = true
+        crossfadeJob?.cancel()
+        crossfadeJob = scope.launch {
+            fadeVolume(from = c.volume, to = 0f, durationMs = remaining.coerceAtMost(fadeMs))
+            if (c.hasNextMediaItem() || _state.value.repeatMode == RepeatMode.ALL) {
+                c.volume = 0f
+                c.seekToNextMediaItem()
+                fadeVolume(from = 0f, to = 1f, durationMs = fadeMs)
+            } else {
+                c.volume = 1f
+            }
+            crossfadeActive = false
+        }
+    }
+
+    private suspend fun fadeVolume(from: Float, to: Float, durationMs: Long) {
+        val c = controller ?: return
+        if (durationMs <= 0L) {
+            c.volume = to
+            return
+        }
+        val steps = (durationMs / 40L).toInt().coerceIn(4, 80)
+        val stepDelay = durationMs / steps
+        for (i in 1..steps) {
+            val t = i.toFloat() / steps
+            c.volume = from + (to - from) * t
+            delay(stepDelay)
+        }
+        c.volume = to
+    }
+
+    private fun cancelCrossfade(resetVolume: Boolean) {
+        crossfadeJob?.cancel()
+        crossfadeJob = null
+        crossfadeActive = false
+        if (resetVolume) {
+            controller?.volume = 1f
+        }
+    }
+
+    private fun crossfadeMs(): Long = _state.value.crossfadeSeconds.coerceAtLeast(0) * 1000L
+
+    private fun clearSeeking() {
+        isSeekingInternal = false
+        _state.update { it.copy(isSeeking = false) }
     }
 
     private fun maybeRecordPlay() {

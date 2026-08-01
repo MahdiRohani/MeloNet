@@ -29,6 +29,15 @@ class SettingsRepository(private val context: Context) {
         val CACHED_AVATAR_URL = stringPreferencesKey("cached_avatar_url")
         val CACHED_BIO = stringPreferencesKey("cached_bio")
         val CACHED_IS_PREMIUM = booleanPreferencesKey("cached_is_premium")
+        val CROSSFADE_SECONDS = intPreferencesKey("crossfade_seconds")
+        val EQ_ENABLED = booleanPreferencesKey("eq_enabled")
+        val EQ_PRESET_NAME = stringPreferencesKey("eq_preset_name")
+        val EQ_BAND_LEVELS = stringPreferencesKey("eq_band_levels")
+        val EQ_BASS_BOOST = intPreferencesKey("eq_bass_boost")
+        val EQ_VIRTUALIZER = intPreferencesKey("eq_virtualizer")
+        val BUBBLE_X = stringPreferencesKey("bubble_offset_x")
+        val BUBBLE_Y = stringPreferencesKey("bubble_offset_y")
+        val BUBBLE_HAS_POS = booleanPreferencesKey("bubble_has_pos")
     }
 
     val isDarkModeFlow: Flow<Boolean?> = context.settingsDataStore.data.map { prefs ->
@@ -41,6 +50,26 @@ class SettingsRepository(private val context: Context) {
 
     val isPremiumFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[IS_PREMIUM] ?: false
+    }
+
+    /** Crossfade duration in seconds: 0, 2, 5, or 8. Default 3s ≈ mid option. */
+    val crossfadeSecondsFlow: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        (prefs[CROSSFADE_SECONDS] ?: 3).coerceIn(0, 8)
+    }
+
+    val equalizerSettingsFlow: Flow<EqualizerSettings> = context.settingsDataStore.data.map { prefs ->
+        EqualizerSettings(
+            enabled = prefs[EQ_ENABLED] ?: true,
+            usePreset = false,
+            presetIndex = -1,
+            bandLevelsMilliBel = prefs[EQ_BAND_LEVELS]
+                ?.split(',')
+                ?.mapNotNull { it.trim().toIntOrNull() }
+                .orEmpty(),
+            bassBoostStrength = prefs[EQ_BASS_BOOST] ?: 0,
+            virtualizerStrength = prefs[EQ_VIRTUALIZER] ?: 0,
+            selectedPresetName = prefs[EQ_PRESET_NAME] ?: "Normal",
+        )
     }
 
     val themeModeFlow: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -71,6 +100,44 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { prefs ->
             prefs[IS_PREMIUM] = isPremium
         }
+    }
+
+    suspend fun setCrossfadeSeconds(seconds: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[CROSSFADE_SECONDS] = seconds.coerceIn(0, 8)
+        }
+    }
+
+    suspend fun getCrossfadeSeconds(): Int =
+        (context.settingsDataStore.data.first()[CROSSFADE_SECONDS] ?: 3).coerceIn(0, 8)
+
+    suspend fun saveEqualizerSettings(settings: EqualizerSettings) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[EQ_ENABLED] = settings.enabled
+            prefs[EQ_PRESET_NAME] = settings.selectedPresetName
+            prefs[EQ_BAND_LEVELS] = settings.bandLevelsMilliBel.joinToString(",")
+            prefs[EQ_BASS_BOOST] = settings.bassBoostStrength
+            prefs[EQ_VIRTUALIZER] = settings.virtualizerStrength
+        }
+    }
+
+    suspend fun getEqualizerSettings(): EqualizerSettings =
+        equalizerSettingsFlow.first()
+
+    suspend fun saveBubblePosition(x: Float, y: Float) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[BUBBLE_HAS_POS] = true
+            prefs[BUBBLE_X] = x.toString()
+            prefs[BUBBLE_Y] = y.toString()
+        }
+    }
+
+    suspend fun getBubblePosition(): Pair<Float, Float>? {
+        val prefs = context.settingsDataStore.data.first()
+        if (prefs[BUBBLE_HAS_POS] != true) return null
+        val x = prefs[BUBBLE_X]?.toFloatOrNull() ?: return null
+        val y = prefs[BUBBLE_Y]?.toFloatOrNull() ?: return null
+        return x to y
     }
 
     suspend fun saveCachedUser(user: User) {

@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object FollowingRoute
 @Serializable data object SettingsRoute
 @Serializable data object EditProfileRoute
+@Serializable data object EqualizerRoute
 
 @Serializable
 data class UserListRoute(

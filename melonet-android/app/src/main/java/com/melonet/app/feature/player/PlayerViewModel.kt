@@ -40,6 +40,7 @@ class PlayerViewModel(
                         queue = playback.queue,
                         isPlaying = playback.isPlaying,
                         isLoading = playback.isLoading,
+                        isSeeking = playback.isSeeking,
                         positionMs = playback.positionMs,
                         durationMs = playback.durationMs,
                         playbackSpeed = playback.playbackSpeed,

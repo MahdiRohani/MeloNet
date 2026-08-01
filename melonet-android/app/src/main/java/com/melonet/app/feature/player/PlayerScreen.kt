@@ -18,12 +18,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -86,6 +87,7 @@ fun PlayerScreen(
     songId: String,
     onNavigateBack: () -> Unit,
     onMinimize: () -> Unit = onNavigateBack,
+    onOpenEqualizer: () -> Unit = {},
     onNavigateToArtist: (Int) -> Unit = {},
     onShareToChat: (String) -> Unit = {},
 ) {
@@ -95,6 +97,7 @@ fun PlayerScreen(
     val context = LocalContext.current
     val imageLoader = remember { ImageLoader(context) }
     val onPrimary = MaterialTheme.colorScheme.onPrimary
+    val fftMagnitudes by PlaybackAudioBridge.fftMagnitudes.collectAsState()
 
     LaunchedEffect(songId) {
         viewModel.playIfNeeded(songId)
@@ -189,7 +192,10 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(spacing.lg))
 
-            AudioVisualizer(isPlaying = state.isPlaying)
+            AudioVisualizer(
+                isPlaying = state.isPlaying,
+                magnitudes = fftMagnitudes,
+            )
 
             Spacer(modifier = Modifier.height(spacing.lg))
 
@@ -236,6 +242,7 @@ fun PlayerScreen(
                 positionMs = state.positionMs,
                 durationMs = state.durationMs,
                 isPlaying = state.isPlaying,
+                isSeeking = state.isSeeking,
                 onSeek = { viewModel.handleEvent(PlayerContract.Event.SeekTo(it)) },
                 activeColor = MaterialTheme.colorScheme.primary,
                 trackColor = onPrimary.copy(alpha = 0.25f),
@@ -335,7 +342,7 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(spacing.md))
 
-            // Utility row: download | sleep timer | speed | minimize | more.
+            // Utility row: download | sleep timer | speed | equalizer | more.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -378,10 +385,10 @@ fun PlayerScreen(
                         fontWeight = FontWeight.Bold,
                     )
                 }
-                IconButton(onClick = onMinimize) {
+                IconButton(onClick = onOpenEqualizer) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = stringResource(R.string.cd_minimize),
+                        imageVector = Icons.Default.GraphicEq,
+                        contentDescription = stringResource(R.string.cd_equalizer),
                         tint = onPrimary,
                     )
                 }

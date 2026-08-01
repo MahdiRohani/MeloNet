@@ -15,6 +15,7 @@ object PlayerContract {
         val queue: List<Song> = emptyList(),
         val isPlaying: Boolean = false,
         val isLoading: Boolean = false,
+        val isSeeking: Boolean = false,
         val positionMs: Long = 0L,
         val durationMs: Long = 0L,
         val playbackSpeed: Float = 1f,

@@ -31,6 +31,7 @@ import com.melonet.app.data.repository.DownloadRepository
 import com.melonet.app.data.repository.OfflineSongResolver
 import com.melonet.app.data.repository.RoomOfflineSongResolver
 import com.melonet.app.feature.downloads.DownloadsViewModel
+import com.melonet.app.feature.equalizer.EqualizerViewModel
 import com.melonet.app.data.repository.PlayerRepository
 import com.melonet.app.data.repository.PlaylistRepository
 import com.melonet.app.data.repository.SearchRepository
@@ -234,7 +235,7 @@ val appModule = module {
         )
     }
     single<OfflineSongResolver> { RoomOfflineSongResolver(downloadRepository = get()) }
-    single { PlaybackManager(context = androidContext(), playerRepository = get()) }
+    single { PlaybackManager(context = androidContext(), playerRepository = get(), settingsRepository = get()) }
     single { LyricsRepository(lyricsApi = get(), dispatchers = get()) }
     single {
         KaraokeRecordingRepository(
@@ -297,4 +298,5 @@ val appModule = module {
     viewModel { LocalMusicViewModel(localMusicRepository = get()) }
     viewModel { LibrarySongsViewModel(libraryRepository = get()) }
     viewModel { DownloadsViewModel(downloadRepository = get(), userRepository = get()) }
+    viewModel { EqualizerViewModel(settingsRepository = get()) }
 }
