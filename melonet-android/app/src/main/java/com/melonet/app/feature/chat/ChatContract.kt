@@ -4,6 +4,7 @@ import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
+import com.melonet.app.data.model.ChatConnectionState
 import com.melonet.app.data.model.ChatMessage
 import com.melonet.app.data.model.ChatPeer
 import com.melonet.app.data.model.MessageStatus
@@ -16,9 +17,11 @@ object ChatContract {
         val inputText: String = "",
         val isSending: Boolean = false,
         val isOtherTyping: Boolean = false,
+        val connectionState: ChatConnectionState = ChatConnectionState.Offline,
         val statusOverrides: Map<Long, MessageStatus> = emptyMap(),
         val tailMessages: List<ChatMessage> = emptyList(),
         val error: AppError? = null,
+        val shareHandled: Boolean = false,
     ) : UiState
 
     sealed interface Event : UiEvent {
@@ -27,12 +30,16 @@ object ChatContract {
         data object SendClicked : Event
         data class SongShareClicked(val songId: String) : Event
         data class MessageVisible(val message: ChatMessage) : Event
+        data class RetryMessage(val localId: String) : Event
+        data class CancelMessage(val localId: String) : Event
+        data class CopyMessage(val text: String) : Event
         data object ScreenVisible : Event
         data object ScreenHidden : Event
     }
 
     sealed interface Effect : UiEffect {
         data class PlaySong(val songId: String) : Effect
-        data object ScrollToBottom : Effect
+        data class ScrollToBottom(val force: Boolean = false) : Effect
+        data class CopyToClipboard(val text: String) : Effect
     }
 }

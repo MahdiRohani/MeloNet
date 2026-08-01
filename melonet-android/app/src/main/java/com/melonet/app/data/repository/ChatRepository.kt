@@ -5,10 +5,13 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.melonet.app.core.common.DispatchersProvider
 import com.melonet.app.core.common.Result
+import com.melonet.app.core.network.NetworkConnectivityMonitor
 import com.melonet.app.core.network.safeApiCall
 import com.melonet.app.data.local.ChatMessageDao
 import com.melonet.app.data.mapper.ChatMapper
+import com.melonet.app.data.model.ChatConnectionState
 import com.melonet.app.data.model.ChatMessage
+import com.melonet.app.data.model.ChatPeer
 import com.melonet.app.data.model.Conversation
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.model.MessageType
@@ -18,6 +21,7 @@ import com.melonet.app.data.realtime.ChatWebSocketClient
 import com.melonet.app.data.realtime.ChatWsEvent
 import com.melonet.app.data.realtime.WsMessageReadPayload
 import com.melonet.app.data.realtime.WsMessageSendPayload
+import com.melonet.app.data.realtime.WsSocketState
 import com.melonet.app.data.remote.ChatApi
 import com.melonet.app.data.remote.dto.CreateConversationRequestDto
 import com.melonet.app.data.remote.dto.MarkReadRequestDto
@@ -30,21 +34,27 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class ChatRepository(
     private val chatApi: ChatApi,
     private val chatMessageDao: ChatMessageDao,
     private val webSocketClient: ChatWebSocketClient,
     private val playerRepository: PlayerRepository,
+    private val networkMonitor: NetworkConnectivityMonitor,
     private val dispatchers: DispatchersProvider,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatchers.io)
 
     private var currentUserId: Int = 0
+
+    private val peerCache = ConcurrentHashMap<Int, ChatPeer>()
 
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
@@ -58,7 +68,29 @@ class ChatRepository(
     private val _messageUpdates = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
     val messageUpdates: SharedFlow<Unit> = _messageUpdates.asSharedFlow()
 
+    private val _conversationUpdates = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
+    val conversationUpdates: SharedFlow<Unit> = _conversationUpdates.asSharedFlow()
+
+    private val _isOnline = MutableStateFlow(true)
+    val connectionState: StateFlow<ChatConnectionState> = combine(
+        webSocketClient.socketState,
+        _isOnline,
+    ) { socket, online ->
+        when {
+            !online -> ChatConnectionState.Offline
+            socket == WsSocketState.Connected -> ChatConnectionState.Connected
+            socket == WsSocketState.Reconnecting -> ChatConnectionState.Reconnecting
+            else -> ChatConnectionState.Offline
+        }
+    }.distinctUntilChanged()
+        .stateInScope(ChatConnectionState.Offline)
+
     init {
+        scope.launch {
+            networkMonitor.isOnline.collect { online ->
+                _isOnline.value = online
+            }
+        }
         scope.launch {
             webSocketClient.events.collect { event -> handleWsEvent(event) }
         }
@@ -76,9 +108,19 @@ class ChatRepository(
         webSocketClient.disconnect()
     }
 
+    fun cachePeer(peer: ChatPeer) {
+        if (peer.id > 0) peerCache[peer.id] = peer
+    }
+
+    fun getCachedPeer(userId: Int): ChatPeer? = peerCache[userId]
+
     fun conversations(): Flow<PagingData<Conversation>> = Pager(
         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-        pagingSourceFactory = { ConversationsPagingSource(chatApi) },
+        pagingSourceFactory = {
+            ConversationsPagingSource(chatApi) { items ->
+                items.forEach { cachePeer(it.otherUser) }
+            }
+        },
     ).flow
 
     fun messages(conversationId: Int): Flow<PagingData<ChatMessage>> = Pager(
@@ -105,7 +147,11 @@ class ChatRepository(
 
     suspend fun getOrCreateConversation(otherUserId: Int): Result<Conversation> = withContext(dispatchers.io) {
         when (val result = safeApiCall { chatApi.createConversation(CreateConversationRequestDto(otherUserId)) }) {
-            is Result.Success -> Result.Success(ChatMapper.toConversation(result.data))
+            is Result.Success -> {
+                val conversation = ChatMapper.toConversation(result.data)
+                cachePeer(conversation.otherUser)
+                Result.Success(conversation)
+            }
             is Result.Error -> result
         }
     }
@@ -135,7 +181,7 @@ class ChatRepository(
             isMine = true,
         )
         chatMessageDao.upsert(ChatMapper.toEntity(pending))
-        webSocketClient.sendText(
+        val sent = webSocketClient.sendText(
             WsMessageSendPayload(
                 conversation_id = conversationId,
                 receiver_id = receiverId,
@@ -144,7 +190,7 @@ class ChatRepository(
                 client_id = clientId,
             ),
         )
-        pending
+        finalizeOutbound(pending, sent)
     }
 
     suspend fun sendSongShare(
@@ -169,7 +215,7 @@ class ChatRepository(
         )
         val enriched = enrichSongMessage(pending)
         chatMessageDao.upsert(ChatMapper.toEntity(enriched))
-        webSocketClient.sendSongShare(
+        val sent = webSocketClient.sendSongShare(
             WsMessageSendPayload(
                 conversation_id = conversationId,
                 receiver_id = receiverId,
@@ -178,7 +224,55 @@ class ChatRepository(
                 client_id = clientId,
             ),
         )
-        enriched
+        finalizeOutbound(enriched, sent)
+    }
+
+    suspend fun retryMessage(localId: String): ChatMessage? = withContext(dispatchers.io) {
+        val entity = chatMessageDao.getByLocalId(localId) ?: return@withContext null
+        val message = ChatMapper.fromEntity(entity, currentUserId)
+        if (!message.isMine) return@withContext null
+        if (message.status != MessageStatus.FAILED && message.status != MessageStatus.PENDING) {
+            return@withContext message
+        }
+        chatMessageDao.updateStatusByLocalId(localId, MessageStatus.PENDING.name)
+        val pending = message.copy(status = MessageStatus.PENDING)
+        val sent = when (pending.msgType) {
+            MessageType.SONG -> webSocketClient.sendSongShare(
+                WsMessageSendPayload(
+                    conversation_id = pending.conversationId,
+                    receiver_id = pending.receiverId,
+                    msg_type = MessageType.toApi(MessageType.SONG),
+                    song_id = pending.songId?.toLongOrNull(),
+                    client_id = pending.localId,
+                ),
+            )
+            else -> webSocketClient.sendText(
+                WsMessageSendPayload(
+                    conversation_id = pending.conversationId,
+                    receiver_id = pending.receiverId,
+                    content = pending.content,
+                    msg_type = MessageType.toApi(MessageType.TEXT),
+                    client_id = pending.localId,
+                ),
+            )
+        }
+        finalizeOutbound(pending, sent)
+    }
+
+    suspend fun cancelMessage(localId: String) = withContext(dispatchers.io) {
+        val entity = chatMessageDao.getByLocalId(localId) ?: return@withContext
+        if (entity.serverId != null) return@withContext
+        chatMessageDao.deleteByLocalId(localId)
+        _messageUpdates.emit(Unit)
+        _conversationUpdates.emit(Unit)
+    }
+
+    suspend fun flushOutbox() = withContext(dispatchers.io) {
+        val pending = chatMessageDao.getByStatuses(listOf(MessageStatus.PENDING.name, MessageStatus.FAILED.name))
+        for (entity in pending) {
+            if (entity.serverId != null) continue
+            retryMessage(entity.localId)
+        }
     }
 
     suspend fun markConversationRead(conversationId: Int, messageIds: List<Long>) = withContext(dispatchers.io) {
@@ -191,6 +285,7 @@ class ChatRepository(
         )
         chatMessageDao.updateStatus(conversationId, messageIds, MessageStatus.READ.name)
         _messageUpdates.emit(Unit)
+        _conversationUpdates.emit(Unit)
         refreshUnreadCount()
     }
 
@@ -215,9 +310,26 @@ class ChatRepository(
         }
     }
 
+    private suspend fun finalizeOutbound(message: ChatMessage, sent: Boolean): ChatMessage {
+        val result = if (sent) {
+            message
+        } else {
+            val failed = message.copy(status = MessageStatus.FAILED)
+            chatMessageDao.updateStatusByLocalId(message.localId, MessageStatus.FAILED.name)
+            failed
+        }
+        _messageUpdates.emit(Unit)
+        _conversationUpdates.emit(Unit)
+        return result
+    }
+
     private suspend fun handleWsEvent(event: ChatWsEvent) {
         when (event) {
-            ChatWsEvent.Connected -> refreshUnreadCount()
+            ChatWsEvent.Connected -> {
+                refreshUnreadCount()
+                flushOutbox()
+                _conversationUpdates.emit(Unit)
+            }
             is ChatWsEvent.MessageAck -> handleAck(event)
             is ChatWsEvent.MessageNew -> handleNewMessage(event)
             is ChatWsEvent.MessageDelivered -> handleDelivered(event)
@@ -231,15 +343,17 @@ class ChatRepository(
         val clientId = event.clientId ?: return
         val existing = chatMessageDao.getByLocalId(clientId) ?: return
         val ack = event.message
+        // Keep client UUID as localId so UI keys stay stable across ack.
         val updated = existing.copy(
-            localId = "server_${ack.id}",
             serverId = ack.id,
             status = MessageStatus.fromApi(ack.status).name,
             conversationId = ack.conversationId.takeIf { it > 0 } ?: existing.conversationId,
         )
-        chatMessageDao.deleteByLocalId(clientId)
         chatMessageDao.upsert(updated)
+        // Drop any paging duplicate keyed as server_{id}.
+        chatMessageDao.deleteByLocalId("server_${ack.id}")
         _messageUpdates.emit(Unit)
+        _conversationUpdates.emit(Unit)
     }
 
     private suspend fun handleNewMessage(event: ChatWsEvent.MessageNew) {
@@ -247,10 +361,22 @@ class ChatRepository(
         if (message.msgType == MessageType.SONG) {
             message = enrichSongMessage(message)
         }
-        chatMessageDao.upsert(ChatMapper.toEntity(message))
-        _realtimeMessages.emit(message)
+        val existing = message.serverId?.let { chatMessageDao.getByServerId(it) }
+        val toStore = if (existing != null) {
+            message.copy(
+                localId = existing.localId,
+                songTitle = message.songTitle ?: existing.songTitle,
+                songArtist = message.songArtist ?: existing.songArtist,
+                songCoverUrl = message.songCoverUrl ?: existing.songCoverUrl,
+            )
+        } else {
+            message
+        }
+        chatMessageDao.upsert(ChatMapper.toEntity(toStore))
+        _realtimeMessages.emit(toStore)
         _messageUpdates.emit(Unit)
-        if (!message.isMine) {
+        _conversationUpdates.emit(Unit)
+        if (!toStore.isMine) {
             refreshUnreadCount()
         }
     }
@@ -277,6 +403,7 @@ class ChatRepository(
             )
         }
         _messageUpdates.emit(Unit)
+        _conversationUpdates.emit(Unit)
     }
 
     private fun handleTyping(event: ChatWsEvent.Typing) {
@@ -286,5 +413,11 @@ class ChatRepository(
         } else {
             _typingUsers.value - event.conversationId
         }
+    }
+
+    private fun <T> Flow<T>.stateInScope(initial: T): StateFlow<T> {
+        val state = MutableStateFlow(initial)
+        scope.launch { collect { state.value = it } }
+        return state.asStateFlow()
     }
 }

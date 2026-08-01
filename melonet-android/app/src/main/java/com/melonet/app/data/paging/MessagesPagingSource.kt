@@ -49,7 +49,20 @@ class MessagesPagingSource(
         val response = chatApi.getMessages(conversationId, page = page, limit = pageSize)
         response.error?.let { return LoadResult.Error(IOException(it.message)) }
         val dtos = response.data ?: return LoadResult.Error(IOException("Empty response"))
-        val messages = dtos.map { ChatMapper.toMessage(it, currentUserId) }
+        val messages = dtos.map { dto ->
+            val mapped = ChatMapper.toMessage(dto, currentUserId)
+            val existing = mapped.serverId?.let { chatMessageDao.getByServerId(it) }
+            if (existing != null) {
+                mapped.copy(
+                    localId = existing.localId,
+                    songTitle = mapped.songTitle ?: existing.songTitle,
+                    songArtist = mapped.songArtist ?: existing.songArtist,
+                    songCoverUrl = mapped.songCoverUrl ?: existing.songCoverUrl,
+                )
+            } else {
+                mapped
+            }
+        }
         chatMessageDao.upsertAll(messages.map(ChatMapper::toEntity))
         val total = knownTotal ?: response.meta?.total ?: messages.size
         val totalPages = ((total + pageSize - 1) / pageSize).coerceAtLeast(1)

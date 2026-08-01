@@ -80,7 +80,7 @@ object ChatMapper {
         content = entity.content,
         msgType = MessageType.valueOf(entity.msgType),
         songId = entity.songId,
-        status = MessageStatus.valueOf(entity.status),
+        status = runCatching { MessageStatus.valueOf(entity.status) }.getOrDefault(MessageStatus.SENT),
         createdAt = Instant.ofEpochMilli(entity.createdAt),
         isMine = currentUserId > 0 && entity.senderId == currentUserId,
         songTitle = entity.songTitle,

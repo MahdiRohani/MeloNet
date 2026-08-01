@@ -12,6 +12,7 @@ import com.melonet.app.data.remote.ChatApi
 
 class ConversationsPagingSource(
     private val chatApi: ChatApi,
+    private val onConversationsLoaded: ((List<Conversation>) -> Unit)? = null,
 ) : PagingSource<Int, Conversation>() {
 
     override fun getRefreshKey(state: PagingState<Int, Conversation>): Int? {
@@ -40,6 +41,7 @@ class ConversationsPagingSource(
             val data = response.data
                 ?: return LoadResult.Error(AppErrorException(AppError.Unknown("Empty response")))
             val items = data.map(ChatMapper::toConversation)
+            onConversationsLoaded?.invoke(items)
             val total = response.meta?.total ?: items.size
             val hasMore = page * params.loadSize < total
             LoadResult.Page(

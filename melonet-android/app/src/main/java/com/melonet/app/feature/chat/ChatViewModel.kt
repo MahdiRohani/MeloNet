@@ -6,9 +6,11 @@ import androidx.paging.cachedIn
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
 import com.melonet.app.data.model.ChatMessage
+import com.melonet.app.data.model.ChatPeer
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.repository.ChatRepository
 import com.melonet.app.data.repository.SocialRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModel(
     private val chatRepository: ChatRepository,
     private val socialRepository: SocialRepository,
@@ -38,15 +41,24 @@ class ChatViewModel(
 
     init {
         viewModelScope.launch {
+            chatRepository.connectionState.collect { state ->
+                setState { copy(connectionState = state) }
+            }
+        }
+        viewModelScope.launch {
             chatRepository.realtimeMessages.collect { message ->
                 if (message.conversationId != conversationIdFlow.value) return@collect
                 setState {
                     val exists = tailMessages.any { it.stableKey == message.stableKey }
                     copy(
-                        tailMessages = if (exists) tailMessages else tailMessages + message,
+                        tailMessages = if (exists) {
+                            tailMessages.map { if (it.stableKey == message.stableKey) message else it }
+                        } else {
+                            tailMessages + message
+                        },
                     )
                 }
-                setEffect { ChatContract.Effect.ScrollToBottom }
+                setEffect { ChatContract.Effect.ScrollToBottom(force = false) }
             }
         }
         viewModelScope.launch {
@@ -72,6 +84,13 @@ class ChatViewModel(
             ChatContract.Event.SendClicked -> sendMessage()
             is ChatContract.Event.SongShareClicked -> shareSong(event.songId)
             is ChatContract.Event.MessageVisible -> markReadIfNeeded(event.message)
+            is ChatContract.Event.RetryMessage -> retryMessage(event.localId)
+            is ChatContract.Event.CancelMessage -> cancelMessage(event.localId)
+            is ChatContract.Event.CopyMessage -> {
+                if (event.text.isNotBlank()) {
+                    setEffect { ChatContract.Effect.CopyToClipboard(event.text) }
+                }
+            }
             ChatContract.Event.ScreenVisible -> Unit
             ChatContract.Event.ScreenHidden -> stopTyping()
         }
@@ -80,15 +99,17 @@ class ChatViewModel(
     private fun load(otherUserId: Int, conversationId: Int) {
         receiverId = otherUserId
         viewModelScope.launch {
-            setState { copy(isLoading = true, error = null) }
+            setState { copy(isLoading = true, error = null, shareHandled = false) }
+            val cachedPeer = chatRepository.getCachedPeer(otherUserId)
+            if (cachedPeer != null) {
+                setState { copy(otherUser = cachedPeer) }
+            }
             val resolvedConversation = if (conversationId > 0) {
                 conversationId
             } else {
                 when (val result = chatRepository.getOrCreateConversation(otherUserId)) {
                     is Result.Success -> {
-                        setState {
-                            copy(otherUser = result.data.otherUser)
-                        }
+                        setState { copy(otherUser = result.data.otherUser) }
                         result.data.id
                     }
                     is Result.Error -> {
@@ -100,18 +121,33 @@ class ChatViewModel(
             conversationIdFlow.value = resolvedConversation
             if (uiState.value.otherUser == null) {
                 when (val profile = socialRepository.getUserProfile(otherUserId)) {
-                    is Result.Success -> setState {
-                        copy(
-                            otherUser = com.melonet.app.data.model.ChatPeer(
-                                id = profile.data.id,
-                                username = profile.data.username,
-                                displayName = profile.data.displayName,
-                                avatarUrl = profile.data.avatarUrl,
-                                isPremium = profile.data.isPremium,
-                            ),
+                    is Result.Success -> {
+                        val peer = ChatPeer(
+                            id = profile.data.id,
+                            username = profile.data.username,
+                            displayName = profile.data.displayName,
+                            avatarUrl = profile.data.avatarUrl,
+                            isPremium = profile.data.isPremium,
                         )
+                        chatRepository.cachePeer(peer)
+                        setState { copy(otherUser = peer) }
                     }
-                    is Result.Error -> Unit
+                    is Result.Error -> {
+                        // Keep provisional peer so header is never blank offline.
+                        if (uiState.value.otherUser == null) {
+                            setState {
+                                copy(
+                                    otherUser = ChatPeer(
+                                        id = otherUserId,
+                                        username = "",
+                                        displayName = "User $otherUserId",
+                                        avatarUrl = null,
+                                        isPremium = false,
+                                    ),
+                                )
+                            }
+                        }
+                    }
                 }
             }
             val cached = chatRepository.getCachedMessages(resolvedConversation)
@@ -119,9 +155,7 @@ class ChatViewModel(
                 copy(
                     isLoading = false,
                     conversationId = resolvedConversation,
-                    tailMessages = cached.filter { cachedMsg ->
-                        cachedMsg.serverId == null || cachedMsg.status == MessageStatus.PENDING
-                    },
+                    tailMessages = cached.filter { isOutboundTail(it) },
                 )
             }
             syncStatusOverrides()
@@ -167,20 +201,38 @@ class ChatViewModel(
             setState {
                 copy(
                     isSending = false,
-                    tailMessages = tailMessages + pending,
+                    tailMessages = upsertTail(tailMessages, pending),
                 )
             }
-            setEffect { ChatContract.Effect.ScrollToBottom }
+            setEffect { ChatContract.Effect.ScrollToBottom(force = true) }
         }
     }
 
     private fun shareSong(songId: String) {
+        if (uiState.value.shareHandled) return
         val conversationId = uiState.value.conversationId
         if (conversationId == 0 || receiverId == 0) return
         viewModelScope.launch {
+            setState { copy(shareHandled = true) }
             val pending = chatRepository.sendSongShare(conversationId, receiverId, songId)
-            setState { copy(tailMessages = tailMessages + pending) }
-            setEffect { ChatContract.Effect.ScrollToBottom }
+            setState { copy(tailMessages = upsertTail(tailMessages, pending)) }
+            setEffect { ChatContract.Effect.ScrollToBottom(force = true) }
+        }
+    }
+
+    private fun retryMessage(localId: String) {
+        viewModelScope.launch {
+            val updated = chatRepository.retryMessage(localId) ?: return@launch
+            setState { copy(tailMessages = upsertTail(tailMessages, updated)) }
+        }
+    }
+
+    private fun cancelMessage(localId: String) {
+        viewModelScope.launch {
+            chatRepository.cancelMessage(localId)
+            setState {
+                copy(tailMessages = tailMessages.filterNot { it.localId == localId })
+            }
         }
     }
 
@@ -203,7 +255,7 @@ class ChatViewModel(
         if (conversationId == 0) return
         val cached = chatRepository.getCachedMessages(conversationId)
         setState {
-            copy(tailMessages = cached.filter { it.localId.contains("-") || it.status == MessageStatus.PENDING })
+            copy(tailMessages = cached.filter { isOutboundTail(it) })
         }
     }
 
@@ -215,6 +267,20 @@ class ChatViewModel(
             message.serverId?.let { id -> id to message.status }
         }.toMap()
         setState { copy(statusOverrides = overrides) }
+    }
+
+    private fun isOutboundTail(message: ChatMessage): Boolean =
+        message.serverId == null ||
+            message.status == MessageStatus.PENDING ||
+            message.status == MessageStatus.FAILED
+
+    private fun upsertTail(current: List<ChatMessage>, message: ChatMessage): List<ChatMessage> {
+        val index = current.indexOfFirst { it.localId == message.localId || it.stableKey == message.stableKey }
+        return if (index >= 0) {
+            current.toMutableList().also { it[index] = message }
+        } else {
+            current + message
+        }
     }
 
     private companion object {

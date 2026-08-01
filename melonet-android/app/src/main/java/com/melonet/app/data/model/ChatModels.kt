@@ -7,6 +7,7 @@ enum class MessageStatus {
     SENT,
     DELIVERED,
     READ,
+    FAILED,
     ;
 
     companion object {
@@ -75,5 +76,6 @@ data class ChatMessage(
     val songArtist: String? = null,
     val songCoverUrl: String? = null,
 ) {
-    val stableKey: String = serverId?.toString() ?: localId
+    /** Prefer server id so pending UUID and paging `server_*` rows collapse after ack. */
+    val stableKey: String = serverId?.let { "sid_$it" } ?: localId
 }

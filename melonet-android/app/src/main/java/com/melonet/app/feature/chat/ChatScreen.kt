@@ -1,7 +1,16 @@
 package com.melonet.app.feature.chat
 
+import android.widget.Toast
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +34,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,37 +46,56 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
+import com.melonet.app.core.designsystem.component.ChatConnectionBanner
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.ChatMessage
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.model.MessageType
+import com.melonet.app.data.repository.ChatRepository
+import org.koin.compose.koinInject
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
-@OptIn(ExperimentalMaterial3Api::class)
+private sealed interface ChatListItem {
+    data class DateHeader(val labelKey: String, val epochDay: Long) : ChatListItem
+    data class Bubble(val message: ChatMessage) : ChatListItem
+    data object Typing : ChatListItem
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     otherUserId: Int,
@@ -77,14 +109,17 @@ fun ChatScreen(
     val pagingMessages = viewModel.messages.collectAsLazyPagingItems()
     val listState = rememberLazyListState()
     val spacing = MeloNetTheme.spacing
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val haptics = LocalHapticFeedback.current
+    val chatRepository: ChatRepository = koinInject()
 
     LaunchedEffect(otherUserId, conversationId) {
         viewModel.handleEvent(ChatContract.Event.Load(otherUserId, conversationId))
     }
 
-    LaunchedEffect(shareSongId) {
-        if (!shareSongId.isNullOrBlank()) {
+    LaunchedEffect(shareSongId, state.conversationId, state.shareHandled) {
+        if (!shareSongId.isNullOrBlank() && state.conversationId > 0 && !state.shareHandled) {
             viewModel.handleEvent(ChatContract.Event.SongShareClicked(shareSongId))
         }
     }
@@ -94,52 +129,83 @@ fun ChatScreen(
         onDispose { viewModel.handleEvent(ChatContract.Event.ScreenHidden) }
     }
 
+    val mergedMessages = remember(pagingMessages.itemSnapshotList.items, state.tailMessages, state.statusOverrides) {
+        buildMergedMessages(
+            pagingItems = pagingMessages.itemSnapshotList.items,
+            tailMessages = state.tailMessages,
+            statusOverrides = state.statusOverrides,
+        )
+    }
+    val listItems = remember(mergedMessages, state.isOtherTyping) {
+        buildChatListItems(mergedMessages, state.isOtherTyping)
+    }
+
+    val isNearBottom by remember {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val total = listState.layoutInfo.totalItemsCount
+            total == 0 || lastVisible >= total - 3
+        }
+    }
+    val nearBottomState = rememberUpdatedState(isNearBottom)
+
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                ChatContract.Effect.ScrollToBottom -> {
-                    val total = pagingMessages.itemCount + state.tailMessages.size
-                    if (total > 0) listState.animateScrollToItem(total - 1)
+                is ChatContract.Effect.ScrollToBottom -> {
+                    if (listItems.isNotEmpty() && (effect.force || nearBottomState.value)) {
+                        listState.animateScrollToItem(listItems.lastIndex)
+                    }
                 }
                 is ChatContract.Effect.PlaySong -> onPlaySong(effect.songId)
+                is ChatContract.Effect.CopyToClipboard -> {
+                    clipboard.setText(AnnotatedString(effect.text))
+                    Toast.makeText(context, context.getString(R.string.chat_copy_message), Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
 
-    val mergedKeys = remember(pagingMessages.itemSnapshotList.items, state.tailMessages) {
-        buildMergedMessages(
-            pagingItems = pagingMessages.itemSnapshotList.items,
-            tailMessages = state.tailMessages,
-        )
-    }
-
-    LaunchedEffect(mergedKeys.size, pagingMessages.loadState.refresh) {
-        if (mergedKeys.isNotEmpty() && pagingMessages.loadState.refresh is LoadState.NotLoading) {
-            listState.scrollToItem(mergedKeys.lastIndex)
+    // Initial jump to bottom once messages are ready — not on every size change.
+    LaunchedEffect(state.conversationId, pagingMessages.loadState.refresh) {
+        if (listItems.isNotEmpty() && pagingMessages.loadState.refresh is LoadState.NotLoading) {
+            listState.scrollToItem(listItems.lastIndex)
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .imePadding(),
     ) {
         TopAppBar(
             title = {
-                Column {
-                    Text(
-                        text = state.otherUser?.displayName ?: stringResource(R.string.chat_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MeloImage(
+                        imageUrl = state.otherUser?.avatarUrl,
+                        contentDescription = state.otherUser?.displayName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape),
                     )
-                    if (state.isOtherTyping) {
+                    Spacer(modifier = Modifier.width(spacing.sm))
+                    Column {
                         Text(
-                            text = stringResource(R.string.chat_typing),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            text = state.otherUser?.displayName ?: stringResource(R.string.chat_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
+                        if (state.isOtherTyping) {
+                            TypingLabel()
+                        } else if (!state.otherUser?.username.isNullOrBlank()) {
+                            Text(
+                                text = "@${state.otherUser?.username}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             },
@@ -151,6 +217,11 @@ fun ChatScreen(
                     )
                 }
             },
+        )
+
+        ChatConnectionBanner(
+            state = state.connectionState,
+            onRetryConnect = { chatRepository.connect() },
         )
 
         when {
@@ -193,18 +264,39 @@ fun ChatScreen(
                     }
 
                     items(
-                        count = mergedKeys.size,
-                        key = { index -> mergedKeys[index].stableKey },
+                        count = listItems.size,
+                        key = { index ->
+                            when (val item = listItems[index]) {
+                                is ChatListItem.DateHeader -> "date_${item.epochDay}"
+                                is ChatListItem.Bubble -> item.message.stableKey
+                                ChatListItem.Typing -> "typing"
+                            }
+                        },
                     ) { index ->
-                        val message = mergedKeys[index]
-                        LaunchedEffect(message.stableKey) {
-                            viewModel.handleEvent(ChatContract.Event.MessageVisible(message))
+                        when (val item = listItems[index]) {
+                            is ChatListItem.DateHeader -> DateSeparator(item.labelKey)
+                            is ChatListItem.Bubble -> {
+                                LaunchedEffect(item.message.stableKey) {
+                                    viewModel.handleEvent(ChatContract.Event.MessageVisible(item.message))
+                                }
+                                MessageBubble(
+                                    message = item.message,
+                                    status = item.message.status,
+                                    onSongClick = onPlaySong,
+                                    onRetry = {
+                                        viewModel.handleEvent(ChatContract.Event.RetryMessage(item.message.localId))
+                                    },
+                                    onCancel = {
+                                        viewModel.handleEvent(ChatContract.Event.CancelMessage(item.message.localId))
+                                    },
+                                    onLongPressCopy = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.handleEvent(ChatContract.Event.CopyMessage(item.message.content))
+                                    },
+                                )
+                            }
+                            ChatListItem.Typing -> TypingBubble()
                         }
-                        MessageBubble(
-                            message = message,
-                            status = state.statusOverrides[message.serverId ?: -1] ?: message.status,
-                            onSongClick = onPlaySong,
-                        )
                     }
                 }
 
@@ -212,10 +304,96 @@ fun ChatScreen(
                     text = state.inputText,
                     isSending = state.isSending,
                     onTextChange = { viewModel.handleEvent(ChatContract.Event.InputChanged(it)) },
-                    onSend = { viewModel.handleEvent(ChatContract.Event.SendClicked) },
+                    onSend = {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.handleEvent(ChatContract.Event.SendClicked)
+                    },
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TypingLabel() {
+    val transition = rememberInfiniteTransition(label = "typing_dots")
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "typing_phase",
+    )
+    val dots = ".".repeat((phase.toInt() % 3) + 1)
+    Text(
+        text = stringResource(R.string.chat_typing).removeSuffix("…") + dots,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+@Composable
+private fun TypingBubble() {
+    val spacing = MeloNetTheme.spacing
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = spacing.md, vertical = spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            repeat(3) { index ->
+                val transition = rememberInfiniteTransition(label = "dot_$index")
+                val alpha by transition.animateFloat(
+                    initialValue = 0.3f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(400, delayMillis = index * 120),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                    label = "dot_alpha_$index",
+                )
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .graphicsLayer { this.alpha = alpha }
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DateSeparator(labelKey: String) {
+    val label = when (labelKey) {
+        "today" -> stringResource(R.string.chat_today)
+        "yesterday" -> stringResource(R.string.chat_yesterday)
+        else -> labelKey
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+        )
     }
 }
 
@@ -230,7 +408,7 @@ private fun ChatInputBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
             .padding(horizontal = spacing.sm, vertical = spacing.xs),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -281,28 +459,28 @@ private fun ChatInputBar(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     message: ChatMessage,
     status: MessageStatus,
     onSongClick: (String) -> Unit,
+    onRetry: () -> Unit,
+    onCancel: () -> Unit,
+    onLongPressCopy: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
-    val bubbleColor = if (message.isMine) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
+    val bubbleColor = when {
+        status == MessageStatus.FAILED -> MaterialTheme.colorScheme.errorContainer
+        message.isMine -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
-    val textColor = if (message.isMine) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface
+    val textColor = when {
+        status == MessageStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer
+        message.isMine -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.onSurface
     }
-    val metaColor = if (message.isMine) {
-        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val metaColor = textColor.copy(alpha = 0.75f)
     val alignment = if (message.isMine) Alignment.CenterEnd else Alignment.CenterStart
     val shape = RoundedCornerShape(
         topStart = 18.dp,
@@ -315,39 +493,66 @@ private fun MessageBubble(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = alignment,
     ) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = 300.dp)
-                .clip(shape)
-                .background(bubbleColor)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            when (message.msgType) {
-                MessageType.SONG -> SongShareCard(
-                    message = message,
-                    onClick = { message.songId?.let(onSongClick) },
-                    isMine = message.isMine,
-                )
-                else -> Text(
-                    text = message.content,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = textColor,
-                )
-            }
-            Row(
+        Column(horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start) {
+            Column(
                 modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    .widthIn(max = 300.dp)
+                    .clip(shape)
+                    .background(bubbleColor)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = {
+                            if (message.msgType == MessageType.TEXT && message.content.isNotBlank()) {
+                                onLongPressCopy()
+                            }
+                        },
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                Text(
-                    text = formatMessageTime(message.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = metaColor,
-                )
-                if (message.isMine) {
-                    MessageReceiptIcon(status = status, tint = metaColor)
+                when (message.msgType) {
+                    MessageType.SONG -> SongShareCard(
+                        message = message,
+                        onClick = { message.songId?.let(onSongClick) },
+                        isMine = message.isMine && status != MessageStatus.FAILED,
+                    )
+                    else -> Text(
+                        text = message.content,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = textColor,
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                ) {
+                    Text(
+                        text = formatMessageTime(message.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = metaColor,
+                    )
+                    if (message.isMine) {
+                        MessageReceiptIcon(status = status, tint = metaColor)
+                    }
+                }
+            }
+            if (status == MessageStatus.FAILED && message.isMine) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onRetry) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.chat_retry_message))
+                    }
+                    TextButton(onClick = onCancel) {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.chat_cancel_message))
+                    }
                 }
             }
         }
@@ -366,43 +571,80 @@ private fun SongShareCard(
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
     }
+    val titleColor = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val subtitleColor = if (isMine) {
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val hasMeta = !message.songTitle.isNullOrBlank()
+    val loading = message.songId != null && !hasMeta
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(spacing.sm))
-            .clickable(onClick = onClick)
+            .clickable(enabled = message.songId != null && hasMeta, onClick = onClick)
             .background(bg)
             .padding(spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MeloImage(
-            imageUrl = message.songCoverUrl,
-            contentDescription = message.songTitle,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(spacing.xs)),
-        )
+        Box {
+            MeloImage(
+                imageUrl = message.songCoverUrl,
+                contentDescription = message.songTitle,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(spacing.xs)),
+            )
+            if (hasMeta) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = stringResource(R.string.chat_tap_to_play),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.width(spacing.sm))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = message.songTitle ?: stringResource(R.string.chat_song_preview),
+                text = when {
+                    hasMeta -> message.songTitle.orEmpty()
+                    loading -> stringResource(R.string.chat_song_loading)
+                    else -> stringResource(R.string.chat_song_unavailable)
+                },
                 style = MaterialTheme.typography.titleSmall,
-                color = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = message.songArtist.orEmpty(),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isMine) {
-                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                text = when {
+                    hasMeta -> message.songArtist.orEmpty().ifBlank {
+                        stringResource(R.string.chat_tap_to_play)
+                    }
+                    loading -> stringResource(R.string.chat_song_preview)
+                    else -> stringResource(R.string.chat_song_preview)
                 },
+                style = MaterialTheme.typography.bodySmall,
+                color = subtitleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
         }
     }
 }
@@ -410,7 +652,22 @@ private fun SongShareCard(
 @Composable
 private fun MessageReceiptIcon(status: MessageStatus, tint: androidx.compose.ui.graphics.Color) {
     when (status) {
-        MessageStatus.PENDING, MessageStatus.SENT -> {
+        MessageStatus.FAILED -> {
+            Icon(
+                imageVector = Icons.Default.ErrorOutline,
+                contentDescription = stringResource(R.string.chat_status_failed),
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+        MessageStatus.PENDING -> {
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 1.5.dp,
+                color = tint,
+            )
+        }
+        MessageStatus.SENT -> {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = stringResource(R.string.chat_status_sent),
@@ -439,11 +696,62 @@ private fun MessageReceiptIcon(status: MessageStatus, tint: androidx.compose.ui.
 private fun buildMergedMessages(
     pagingItems: List<ChatMessage>,
     tailMessages: List<ChatMessage>,
+    statusOverrides: Map<Long, MessageStatus>,
 ): List<ChatMessage> {
     val merged = LinkedHashMap<String, ChatMessage>()
-    pagingItems.forEach { merged[it.stableKey] = it }
-    tailMessages.forEach { merged[it.stableKey] = it }
+    fun put(message: ChatMessage) {
+        val withStatus = message.serverId?.let { id ->
+            statusOverrides[id]?.let { message.copy(status = it) }
+        } ?: message
+        val existing = merged[withStatus.stableKey]
+        merged[withStatus.stableKey] = when {
+            existing == null -> withStatus
+            // Prefer client UUID row (keeps pending metadata / song enrich).
+            existing.localId.contains('-') && !withStatus.localId.contains('-') ->
+                existing.copy(
+                    serverId = withStatus.serverId ?: existing.serverId,
+                    status = withStatus.status,
+                    songTitle = existing.songTitle ?: withStatus.songTitle,
+                    songArtist = existing.songArtist ?: withStatus.songArtist,
+                    songCoverUrl = existing.songCoverUrl ?: withStatus.songCoverUrl,
+                )
+            else -> withStatus.copy(
+                localId = if (existing.localId.contains('-')) existing.localId else withStatus.localId,
+                songTitle = withStatus.songTitle ?: existing.songTitle,
+                songArtist = withStatus.songArtist ?: existing.songArtist,
+                songCoverUrl = withStatus.songCoverUrl ?: existing.songCoverUrl,
+            )
+        }
+    }
+    pagingItems.forEach(::put)
+    tailMessages.forEach(::put)
     return merged.values.sortedBy { it.createdAt }
+}
+
+private fun buildChatListItems(
+    messages: List<ChatMessage>,
+    isTyping: Boolean,
+): List<ChatListItem> {
+    if (messages.isEmpty() && !isTyping) return emptyList()
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now(zone)
+    val items = mutableListOf<ChatListItem>()
+    var lastDay: LocalDate? = null
+    for (message in messages) {
+        val day = message.createdAt.atZone(zone).toLocalDate()
+        if (day != lastDay) {
+            val label = when (ChronoUnit.DAYS.between(day, today)) {
+                0L -> "today"
+                1L -> "yesterday"
+                else -> day.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+            }
+            items += ChatListItem.DateHeader(label, day.toEpochDay())
+            lastDay = day
+        }
+        items += ChatListItem.Bubble(message)
+    }
+    if (isTyping) items += ChatListItem.Typing
+    return items
 }
 
 private fun formatMessageTime(instant: Instant): String {

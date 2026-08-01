@@ -23,12 +23,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,9 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
+import com.melonet.app.core.designsystem.component.ChatConnectionBanner
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
@@ -49,6 +51,8 @@ import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.core.network.toAppError
 import com.melonet.app.data.model.Conversation
 import com.melonet.app.data.model.MessageType
+import com.melonet.app.data.repository.ChatRepository
+import org.koin.compose.koinInject
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -65,9 +69,16 @@ fun ConversationsScreen(
     val conversations = viewModel.conversations.collectAsLazyPagingItems()
     val spacing = MeloNetTheme.spacing
     val context = LocalContext.current
+    val chatRepository: ChatRepository = koinInject()
 
     LaunchedEffect(Unit) {
         viewModel.handleEvent(ConversationsContract.Event.ScreenVisible)
+    }
+
+    LaunchedEffect(state.refreshKey) {
+        if (state.refreshKey > 0) {
+            conversations.refresh()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -80,14 +91,32 @@ fun ConversationsScreen(
                         effect.otherDisplayName,
                     )
                 }
+                ConversationsContract.Effect.RefreshList -> conversations.refresh()
+            }
+        }
+    }
+
+    val filteredIndices = remember(conversations.itemCount, state.searchQuery, conversations.itemSnapshotList) {
+        val query = state.searchQuery.trim().lowercase()
+        if (query.isEmpty()) {
+            (0 until conversations.itemCount).toList()
+        } else {
+            (0 until conversations.itemCount).mapNotNull { index ->
+                val conversation = conversations.peek(index) ?: return@mapNotNull null
+                val haystack = buildString {
+                    append(conversation.otherUser.displayName)
+                    append(' ')
+                    append(conversation.otherUser.username)
+                    append(' ')
+                    append(conversation.lastMessage?.content.orEmpty())
+                }.lowercase()
+                if (haystack.contains(query)) index else null
             }
         }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = Modifier.fillMaxSize(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
@@ -108,6 +137,24 @@ fun ConversationsScreen(
                 },
             )
 
+            ChatConnectionBanner(
+                state = state.connectionState,
+                onRetryConnect = { chatRepository.connect() },
+            )
+
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = {
+                    viewModel.handleEvent(ConversationsContract.Event.SearchChanged(it))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.md, vertical = spacing.xs),
+                placeholder = { Text(stringResource(R.string.chat_search_conversations_hint)) },
+                singleLine = true,
+                shape = MaterialTheme.shapes.large,
+            )
+
             when (conversations.loadState.refresh) {
                 is LoadState.Loading if conversations.itemCount == 0 -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -125,7 +172,7 @@ fun ConversationsScreen(
                     )
                 }
                 else -> {
-                    if (conversations.itemCount == 0) {
+                    if (filteredIndices.isEmpty()) {
                         EmptyState(
                             title = stringResource(R.string.chat_empty_title),
                             description = stringResource(R.string.chat_empty_description),
@@ -135,10 +182,13 @@ fun ConversationsScreen(
                             contentPadding = PaddingValues(vertical = spacing.sm),
                         ) {
                             items(
-                                count = conversations.itemCount,
-                                key = conversations.itemKey { it.id },
-                            ) { index ->
-                                val conversation = conversations[index] ?: return@items
+                                count = filteredIndices.size,
+                                key = { pos ->
+                                    val conversation = conversations.peek(filteredIndices[pos])
+                                    conversation?.id ?: "idx_$pos"
+                                },
+                            ) { pos ->
+                                val conversation = conversations[filteredIndices[pos]] ?: return@items
                                 ConversationRow(
                                     conversation = conversation,
                                     onClick = {
@@ -185,7 +235,7 @@ private fun ConversationRow(
 
     ListItem(
         modifier = Modifier.clickable(onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0f)),
         leadingContent = {
             MeloImage(
                 imageUrl = conversation.otherUser.avatarUrl,

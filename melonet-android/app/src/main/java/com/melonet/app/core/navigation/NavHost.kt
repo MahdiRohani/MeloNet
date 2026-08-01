@@ -260,7 +260,10 @@ fun MelonetMainScreen() {
                             },
                         )
                     }
-                    MelonetBottomNavigation(navController)
+                    MelonetBottomNavigation(
+                        navController = navController,
+                        chatUnreadCount = unreadCount,
+                    )
                 }
             }
         },

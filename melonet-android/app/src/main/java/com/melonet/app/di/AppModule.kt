@@ -231,6 +231,7 @@ val appModule = module {
             chatMessageDao = get(),
             webSocketClient = get(),
             playerRepository = get(),
+            networkMonitor = get(),
             dispatchers = get(),
         )
     }

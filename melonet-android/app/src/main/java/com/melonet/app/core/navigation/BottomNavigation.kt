@@ -7,6 +7,8 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -69,6 +71,7 @@ val bottomNavEntries = listOf(
 @Composable
 fun MelonetBottomNavigation(
     navController: NavHostController,
+    chatUnreadCount: Int = 0,
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -79,6 +82,7 @@ fun MelonetBottomNavigation(
             val isSelected = entry.route.let { route ->
                 currentDestination?.hierarchy?.any { it.hasRoute(route::class) } == true
             }
+            val showBadge = entry is BottomNavEntry.Chat && chatUnreadCount > 0
 
             NavigationBarItem(
                 selected = isSelected,
@@ -89,7 +93,23 @@ fun MelonetBottomNavigation(
                         restoreState = true
                     }
                 },
-                icon = { Icon(imageVector = entry.icon, contentDescription = title) },
+                icon = {
+                    if (showBadge) {
+                        BadgedBox(
+                            badge = {
+                                Badge {
+                                    Text(
+                                        text = if (chatUnreadCount > 99) "99+" else chatUnreadCount.toString(),
+                                    )
+                                }
+                            },
+                        ) {
+                            Icon(imageVector = entry.icon, contentDescription = title)
+                        }
+                    } else {
+                        Icon(imageVector = entry.icon, contentDescription = title)
+                    }
+                },
                 label = { Text(text = title) },
             )
         }

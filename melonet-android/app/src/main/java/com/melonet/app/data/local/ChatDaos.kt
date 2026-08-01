@@ -29,6 +29,17 @@ interface ChatMessageDao {
     @Query("DELETE FROM chat_messages WHERE localId = :localId")
     suspend fun deleteByLocalId(localId: String)
 
+    @Query("SELECT * FROM chat_messages WHERE status IN (:statuses) ORDER BY createdAt ASC")
+    suspend fun getByStatuses(statuses: List<String>): List<ChatMessageEntity>
+
+    @Query(
+        """
+        UPDATE chat_messages SET status = :status
+        WHERE localId = :localId
+        """,
+    )
+    suspend fun updateStatusByLocalId(localId: String, status: String)
+
     @Query(
         """
         UPDATE chat_messages SET status = :status

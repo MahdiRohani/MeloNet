@@ -15,6 +15,39 @@
 
     <string name="offline_banner_message">آفلاین هستید؛ بعضی قابلیت‌ها در دسترس نیست</string>
 
+    <string name="nav_chat">چت</string>
+    <string name="chat_conversations_title">پیام‌ها</string>
+    <string name="chat_title">چت</string>
+    <string name="chat_input_hint">پیام</string>
+    <string name="chat_send">ارسال</string>
+    <string name="chat_typing">در حال نوشتن…</string>
+    <string name="chat_empty_title">هنوز گفت‌وگویی نیست</string>
+    <string name="chat_empty_description">با دکمهٔ مداد کسی را پیدا کنید و گفت‌وگو را شروع کنید.</string>
+    <string name="chat_error_title">بارگذاری پیام‌ها ممکن نشد</string>
+    <string name="chat_song_preview">یک آهنگ اشتراک گذاشته شد</string>
+    <string name="chat_tap_to_play">برای پخش لمس کنید</string>
+    <string name="chat_song_loading">در حال بارگذاری آهنگ…</string>
+    <string name="chat_song_unavailable">آهنگ در دسترس نیست</string>
+    <string name="chat_status_sent">ارسال شد</string>
+    <string name="chat_status_delivered">تحویل شد</string>
+    <string name="chat_status_read">خوانده شد</string>
+    <string name="chat_status_failed">ارسال نشد</string>
+    <string name="chat_status_connected">متصل</string>
+    <string name="chat_status_reconnecting">در حال اتصال مجدد…</string>
+    <string name="chat_status_offline">آفلاین — با برگشت اینترنت پیام‌ها ارسال می‌شوند</string>
+    <string name="chat_retry_message">تلاش دوباره</string>
+    <string name="chat_cancel_message">حذف</string>
+    <string name="chat_copy_message">کپی شد</string>
+    <string name="chat_today">امروز</string>
+    <string name="chat_yesterday">دیروز</string>
+    <string name="chat_search_conversations_hint">جستجوی گفت‌وگو…</string>
+    <string name="chat_new_title">پیام جدید</string>
+    <string name="chat_search_users_hint">جستجو با نام یا نام کاربری…</string>
+    <string name="chat_search_no_users">کاربری پیدا نشد</string>
+    <string name="chat_new_empty_title">پیدا کردن افراد</string>
+    <string name="chat_new_empty_description">برای شروع گفت‌وگو نام کاربری یا نام نمایشی را جستجو کنید.</string>
+    <string name="action_retry">تلاش دوباره</string>
+
     <string name="equalizer_title">اکولایزر</string>
     <string name="equalizer_enabled">روشن</string>
     <string name="equalizer_presets">پیش‌فرض‌ها</string>
