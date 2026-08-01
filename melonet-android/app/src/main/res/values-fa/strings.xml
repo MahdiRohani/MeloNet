@@ -90,4 +90,19 @@
     <string name="auth_error_invalid_username">نام کاربری باید ۳ تا ۳۲ کاراکتر باشد (حروف، عدد، زیرخط)</string>
     <string name="auth_error_invalid_password">رمز عبور باید حداقل ۸ کاراکتر باشد</string>
     <string name="auth_error_user_exists">این نام کاربری یا ایمیل قبلاً ثبت شده است</string>
+
+    <string name="profile_guest_user">کاربر مهمان</string>
+    <string name="profile_liked_songs">آهنگ‌های پسندیده</string>
+    <string name="profile_my_playlists">پلی‌لیست‌های من</string>
+    <string name="profile_edit">ویرایش پروفایل</string>
+    <string name="profile_library_title">کتابخانه شما</string>
+    <string name="profile_recently_played">اخیراً پخش‌شده</string>
+    <string name="profile_local_music">آهنگ‌های دستگاه</string>
+    <string name="profile_downloads">دانلودها</string>
+    <string name="profile_following">دنبال‌شونده‌ها</string>
+    <string name="profile_premium_badge">پرمیوم</string>
+    <string name="profile_stat_following">دنبال‌شونده</string>
+    <string name="profile_stat_playlists">پلی‌لیست</string>
+    <string name="profile_stat_liked">پسندیده‌ها</string>
+    <string name="profile_username">@%1$s</string>
 </resources>

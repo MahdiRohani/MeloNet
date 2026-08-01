@@ -116,6 +116,10 @@
     <string name="profile_downloads">Downloads</string>
     <string name="profile_following">Following</string>
     <string name="profile_premium_badge">Premium</string>
+    <string name="profile_stat_following">Following</string>
+    <string name="profile_stat_playlists">Playlists</string>
+    <string name="profile_stat_liked">Liked</string>
+    <string name="profile_username">@%1$s</string>
 
     <!-- Premium -->
     <string name="premium_active_title">Your subscription is active</string>

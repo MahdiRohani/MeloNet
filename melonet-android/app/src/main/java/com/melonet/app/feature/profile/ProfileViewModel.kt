@@ -62,6 +62,7 @@ class ProfileViewModel(
                     copy(
                         isLoading = false,
                         userName = result.data.displayName,
+                        username = result.data.username,
                         avatarUrl = result.data.avatarUrl,
                         isPremium = result.data.isPremium,
                         error = null

@@ -9,6 +9,7 @@ object ProfileContract {
 
     data class State(
         val userName: String = "",
+        val username: String = "",
         val avatarUrl: String = "",
         val isPremium: Boolean = false,
         val isLoading: Boolean = false,

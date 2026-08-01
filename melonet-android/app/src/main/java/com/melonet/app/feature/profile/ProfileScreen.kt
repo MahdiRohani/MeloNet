@@ -1,6 +1,8 @@
 package com.melonet.app.feature.profile
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
@@ -24,7 +26,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,15 +36,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.palette.graphics.Palette
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.MeloButton
@@ -51,7 +63,10 @@ import com.melonet.app.core.designsystem.component.MeloButtonVariant
 import com.melonet.app.core.designsystem.component.MeloCard
 import com.melonet.app.core.designsystem.component.PremiumSubscriptionCard
 import com.melonet.app.core.designsystem.component.ProfileAvatar
+import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProfileScreen(
@@ -69,6 +84,21 @@ fun ProfileScreen(
     val spacing = MeloNetTheme.spacing
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val imageLoader = remember { ImageLoader(context) }
+    val scheme = MaterialTheme.colorScheme
+
+    var heroColors by remember { mutableStateOf<List<Color>>(emptyList()) }
+    var contentEntered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { contentEntered = true }
+
+    LaunchedEffect(state.avatarUrl) {
+        val url = state.avatarUrl
+        heroColors = if (url.isBlank()) {
+            emptyList()
+        } else {
+            extractAvatarPalette(context, imageLoader, url)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -87,203 +117,358 @@ fun ProfileScreen(
         }
     }
 
+    val enterAlpha by animateFloatAsState(
+        targetValue = if (contentEntered) 1f else 0f,
+        animationSpec = MeloMotion.fadeTween,
+        label = "profile_enter_alpha",
+    )
+    val enterOffset by animateFloatAsState(
+        targetValue = if (contentEntered) 0f else 16f,
+        animationSpec = MeloMotion.pressSpring,
+        label = "profile_enter_offset",
+    )
+
+    val gradientColors = if (heroColors.size >= 2) {
+        heroColors + listOf(scheme.background)
+    } else {
+        listOf(
+            scheme.primary.copy(alpha = 0.45f),
+            scheme.tertiary.copy(alpha = 0.22f),
+            scheme.background,
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = scheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
+                .background(Brush.verticalGradient(gradientColors))
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = spacing.md, vertical = spacing.lg),
+                .graphicsLayer {
+                    alpha = enterAlpha
+                    translationY = enterOffset
+                }
+                .padding(bottom = spacing.xl),
         ) {
-            ProfileHeader(
+            ProfileHeroHeader(
                 userName = state.userName.ifBlank { stringResource(R.string.profile_guest_user) },
+                username = state.username,
                 avatarUrl = state.avatarUrl,
                 isPremium = state.isPremium,
                 onEditClick = { viewModel.handleEvent(ProfileContract.Event.EditProfileClicked) },
             )
 
-        Spacer(modifier = Modifier.height(spacing.xl))
+            Spacer(modifier = Modifier.height(spacing.lg))
 
-        Text(
-            text = stringResource(R.string.profile_library_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = spacing.sm),
-        )
+            ProfileStatsRow(
+                onFollowingClick = { viewModel.handleEvent(ProfileContract.Event.FollowingClicked) },
+                onPlaylistsClick = { viewModel.handleEvent(ProfileContract.Event.MyPlaylistsClicked) },
+                onLikedClick = { viewModel.handleEvent(ProfileContract.Event.LikedSongsClicked) },
+            )
 
-        MeloCard(onClick = null, modifier = Modifier.fillMaxWidth()) {
-            Column {
-                ProfileLibraryRow(
-                    icon = Icons.Default.Favorite,
-                    title = stringResource(R.string.profile_liked_songs),
-                    onClick = { viewModel.handleEvent(ProfileContract.Event.LikedSongsClicked) },
-                )
-                ProfileLibraryRow(
-                    icon = Icons.AutoMirrored.Filled.QueueMusic,
-                    title = stringResource(R.string.profile_my_playlists),
-                    onClick = { viewModel.handleEvent(ProfileContract.Event.MyPlaylistsClicked) },
-                )
-                ProfileLibraryRow(
-                    icon = Icons.Default.History,
-                    title = stringResource(R.string.profile_recently_played),
-                    onClick = { viewModel.handleEvent(ProfileContract.Event.RecentlyPlayedClicked) },
-                )
-                ProfileLibraryRow(
-                    icon = Icons.Default.People,
-                    title = stringResource(R.string.profile_following),
-                    onClick = { viewModel.handleEvent(ProfileContract.Event.FollowingClicked) },
-                )
-                ProfileLibraryRow(
-                    icon = Icons.Default.LibraryMusic,
-                    title = stringResource(R.string.profile_local_music),
-                    onClick = { viewModel.handleEvent(ProfileContract.Event.LocalMusicClicked) },
-                )
-                ProfileLibraryRow(
-                    icon = Icons.Default.Download,
-                    title = stringResource(R.string.profile_downloads),
-                    onClick = { viewModel.handleEvent(ProfileContract.Event.DownloadsClicked) },
-                    showDivider = false,
+            Spacer(modifier = Modifier.height(spacing.lg))
+
+            Text(
+                text = stringResource(R.string.profile_library_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = scheme.onBackground,
+                modifier = Modifier.padding(horizontal = spacing.md),
+            )
+
+            Spacer(modifier = Modifier.height(spacing.sm))
+
+            ProfileLibraryGrid(
+                onLiked = { viewModel.handleEvent(ProfileContract.Event.LikedSongsClicked) },
+                onPlaylists = { viewModel.handleEvent(ProfileContract.Event.MyPlaylistsClicked) },
+                onRecent = { viewModel.handleEvent(ProfileContract.Event.RecentlyPlayedClicked) },
+                onDownloads = { viewModel.handleEvent(ProfileContract.Event.DownloadsClicked) },
+                onLocal = { viewModel.handleEvent(ProfileContract.Event.LocalMusicClicked) },
+                onFollowing = { viewModel.handleEvent(ProfileContract.Event.FollowingClicked) },
+            )
+
+            Spacer(modifier = Modifier.height(spacing.lg))
+
+            Box(modifier = Modifier.padding(horizontal = spacing.md)) {
+                PremiumSubscriptionCard(
+                    isPremium = state.isPremium,
+                    onActionClick = {
+                        viewModel.handleEvent(ProfileContract.Event.UpgradePremiumClicked)
+                        onUpgradePremiumClick()
+                    },
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(spacing.lg))
+            Spacer(modifier = Modifier.height(spacing.lg))
 
-        PremiumSubscriptionCard(
-            isPremium = state.isPremium,
-            onActionClick = {
-                viewModel.handleEvent(ProfileContract.Event.UpgradePremiumClicked)
-                onUpgradePremiumClick()
-            },
-        )
+            MeloButton(
+                text = stringResource(R.string.profile_edit),
+                onClick = { viewModel.handleEvent(ProfileContract.Event.EditProfileClicked) },
+                variant = MeloButtonVariant.Primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.md),
+            )
         }
     }
 }
 
 @Composable
-private fun ProfileHeader(
+private fun ProfileHeroHeader(
     userName: String,
+    username: String,
     avatarUrl: String,
     isPremium: Boolean,
     onEditClick: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
     val colors = MeloNetTheme.colors
+    val scheme = MaterialTheme.colorScheme
 
-    MeloCard(
-        onClick = null,
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.md)
+            .padding(top = spacing.lg),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(spacing.lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            ProfileAvatar(
-                avatarUrl = avatarUrl,
-                isPremium = isPremium,
-                onEditClick = onEditClick,
-            )
+        ProfileAvatar(
+            avatarUrl = avatarUrl,
+            isPremium = isPremium,
+            onEditClick = onEditClick,
+        )
 
-            Spacer(modifier = Modifier.height(spacing.md))
+        Spacer(modifier = Modifier.height(spacing.md))
 
+        Text(
+            text = userName,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = scheme.onBackground,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        if (username.isNotBlank()) {
+            Spacer(modifier = Modifier.height(spacing.xs))
             Text(
-                text = userName,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
+                text = stringResource(R.string.profile_username, username),
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
             )
+        }
 
-            if (isPremium) {
-                Spacer(modifier = Modifier.height(spacing.xs))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(colors.premiumContainer)
-                        .padding(horizontal = spacing.sm, vertical = spacing.xs),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.WorkspacePremium,
-                        contentDescription = null,
-                        tint = colors.premium,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(spacing.xs))
-                    Text(
-                        text = stringResource(R.string.profile_premium_badge),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = colors.onPremiumContainer,
-                    )
-                }
+        if (isPremium) {
+            Spacer(modifier = Modifier.height(spacing.sm))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(colors.premiumContainer)
+                    .padding(horizontal = spacing.md, vertical = spacing.xs),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.WorkspacePremium,
+                    contentDescription = null,
+                    tint = colors.premium,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(spacing.xs))
+                Text(
+                    text = stringResource(R.string.profile_premium_badge),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onPremiumContainer,
+                )
             }
-
-            Spacer(modifier = Modifier.height(spacing.md))
-
-            MeloButton(
-                text = stringResource(R.string.profile_edit),
-                onClick = onEditClick,
-                variant = MeloButtonVariant.Outlined,
-            )
         }
     }
 }
 
 @Composable
-private fun ProfileLibraryRow(
+private fun ProfileStatsRow(
+    onFollowingClick: () -> Unit,
+    onPlaylistsClick: () -> Unit,
+    onLikedClick: () -> Unit,
+) {
+    val spacing = MeloNetTheme.spacing
+    val scheme = MaterialTheme.colorScheme
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.md)
+            .clip(RoundedCornerShape(20.dp))
+            .background(scheme.surface.copy(alpha = 0.72f))
+            .padding(vertical = spacing.md),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        ProfileStatItem(
+            label = stringResource(R.string.profile_stat_following),
+            onClick = onFollowingClick,
+        )
+        ProfileStatItem(
+            label = stringResource(R.string.profile_stat_playlists),
+            onClick = onPlaylistsClick,
+        )
+        ProfileStatItem(
+            label = stringResource(R.string.profile_stat_liked),
+            onClick = onLikedClick,
+        )
+    }
+}
+
+@Composable
+private fun ProfileStatItem(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+@Composable
+private fun ProfileLibraryGrid(
+    onLiked: () -> Unit,
+    onPlaylists: () -> Unit,
+    onRecent: () -> Unit,
+    onDownloads: () -> Unit,
+    onLocal: () -> Unit,
+    onFollowing: () -> Unit,
+) {
+    val spacing = MeloNetTheme.spacing
+    val items = listOf(
+        LibraryTile(Icons.Default.Favorite, stringResource(R.string.profile_liked_songs), onLiked),
+        LibraryTile(Icons.AutoMirrored.Filled.QueueMusic, stringResource(R.string.profile_my_playlists), onPlaylists),
+        LibraryTile(Icons.Default.History, stringResource(R.string.profile_recently_played), onRecent),
+        LibraryTile(Icons.Default.Download, stringResource(R.string.profile_downloads), onDownloads),
+        LibraryTile(Icons.Default.LibraryMusic, stringResource(R.string.profile_local_music), onLocal),
+        LibraryTile(Icons.Default.People, stringResource(R.string.profile_following), onFollowing),
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        items.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                row.forEach { tile ->
+                    ProfileLibraryTile(
+                        icon = tile.icon,
+                        title = tile.title,
+                        onClick = tile.onClick,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (row.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+private data class LibraryTile(
+    val icon: ImageVector,
+    val title: String,
+    val onClick: () -> Unit,
+)
+
+@Composable
+private fun ProfileLibraryTile(
     icon: ImageVector,
     title: String,
     onClick: () -> Unit,
-    showDivider: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
     val spacing = MeloNetTheme.spacing
+    val scheme = MaterialTheme.colorScheme
 
-    Column {
-        Row(
+    MeloCard(
+        onClick = onClick,
+        modifier = modifier.height(108.dp),
+        containerColor = scheme.surface.copy(alpha = 0.78f),
+    ) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.small)
+                .fillMaxSize()
                 .padding(spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(scheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(20.dp),
+                    tint = scheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp),
                 )
             }
-            Spacer(modifier = Modifier.width(spacing.md))
+            Spacer(modifier = Modifier.height(spacing.sm))
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                color = scheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(start = spacing.md + 40.dp + spacing.md),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-        }
+    }
+}
+
+private suspend fun extractAvatarPalette(
+    context: android.content.Context,
+    imageLoader: ImageLoader,
+    url: String,
+): List<Color> = withContext(Dispatchers.IO) {
+    try {
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .allowHardware(false)
+            .size(128)
+            .build()
+        val result = imageLoader.execute(request)
+        if (result !is SuccessResult) return@withContext emptyList()
+        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+            ?: return@withContext emptyList()
+        val palette = Palette.from(bitmap).generate()
+        listOfNotNull(
+            palette.darkVibrantSwatch?.rgb,
+            palette.vibrantSwatch?.rgb,
+            palette.mutedSwatch?.rgb,
+            palette.darkMutedSwatch?.rgb,
+        ).distinct().take(3).map { Color(it) }
+    } catch (_: Exception) {
+        emptyList()
     }
 }
