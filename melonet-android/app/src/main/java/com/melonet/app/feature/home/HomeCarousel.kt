@@ -21,10 +21,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,6 +38,7 @@ import com.melonet.app.core.designsystem.component.shimmerEffect
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.HomeRow
 import kotlinx.coroutines.delay
+import kotlin.math.max
 
 private const val CAROUSEL_AUTO_SCROLL_MS = 4_000L
 
@@ -51,6 +55,7 @@ fun HomeCarousel(
     isLoading: Boolean,
     onCategoryClick: (HomeRow) -> Unit,
     modifier: Modifier = Modifier,
+    pauseAutoScroll: Boolean = false,
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
@@ -73,11 +78,15 @@ fun HomeCarousel(
             categories.isEmpty() -> Unit
             else -> {
                 val pagerState = rememberPagerState(pageCount = { categories.size })
+                val pauseAutoScrollState by rememberUpdatedState(pauseAutoScroll)
 
-                LaunchedEffect(categories.size) {
+                LaunchedEffect(categories.size, pagerState) {
                     if (categories.size <= 1) return@LaunchedEffect
                     while (true) {
                         delay(CAROUSEL_AUTO_SCROLL_MS)
+                        while (pauseAutoScrollState || pagerState.isScrollInProgress) {
+                            delay(100)
+                        }
                         val nextPage = (pagerState.currentPage + 1) % categories.size
                         pagerState.animateScrollToPage(nextPage)
                     }
@@ -104,6 +113,9 @@ private fun CarouselSlide(
     onClick: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
+    val dimensions = MeloNetTheme.dimensions
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val imageTargetSize = max(screenWidthDp, dimensions.carouselHeight.value.toInt()).dp
 
     Box(
         modifier = Modifier
@@ -115,6 +127,7 @@ private fun CarouselSlide(
             imageUrl = category.coverUrl,
             contentDescription = category.title,
             contentScale = ContentScale.Crop,
+            targetSize = imageTargetSize,
             modifier = Modifier.fillMaxSize(),
         )
         Box(

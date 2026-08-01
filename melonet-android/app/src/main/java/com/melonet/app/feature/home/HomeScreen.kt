@@ -2,10 +2,10 @@ package com.melonet.app.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -54,7 +56,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
-import com.melonet.app.core.designsystem.component.AnimateEnter
 import com.melonet.app.core.designsystem.component.ArtistCircleItem
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
@@ -84,6 +85,8 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val errorMessage = state.error?.displayMessage(context)
+    val listState = rememberLazyListState()
+    val showSkeleton = state.isLoading && state.feed == null
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -98,20 +101,7 @@ fun HomeScreen(
     }
 
     when {
-        state.isLoading -> {
-            HomeFeedContent(
-                quickActions = emptyList(),
-                rows = emptyList(),
-                artistRows = emptyList(),
-                isLoading = true,
-                onSongClick = {},
-                onQuickActionClick = {},
-                onSeeAllClick = {},
-                onArtistClick = {},
-                onKaraokeClick = onOpenKaraoke,
-            )
-        }
-        errorMessage != null && state.feed == null -> {
+        errorMessage != null && state.feed == null && !state.isLoading -> {
             ErrorState(
                 message = errorMessage,
                 onRetry = { viewModel.handleEvent(HomeContract.Event.Load) },
@@ -133,7 +123,9 @@ fun HomeScreen(
                     quickActions = state.feed?.quickActions.orEmpty(),
                     rows = state.feed?.rows.orEmpty(),
                     artistRows = state.feed?.artistRows.orEmpty(),
-                    isLoading = false,
+                    isLoading = showSkeleton,
+                    listState = listState,
+                    pauseCarousel = listState.isScrollInProgress,
                     onSongClick = { song ->
                         viewModel.handleEvent(HomeContract.Event.SongClicked(song))
                     },
@@ -159,6 +151,8 @@ private fun HomeFeedContent(
     rows: List<HomeRow>,
     artistRows: List<HomeArtistRow>,
     isLoading: Boolean,
+    listState: LazyListState,
+    pauseCarousel: Boolean,
     onSongClick: (Song) -> Unit,
     onQuickActionClick: (QuickAction) -> Unit,
     onSeeAllClick: (HomeRow) -> Unit,
@@ -178,75 +172,67 @@ private fun HomeFeedContent(
         }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
     ) {
-        item {
-            AnimateEnter(delayMillis = 0) {
-                HomeCarousel(
-                    categories = carouselCategories,
-                    isLoading = isLoading,
-                    onCategoryClick = onSeeAllClick,
-                )
-            }
+        item(key = "carousel") {
+            HomeCarousel(
+                categories = carouselCategories,
+                isLoading = isLoading,
+                pauseAutoScroll = pauseCarousel,
+                onCategoryClick = onSeeAllClick,
+            )
         }
 
-        item {
-            AnimateEnter(delayMillis = 40) {
-                QuickActionsSection(
-                    actions = quickActions,
-                    isLoading = isLoading,
-                    onActionClick = onQuickActionClick,
-                )
-            }
+        item(key = "quick_actions") {
+            QuickActionsSection(
+                actions = quickActions,
+                isLoading = isLoading,
+                onActionClick = onQuickActionClick,
+            )
         }
 
         if (!isLoading) {
-            item {
-                AnimateEnter(delayMillis = 80) {
-                    KaraokeBanner(onClick = onKaraokeClick)
-                }
+            item(key = "karaoke_banner") {
+                KaraokeBanner(onClick = onKaraokeClick)
             }
         }
 
         if (isLoading) {
-            items(3) {
-                AnimateEnter(delayMillis = 60) {
-                    SongSection(
-                        title = null,
-                        songs = emptyList(),
-                        seeAllPath = null,
-                        isLoading = true,
-                        onSongClick = {},
-                        onSeeAllClick = {},
-                    )
-                }
+            items(3, key = { "song_skeleton_$it" }) {
+                SongSection(
+                    title = null,
+                    songs = emptyList(),
+                    seeAllPath = null,
+                    isLoading = true,
+                    onSongClick = {},
+                    onSeeAllClick = {},
+                )
             }
         } else {
             items(rows, key = { it.id }) { row ->
-                AnimateEnter(delayMillis = 100) {
-                    SongSection(
-                        title = row.title,
-                        songs = row.items,
-                        seeAllPath = row.seeAllPath,
-                        isLoading = false,
-                        onSongClick = onSongClick,
-                        onSeeAllClick = { onSeeAllClick(row) },
-                    )
-                }
+                SongSection(
+                    title = row.title,
+                    songs = row.items,
+                    seeAllPath = row.seeAllPath,
+                    isLoading = false,
+                    onSongClick = onSongClick,
+                    onSeeAllClick = { onSeeAllClick(row) },
+                )
             }
 
             items(artistRows.filter { it.items.isNotEmpty() }, key = { it.id }) { row ->
-                AnimateEnter(delayMillis = 120) {
-                    ArtistSection(
-                        title = row.title,
-                        artists = row.items,
-                        onArtistClick = onArtistClick,
-                    )
-                }
+                ArtistSection(
+                    title = row.title,
+                    artists = row.items,
+                    onArtistClick = onArtistClick,
+                )
             }
         }
 
-        item { Spacer(modifier = Modifier.height(spacing.lg)) }
+        item(key = "bottom_spacer") {
+            Spacer(modifier = Modifier.height(spacing.lg))
+        }
     }
 }
 
@@ -318,11 +304,14 @@ private fun ArtistSection(
     val spacing = MeloNetTheme.spacing
     Column(modifier = Modifier.padding(vertical = spacing.sm + spacing.xs)) {
         SectionHeader(title = title, onActionClick = null)
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = spacing.md),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = spacing.md),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            items(artists, key = { it.id }) { artist ->
+            artists.forEach { artist ->
                 ArtistCircleItem(
                     name = artist.name,
                     imageUrl = artist.imageUrl,
@@ -430,14 +419,17 @@ private fun SongSection(
             )
         }
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = spacing.md),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = spacing.md),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             if (isLoading) {
-                items(5) { SongCardShimmer() }
+                repeat(5) { SongCardShimmer() }
             } else {
-                items(songs, key = { it.id }) { song ->
+                songs.forEach { song ->
                     SongCard(
                         title = song.title,
                         subtitle = song.artistName,

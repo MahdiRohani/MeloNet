@@ -40,6 +40,7 @@ fun ArtistCircleItem(
             imageUrl = imageUrl?.ifBlank { null },
             contentDescription = name,
             contentScale = ContentScale.Crop,
+            targetSize = size.dp,
             modifier = Modifier
                 .size(size.dp)
                 .clip(CircleShape),

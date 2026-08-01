@@ -57,6 +57,7 @@ fun SongCard(
             imageUrl = imageUrl,
             contentDescription = title,
             contentScale = ContentScale.Crop,
+            targetSize = dimensions.songCardSize,
             modifier = Modifier
                 .size(dimensions.songCardSize)
                 .clip(MaterialTheme.shapes.medium)
