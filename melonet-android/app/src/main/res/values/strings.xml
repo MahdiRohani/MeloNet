@@ -283,7 +283,10 @@
     <string name="chat_send">Send</string>
     <string name="chat_typing">typing…</string>
     <string name="chat_empty_title">No conversations yet</string>
-    <string name="chat_empty_description">Tap the pencil button to find someone and start chatting.</string>
+    <string name="chat_empty_description">Tap the pencil in the top bar to find someone and start chatting.</string>
+    <string name="chat_online">online</string>
+    <string name="chat_song_buffering">Buffering…</string>
+    <string name="chat_pause">Pause</string>
     <string name="chat_error_title">Could not load messages</string>
     <string name="chat_song_preview">Shared a song</string>
     <string name="chat_tap_to_play">Tap to play</string>

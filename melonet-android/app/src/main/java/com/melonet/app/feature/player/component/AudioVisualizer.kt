@@ -15,6 +15,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
 /**
@@ -27,6 +29,7 @@ fun AudioVisualizer(
     magnitudes: FloatArray,
     modifier: Modifier = Modifier,
     barCount: Int = 48,
+    height: Dp? = null,
 ) {
     val dimensions = MeloNetTheme.dimensions
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -44,7 +47,7 @@ fun AudioVisualizer(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(dimensions.visualizerHeight)
+            .height(height ?: dimensions.visualizerHeight)
             .alpha(alpha),
     ) {
         @Suppress("UNUSED_EXPRESSION")

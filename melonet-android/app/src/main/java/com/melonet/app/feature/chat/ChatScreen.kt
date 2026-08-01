@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -17,8 +18,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -29,6 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -38,6 +43,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,21 +51,24 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -67,10 +76,9 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,11 +89,15 @@ import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.ChatConnectionBanner
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.ChatMessage
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.model.MessageType
 import com.melonet.app.data.repository.ChatRepository
+import com.melonet.app.feature.player.PlaybackAudioBridge
+import com.melonet.app.feature.player.PlaybackManager
+import com.melonet.app.feature.player.component.AudioVisualizer
 import org.koin.compose.koinInject
 import java.time.Instant
 import java.time.LocalDate
@@ -117,6 +129,7 @@ fun ChatScreen(
     val clipboard = LocalClipboardManager.current
     val haptics = LocalHapticFeedback.current
     val chatRepository: ChatRepository = koinInject()
+    val scheme = MaterialTheme.colorScheme
 
     LaunchedEffect(otherUserId, conversationId) {
         viewModel.handleEvent(ChatContract.Event.Load(otherUserId, conversationId))
@@ -170,7 +183,6 @@ fun ChatScreen(
         }
     }
 
-    // Initial jump to bottom once messages are ready — not on every size change.
     LaunchedEffect(state.conversationId, pagingMessages.loadState.refresh) {
         if (listItems.isNotEmpty() && pagingMessages.loadState.refresh is LoadState.NotLoading) {
             listState.scrollToItem(listItems.lastIndex)
@@ -185,7 +197,9 @@ fun ChatScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(scheme.background),
     ) {
         TopAppBar(
             title = {
@@ -194,8 +208,9 @@ fun ChatScreen(
                         imageUrl = state.otherUser?.avatarUrl,
                         contentDescription = state.otherUser?.displayName,
                         contentScale = ContentScale.Crop,
+                        targetSize = 42.dp,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(42.dp)
                             .clip(CircleShape),
                     )
                     Spacer(modifier = Modifier.width(spacing.sm))
@@ -203,17 +218,26 @@ fun ChatScreen(
                         Text(
                             text = state.otherUser?.displayName ?: stringResource(R.string.chat_title),
                             style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (state.isOtherTyping) {
-                            TypingLabel()
-                        } else if (!state.otherUser?.username.isNullOrBlank()) {
-                            Text(
-                                text = "@${state.otherUser?.username}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        when {
+                            state.isOtherTyping -> TypingLabel()
+                            !state.otherUser?.username.isNullOrBlank() -> {
+                                Text(
+                                    text = "@${state.otherUser?.username}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = scheme.onSurfaceVariant,
+                                )
+                            }
+                            else -> {
+                                Text(
+                                    text = stringResource(R.string.chat_online),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = scheme.primary,
+                                )
+                            }
                         }
                     }
                 }
@@ -222,10 +246,11 @@ fun ChatScreen(
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_navigate_back),
                     )
                 }
             },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = scheme.background),
         )
 
         ChatConnectionBanner(
@@ -259,7 +284,7 @@ fun ChatScreen(
                         horizontal = spacing.md,
                         vertical = spacing.sm,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     if (pagingMessages.loadState.prepend is LoadState.Loading) {
                         item(key = "loading_older") {
@@ -291,7 +316,7 @@ fun ChatScreen(
                                 MessageBubble(
                                     message = item.message,
                                     status = item.message.status,
-                                    onSongClick = onPlaySong,
+                                    onOpenPlayer = onPlaySong,
                                     onRetry = {
                                         viewModel.handleEvent(ChatContract.Event.RetryMessage(item.message.localId))
                                     },
@@ -312,8 +337,10 @@ fun ChatScreen(
                 ChatInputBar(
                     text = state.inputText,
                     isSending = state.isSending,
+                    enabled = !state.isSending,
                     onTextChange = { viewModel.handleEvent(ChatContract.Event.InputChanged(it)) },
                     onSend = {
+                        if (state.isSending) return@ChatInputBar
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         viewModel.handleEvent(ChatContract.Event.SendClicked)
                     },
@@ -391,17 +418,18 @@ private fun DateSeparator(labelKey: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                .padding(horizontal = 14.dp, vertical = 5.dp),
         )
     }
 }
@@ -410,59 +438,76 @@ private fun DateSeparator(labelKey: String) {
 private fun ChatInputBar(
     text: String,
     isSending: Boolean,
+    enabled: Boolean,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
+    val scheme = MaterialTheme.colorScheme
+    val canSend = text.isNotBlank() && enabled && !isSending
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
+            .background(scheme.surface.copy(alpha = 0.96f))
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = spacing.sm, vertical = spacing.xs),
+            .padding(horizontal = spacing.sm, vertical = spacing.sm),
         verticalAlignment = Alignment.Bottom,
     ) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = onTextChange,
-            modifier = Modifier.weight(1f),
-            placeholder = { Text(stringResource(R.string.chat_input_hint)) },
-            maxLines = 4,
-            shape = RoundedCornerShape(24.dp),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = { onSend() }),
-        )
-        Spacer(modifier = Modifier.width(spacing.sm))
-        Box(
+        Row(
             modifier = Modifier
-                .padding(bottom = spacing.xs)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(
-                    if (text.isNotBlank() && !isSending) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            contentAlignment = Alignment.Center,
+                .weight(1f)
+                .clip(RoundedCornerShape(28.dp))
+                .background(scheme.surfaceVariant.copy(alpha = 0.85f))
+                .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(
-                onClick = onSend,
-                enabled = text.isNotBlank() && !isSending,
+            BasicTextField(
+                value = text,
+                onValueChange = onTextChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 8.dp),
+                enabled = enabled,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
+                cursorBrush = SolidColor(scheme.primary),
+                maxLines = 4,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+                decorationBox = { inner ->
+                    Box {
+                        if (text.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.chat_input_hint),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = scheme.onSurfaceVariant,
+                            )
+                        }
+                        inner()
+                    }
+                },
+            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (canSend) scheme.primary else scheme.outline.copy(alpha = 0.35f))
+                    .clickable(enabled = canSend, onClick = onSend),
+                contentAlignment = Alignment.Center,
             ) {
                 if (isSending) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = scheme.onPrimary,
                     )
                 } else {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = stringResource(R.string.chat_send),
-                        tint = if (text.isNotBlank()) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        tint = if (canSend) scheme.onPrimary else scheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -475,12 +520,25 @@ private fun ChatInputBar(
 private fun MessageBubble(
     message: ChatMessage,
     status: MessageStatus,
-    onSongClick: (String) -> Unit,
+    onOpenPlayer: (String) -> Unit,
     onRetry: () -> Unit,
     onCancel: () -> Unit,
     onLongPressCopy: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
+    var appeared by remember(message.stableKey) { mutableStateOf(false) }
+    LaunchedEffect(message.stableKey) { appeared = true }
+    val enterAlpha by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = MeloMotion.fadeTween,
+        label = "bubble_alpha",
+    )
+    val enterOffset by animateFloatAsState(
+        targetValue = if (appeared) 0f else 10f,
+        animationSpec = MeloMotion.pressSpring,
+        label = "bubble_offset",
+    )
+
     val bubbleColor = when {
         status == MessageStatus.FAILED -> MaterialTheme.colorScheme.errorContainer
         message.isMine -> MaterialTheme.colorScheme.primary
@@ -500,18 +558,23 @@ private fun MessageBubble(
     val shape = RoundedCornerShape(
         topStart = 18.dp,
         topEnd = 18.dp,
-        bottomStart = if (message.isMine) 18.dp else 4.dp,
-        bottomEnd = if (message.isMine) 4.dp else 18.dp,
+        bottomStart = if (message.isMine) 18.dp else 5.dp,
+        bottomEnd = if (message.isMine) 5.dp else 18.dp,
     )
 
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                alpha = enterAlpha
+                translationY = enterOffset
+            },
         contentAlignment = alignment,
     ) {
         Column(horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 300.dp)
+                    .widthIn(max = 320.dp)
                     .clip(shape)
                     .background(bubbleColor)
                     .combinedClickable(
@@ -522,13 +585,13 @@ private fun MessageBubble(
                             }
                         },
                     )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
             ) {
                 when (message.msgType) {
                     MessageType.SONG -> SongShareCard(
                         message = message,
-                        onClick = { message.songId?.let(onSongClick) },
                         isMine = message.isMine && status != MessageStatus.FAILED,
+                        onOpenPlayer = onOpenPlayer,
                     )
                     else -> Text(
                         text = message.content,
@@ -539,7 +602,7 @@ private fun MessageBubble(
                 Row(
                     modifier = Modifier
                         .align(Alignment.End)
-                        .padding(top = 2.dp),
+                        .padding(top = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                 ) {
@@ -577,14 +640,30 @@ private fun MessageBubble(
 @Composable
 private fun SongShareCard(
     message: ChatMessage,
-    onClick: () -> Unit,
     isMine: Boolean,
+    onOpenPlayer: (String) -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
-    val bg = if (isMine) {
-        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
+    val playbackManager: PlaybackManager = koinInject()
+    val playback by playbackManager.state.collectAsState()
+    val fftMagnitudes by PlaybackAudioBridge.fftMagnitudes.collectAsState()
+
+    val songId = message.songId
+    val hasMeta = !message.songTitle.isNullOrBlank()
+    val loadingMeta = songId != null && !hasMeta
+    val isThisSong = songId != null && playback.currentSong?.id == songId
+    val isPlayingThis = isThisSong && playback.isPlaying
+    val isBuffering = isThisSong && playback.isLoading
+    val progress = if (isThisSong && playback.durationMs > 0L) {
+        (playback.positionMs.toFloat() / playback.durationMs).coerceIn(0f, 1f)
     } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        0f
+    }
+
+    val bg = if (isMine) {
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f)
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
     }
     val titleColor = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val subtitleColor = if (isMine) {
@@ -592,75 +671,119 @@ private fun SongShareCard(
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val hasMeta = !message.songTitle.isNullOrBlank()
-    val loading = message.songId != null && !hasMeta
-    val canPlay = !message.songId.isNullOrBlank()
+    val accent = if (isMine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
 
-    Row(
+    fun togglePlayback() {
+        val id = songId ?: return
+        when {
+            isThisSong -> playbackManager.togglePlayPause()
+            else -> playbackManager.playSongId(id)
+        }
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(spacing.sm))
-            .clickable(enabled = canPlay, onClick = onClick)
+            .clip(RoundedCornerShape(14.dp))
             .background(bg)
             .padding(spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             MeloImage(
                 imageUrl = message.songCoverUrl,
                 contentDescription = message.songTitle,
                 contentScale = ContentScale.Crop,
+                targetSize = 56.dp,
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(spacing.xs)),
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(enabled = songId != null) {
+                        songId?.let(onOpenPlayer)
+                    },
             )
-            if (canPlay) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
+            Spacer(modifier = Modifier.width(spacing.sm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = when {
+                        hasMeta -> message.songTitle.orEmpty()
+                        loadingMeta -> stringResource(R.string.chat_song_loading)
+                        else -> stringResource(R.string.chat_song_unavailable)
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = when {
+                        isBuffering -> stringResource(R.string.chat_song_buffering)
+                        hasMeta -> message.songArtist.orEmpty().ifBlank {
+                            stringResource(R.string.chat_tap_to_play)
+                        }
+                        else -> stringResource(R.string.chat_song_preview)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = subtitleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = if (isMine) 0.22f else 0.16f))
+                    .clickable(enabled = songId != null && !loadingMeta, onClick = ::togglePlayback),
+                contentAlignment = Alignment.Center,
+            ) {
+                when {
+                    isBuffering -> CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = accent,
+                    )
+                    isPlayingThis -> Icon(
+                        imageVector = Icons.Default.Pause,
+                        contentDescription = stringResource(R.string.chat_pause),
+                        tint = accent,
+                    )
+                    else -> Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = stringResource(R.string.chat_tap_to_play),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp),
+                        tint = accent,
                     )
                 }
             }
         }
-        Spacer(modifier = Modifier.width(spacing.sm))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = when {
-                    hasMeta -> message.songTitle.orEmpty()
-                    loading -> stringResource(R.string.chat_song_loading)
-                    else -> stringResource(R.string.chat_song_unavailable)
-                },
-                style = MaterialTheme.typography.titleSmall,
-                color = titleColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = when {
-                    hasMeta -> message.songArtist.orEmpty().ifBlank {
-                        stringResource(R.string.chat_tap_to_play)
-                    }
-                    loading -> stringResource(R.string.chat_song_preview)
-                    else -> stringResource(R.string.chat_song_preview)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = subtitleColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (loading) {
-            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+
+        if (isThisSong) {
+            Spacer(modifier = Modifier.height(spacing.sm))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(accent.copy(alpha = 0.2f)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(accent),
+                )
+            }
+            if (isPlayingThis || isBuffering) {
+                Spacer(modifier = Modifier.height(spacing.xs))
+                AudioVisualizer(
+                    isPlaying = isPlayingThis,
+                    magnitudes = fftMagnitudes,
+                    barCount = 28,
+                    height = 28.dp,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
@@ -722,7 +845,6 @@ private fun buildMergedMessages(
         val existing = merged[withStatus.stableKey]
         merged[withStatus.stableKey] = when {
             existing == null -> withStatus
-            // Prefer client UUID row (keeps pending metadata / song enrich).
             existing.localId.contains('-') && !withStatus.localId.contains('-') ->
                 existing.copy(
                     serverId = withStatus.serverId ?: existing.serverId,

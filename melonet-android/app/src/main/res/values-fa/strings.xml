@@ -22,7 +22,10 @@
     <string name="chat_send">ارسال</string>
     <string name="chat_typing">در حال نوشتن…</string>
     <string name="chat_empty_title">هنوز گفت‌وگویی نیست</string>
-    <string name="chat_empty_description">با دکمهٔ مداد کسی را پیدا کنید و گفت‌وگو را شروع کنید.</string>
+    <string name="chat_empty_description">از آیکون مداد بالای صفحه کسی را پیدا کنید و گفت‌وگو را شروع کنید.</string>
+    <string name="chat_online">آنلاین</string>
+    <string name="chat_song_buffering">در حال آماده‌سازی…</string>
+    <string name="chat_pause">توقف</string>
     <string name="chat_error_title">بارگذاری پیام‌ها ممکن نشد</string>
     <string name="chat_song_preview">یک آهنگ اشتراک گذاشته شد</string>
     <string name="chat_tap_to_play">برای پخش لمس کنید</string>
