@@ -31,9 +31,13 @@ class MelonetPlaybackService : MediaSessionService() {
         super.onCreate()
 
         val cache = PlayerCache.get(this)
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setConnectTimeoutMs(30_000)
+            .setReadTimeoutMs(60_000)
+            .setAllowCrossProtocolRedirects(true)
         val upstreamFactory = DefaultDataSource.Factory(
             this,
-            DefaultHttpDataSource.Factory(),
+            httpDataSourceFactory,
         )
         val cacheDataSourceFactory = CacheDataSource.Factory()
             .setCache(cache)

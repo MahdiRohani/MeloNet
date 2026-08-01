@@ -76,6 +76,13 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+
+private fun OkHttpClient.Builder.applyAppTimeouts(): OkHttpClient.Builder =
+    connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(90, TimeUnit.SECONDS)
 
 val appModule = module {
     single<DispatchersProvider> { DefaultDispatchersProvider() }
@@ -92,6 +99,7 @@ val appModule = module {
 
     single(named("noAuthClient")) {
         OkHttpClient.Builder()
+            .applyAppTimeouts()
             .addInterceptor(get<HttpLoggingInterceptor>())
             .build()
     }
@@ -112,6 +120,7 @@ val appModule = module {
         val tokenManager: TokenManager = get()
         val refreshAuthApi: AuthApi = get(named("refreshAuthApi"))
         OkHttpClient.Builder()
+            .applyAppTimeouts()
             .addInterceptor(AuthInterceptor(tokenManager))
             .authenticator(TokenAuthenticator(tokenManager, refreshAuthApi))
             .addInterceptor(get<HttpLoggingInterceptor>())

@@ -23,8 +23,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Storage.Bucket != "melonet-media" {
 		t.Errorf("Storage.Bucket = %q, want melonet-media", cfg.Storage.Bucket)
 	}
-	if cfg.HTTP.ReadTimeout != 15*time.Second {
-		t.Errorf("HTTP.ReadTimeout = %v, want 15s", cfg.HTTP.ReadTimeout)
+	if cfg.HTTP.ReadTimeout != 60*time.Second {
+		t.Errorf("HTTP.ReadTimeout = %v, want 60s", cfg.HTTP.ReadTimeout)
 	}
 	if !cfg.RateLimit.Enabled {
 		t.Error("expected rate limiting enabled by default")

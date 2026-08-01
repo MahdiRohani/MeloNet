@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -74,7 +75,7 @@ func Recovery(logger *slog.Logger) gin.HandlerFunc {
 
 func Timeout(timeout time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if timeout <= 0 {
+		if timeout <= 0 || skipRequestTimeout(c.Request.URL.Path) {
 			c.Next()
 			return
 		}
@@ -94,5 +95,20 @@ func Timeout(timeout time.Duration) gin.HandlerFunc {
 				},
 			})
 		}
+	}
+}
+
+// Long-lived responses (audio/media proxy, websockets, static files) must not
+// inherit the API request deadline or they get cut off mid-transfer.
+func skipRequestTimeout(path string) bool {
+	switch {
+	case strings.HasPrefix(path, "/api/stream/"),
+		strings.HasPrefix(path, "/api/art/"),
+		strings.HasPrefix(path, "/api/media/"),
+		strings.HasPrefix(path, "/ws/"),
+		strings.HasPrefix(path, "/static/"):
+		return true
+	default:
+		return false
 	}
 }

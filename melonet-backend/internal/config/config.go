@@ -8,19 +8,19 @@ import (
 )
 
 type Config struct {
-	AppEnv        string
-	HTTPPort      string
-	DatabaseURL   string
-	RedisURL      string
-	JWTSecret     string
-	JWTAccessTTL  time.Duration
-	JWTRefreshTTL time.Duration
-	PublicBaseURL string
-	Audius        AudiusConfig
-	Storage       StorageConfig
-	HTTP          HTTPConfig
-	CORS          CORSConfig
-	RateLimit     RateLimitConfig
+	AppEnv         string
+	HTTPPort       string
+	DatabaseURL    string
+	RedisURL       string
+	JWTSecret      string
+	JWTAccessTTL   time.Duration
+	JWTRefreshTTL  time.Duration
+	PublicBaseURL  string
+	Audius         AudiusConfig
+	Storage        StorageConfig
+	HTTP           HTTPConfig
+	CORS           CORSConfig
+	RateLimit      RateLimitConfig
 	TrustedProxies []string
 }
 
@@ -85,8 +85,10 @@ func Load() (*Config, error) {
 			Region:    getEnv("STORAGE_REGION", "us-east-1"),
 		},
 		HTTP: HTTPConfig{
-			ReadTimeout:     getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
-			WriteTimeout:    getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
+			ReadTimeout: getEnvDuration("HTTP_READ_TIMEOUT", 60*time.Second),
+			// 0 disables the server-level write deadline so stream/WS responses can run long;
+			// regular API routes are still bounded by middleware.Timeout(ReadTimeout).
+			WriteTimeout:    getEnvDuration("HTTP_WRITE_TIMEOUT", 0),
 			ShutdownTimeout: getEnvDuration("HTTP_SHUTDOWN_TIMEOUT", 10*time.Second),
 		},
 		CORS: CORSConfig{
