@@ -59,7 +59,7 @@ data class KaraokePlayerRoute(val songId: String)
 @Serializable
 data class KaraokeTakeRoute(val recordingId: Long)
 
-@Serializable data object NewChatRoute
+@Serializable data class NewChatRoute(val shareSongId: String? = null)
 
 @Serializable
 data class AddSongsRoute(val playlistId: Int)

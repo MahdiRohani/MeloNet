@@ -403,13 +403,19 @@ fun MelonetMainScreen() {
                 )
             }
 
-            composable<NewChatRoute> {
+            composable<NewChatRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<NewChatRoute>()
                 val newChatViewModel: NewChatViewModel = koinViewModel()
                 NewChatScreen(
                     viewModel = newChatViewModel,
                     onNavigateBack = { navController.popBackStack() },
                     onOpenChat = { userId ->
-                        navController.navigate(ChatRoute(otherUserId = userId)) {
+                        navController.navigate(
+                            ChatRoute(
+                                otherUserId = userId,
+                                shareSongId = args.shareSongId,
+                            ),
+                        ) {
                             popUpTo(ConversationsRoute()) { inclusive = false }
                         }
                     },
@@ -605,20 +611,29 @@ fun MelonetMainScreen() {
 
             composable<ConversationsRoute> { backStackEntry ->
                 val args = backStackEntry.toRoute<ConversationsRoute>()
+                var pendingShareSongId by remember(args.shareSongId) {
+                    mutableStateOf(args.shareSongId)
+                }
                 val conversationsViewModel: ConversationsViewModel = koinViewModel()
                 ConversationsScreen(
                     viewModel = conversationsViewModel,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToChat = { conversationId, otherUserId, _ ->
+                        val shareId = pendingShareSongId
+                        pendingShareSongId = null
                         navController.navigate(
                             ChatRoute(
                                 otherUserId = otherUserId,
                                 conversationId = conversationId,
-                                shareSongId = args.shareSongId,
+                                shareSongId = shareId,
                             ),
                         )
                     },
-                    onNewChat = { navController.navigate(NewChatRoute) },
+                    onNewChat = {
+                        val shareId = pendingShareSongId
+                        pendingShareSongId = null
+                        navController.navigate(NewChatRoute(shareSongId = shareId))
+                    },
                 )
             }
 

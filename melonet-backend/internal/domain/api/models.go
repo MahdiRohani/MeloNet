@@ -9,7 +9,7 @@ type MessageResponse struct {
 	ReceiverID     uint      `json:"receiver_id"`
 	Content        string    `json:"content"`
 	MsgType        string    `json:"msg_type"`
-	SongID         uint      `json:"song_id,omitempty"`
+	SongID         string    `json:"song_id,omitempty"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
 }

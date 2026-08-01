@@ -49,7 +49,7 @@ object ChatMapper {
         receiverId = dto.receiverId,
         content = dto.content,
         msgType = MessageType.fromApi(dto.msgType),
-        songId = dto.songId?.takeIf { it > 0 }?.toString(),
+        songId = dto.songId?.takeIf { it.isNotBlank() },
         status = MessageStatus.fromApi(dto.status),
         createdAt = parseInstant(dto.createdAt),
         isMine = currentUserId > 0 && dto.senderId == currentUserId,
@@ -88,9 +88,12 @@ object ChatMapper {
         songCoverUrl = entity.songCoverUrl,
     )
 
-    private fun parseInstant(value: String): Instant = runCatching {
-        Instant.from(isoFormatter.parse(value))
-    }.getOrElse {
-        runCatching { Instant.parse(value) }.getOrDefault(Instant.EPOCH)
+    private fun parseInstant(value: String): Instant {
+        if (value.isBlank()) return Instant.now()
+        return runCatching {
+            Instant.from(isoFormatter.parse(value))
+        }.getOrElse {
+            runCatching { Instant.parse(value) }.getOrDefault(Instant.now())
+        }
     }
 }

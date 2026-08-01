@@ -146,8 +146,8 @@ func MessageToAPI(message db.Message) api.MessageResponse {
 		Status:         string(message.DeliveryStatus),
 		CreatedAt:      message.CreatedAt,
 	}
-	if message.SongID != nil {
-		resp.SongID = uint(*message.SongID)
+	if message.SongID != nil && *message.SongID != "" {
+		resp.SongID = *message.SongID
 	}
 	return resp
 }

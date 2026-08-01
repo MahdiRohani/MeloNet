@@ -5,6 +5,7 @@ import androidx.paging.PagingState
 import com.melonet.app.data.local.ChatMessageDao
 import com.melonet.app.data.mapper.ChatMapper
 import com.melonet.app.data.model.ChatMessage
+import com.melonet.app.data.model.MessageType
 import com.melonet.app.data.remote.ChatApi
 import java.io.IOException
 
@@ -13,6 +14,7 @@ class MessagesPagingSource(
     private val chatMessageDao: ChatMessageDao,
     private val conversationId: Int,
     private val currentUserId: Int,
+    private val enrichSong: suspend (ChatMessage) -> ChatMessage = { it },
 ) : PagingSource<Int, ChatMessage>() {
 
     override fun getRefreshKey(state: PagingState<Int, ChatMessage>): Int? {
@@ -50,18 +52,20 @@ class MessagesPagingSource(
         response.error?.let { return LoadResult.Error(IOException(it.message)) }
         val dtos = response.data ?: return LoadResult.Error(IOException("Empty response"))
         val messages = dtos.map { dto ->
-            val mapped = ChatMapper.toMessage(dto, currentUserId)
+            var mapped = ChatMapper.toMessage(dto, currentUserId)
             val existing = mapped.serverId?.let { chatMessageDao.getByServerId(it) }
             if (existing != null) {
-                mapped.copy(
+                mapped = mapped.copy(
                     localId = existing.localId,
                     songTitle = mapped.songTitle ?: existing.songTitle,
                     songArtist = mapped.songArtist ?: existing.songArtist,
                     songCoverUrl = mapped.songCoverUrl ?: existing.songCoverUrl,
                 )
-            } else {
-                mapped
             }
+            if (mapped.msgType == MessageType.SONG) {
+                mapped = enrichSong(mapped)
+            }
+            mapped
         }
         chatMessageDao.upsertAll(messages.map(ChatMapper::toEntity))
         val total = knownTotal ?: response.meta?.total ?: messages.size

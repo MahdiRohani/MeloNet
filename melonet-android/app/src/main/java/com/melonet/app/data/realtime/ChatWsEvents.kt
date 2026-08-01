@@ -25,7 +25,7 @@ data class WsMessageSendPayload(
     val receiver_id: Int? = null,
     val content: String = "",
     val msg_type: String = "text",
-    val song_id: Long? = null,
+    val song_id: String? = null,
     val client_id: String? = null,
 )
 

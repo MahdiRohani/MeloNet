@@ -125,7 +125,7 @@ func TestHubPingReturnsPong(t *testing.T) {
 func TestHubSongShareUsesSongType(t *testing.T) {
 	chat := &mockChatPort{}
 	hub := &Hub{chat: chat, presence: NewPresence(nil)}
-	songID := uint(5)
+	songID := "5"
 	envelope, _ := NewEnvelope(EventSongShare, WSMessageSend{
 		ReceiverID: 2,
 		Content:    "check this",

@@ -131,6 +131,7 @@ class ChatRepository(
                 chatMessageDao = chatMessageDao,
                 conversationId = conversationId,
                 currentUserId = currentUserId,
+                enrichSong = { enrichSongMessage(it) },
             )
         },
     ).flow
@@ -199,7 +200,6 @@ class ChatRepository(
         songId: String,
     ): ChatMessage = withContext(dispatchers.io) {
         val clientId = UUID.randomUUID().toString()
-        val songIdLong = songId.toLongOrNull()
         val pending = ChatMessage(
             localId = clientId,
             serverId = null,
@@ -220,7 +220,7 @@ class ChatRepository(
                 conversation_id = conversationId,
                 receiver_id = receiverId,
                 msg_type = MessageType.toApi(MessageType.SONG),
-                song_id = songIdLong,
+                song_id = songId,
                 client_id = clientId,
             ),
         )
@@ -242,7 +242,7 @@ class ChatRepository(
                     conversation_id = pending.conversationId,
                     receiver_id = pending.receiverId,
                     msg_type = MessageType.toApi(MessageType.SONG),
-                    song_id = pending.songId?.toLongOrNull(),
+                    song_id = pending.songId,
                     client_id = pending.localId,
                 ),
             )

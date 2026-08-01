@@ -49,10 +49,12 @@ class ChatViewModel(
             chatRepository.realtimeMessages.collect { message ->
                 if (message.conversationId != conversationIdFlow.value) return@collect
                 setState {
-                    val exists = tailMessages.any { it.stableKey == message.stableKey }
+                    val exists = tailMessages.any { it.stableKey == message.stableKey || it.localId == message.localId }
                     copy(
                         tailMessages = if (exists) {
-                            tailMessages.map { if (it.stableKey == message.stableKey) message else it }
+                            tailMessages.map {
+                                if (it.stableKey == message.stableKey || it.localId == message.localId) message else it
+                            }
                         } else {
                             tailMessages + message
                         },
@@ -99,7 +101,8 @@ class ChatViewModel(
     private fun load(otherUserId: Int, conversationId: Int) {
         receiverId = otherUserId
         viewModelScope.launch {
-            setState { copy(isLoading = true, error = null, shareHandled = false) }
+            // Do not reset shareHandled — Load can re-run and would re-send the song share.
+            setState { copy(isLoading = true, error = null) }
             val cachedPeer = chatRepository.getCachedPeer(otherUserId)
             if (cachedPeer != null) {
                 setState { copy(otherUser = cachedPeer) }
@@ -118,6 +121,7 @@ class ChatViewModel(
                     }
                 }
             }
+            val previousConversation = uiState.value.conversationId
             conversationIdFlow.value = resolvedConversation
             if (uiState.value.otherUser == null) {
                 when (val profile = socialRepository.getUserProfile(otherUserId)) {
@@ -155,7 +159,10 @@ class ChatViewModel(
                 copy(
                     isLoading = false,
                     conversationId = resolvedConversation,
-                    tailMessages = cached.filter { isOutboundTail(it) },
+                    tailMessages = mergeTail(
+                        if (previousConversation == resolvedConversation) tailMessages else emptyList(),
+                        cached.filter { isOutboundTail(it) },
+                    ),
                 )
             }
             syncStatusOverrides()
@@ -250,12 +257,16 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Refresh tail from cache without wiping inbound realtime or ACKed outbound
+     * messages that are not yet present in the paging snapshot.
+     */
     private suspend fun refreshPendingTail() {
         val conversationId = uiState.value.conversationId
         if (conversationId == 0) return
         val cached = chatRepository.getCachedMessages(conversationId)
         setState {
-            copy(tailMessages = cached.filter { isOutboundTail(it) })
+            copy(tailMessages = mergeTail(tailMessages, cached))
         }
     }
 
@@ -281,6 +292,22 @@ class ChatViewModel(
         } else {
             current + message
         }
+    }
+
+    private fun mergeTail(current: List<ChatMessage>, cached: List<ChatMessage>): List<ChatMessage> {
+        val byLocal = cached.associateBy { it.localId }
+        val byServer = cached.mapNotNull { msg -> msg.serverId?.let { it to msg } }.toMap()
+        val merged = current.map { msg ->
+            byLocal[msg.localId]
+                ?: msg.serverId?.let { byServer[it] }
+                ?: msg
+        }.toMutableList()
+        for (msg in cached) {
+            if (!isOutboundTail(msg)) continue
+            val index = merged.indexOfFirst { it.localId == msg.localId || it.stableKey == msg.stableKey }
+            if (index >= 0) merged[index] = msg else merged += msg
+        }
+        return merged.distinctBy { it.stableKey }
     }
 
     private companion object {

@@ -29,7 +29,7 @@ type WSMessageSend struct {
 	ReceiverID     uint   `json:"receiver_id,omitempty"`
 	Content        string `json:"content"`
 	MsgType        string `json:"msg_type"`
-	SongID         *uint  `json:"song_id,omitempty"`
+	SongID         *string `json:"song_id,omitempty"`
 	ClientID       string `json:"client_id,omitempty"`
 }
 

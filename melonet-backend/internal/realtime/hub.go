@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -228,8 +229,10 @@ func (h *Hub) handleMessageSend(ctx context.Context, userID uint, client *client
 		MsgType: msgType,
 	}
 	if payload.SongID != nil {
-		songID := int64(*payload.SongID)
-		input.SongID = &songID
+		songID := strings.TrimSpace(*payload.SongID)
+		if songID != "" {
+			input.SongID = &songID
+		}
 	}
 
 	saved, receiverID, err := h.chat.SendMessage(ctx, int64(userID), int64(payload.ConversationID), int64(payload.ReceiverID), input)

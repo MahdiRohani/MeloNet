@@ -256,7 +256,7 @@ func scanConversationSummary(scan func(dest ...any) error) (ConversationSummary,
 		lastSenderID      *int64
 		lastMsgType       *domain.MessageContentType
 		lastContent       *string
-		lastSongID        *int64
+		lastSongID        *string
 		lastDelivery      *domain.MessageDeliveryStatus
 		lastCreatedAt     *time.Time
 		lastUpdatedAt     *time.Time

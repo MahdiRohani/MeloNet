@@ -27,7 +27,7 @@ data class MessageDto(
     @SerializedName("receiver_id") val receiverId: Int,
     @SerializedName("content") val content: String,
     @SerializedName("msg_type") val msgType: String,
-    @SerializedName("song_id") val songId: Long?,
+    @SerializedName("song_id") val songId: String?,
     @SerializedName("status") val status: String,
     @SerializedName("created_at") val createdAt: String,
 )

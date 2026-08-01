@@ -157,7 +157,7 @@ type Message struct {
 	SenderID         int64
 	MsgType          domain.MessageContentType
 	Content          string
-	SongID           *int64
+	SongID           *string
 	DeliveryStatus   domain.MessageDeliveryStatus
 	CreatedAt        time.Time
 	UpdatedAt        time.Time

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,7 +65,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
@@ -173,10 +177,15 @@ fun ChatScreen(
         }
     }
 
+    val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(imeBottomPx) {
+        if (imeBottomPx > 0 && listItems.isNotEmpty()) {
+            listState.animateScrollToItem(listItems.lastIndex)
+        }
+    }
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding(),
+        modifier = Modifier.fillMaxSize(),
     ) {
         TopAppBar(
             title = {
@@ -409,6 +418,8 @@ private fun ChatInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
+            .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = spacing.sm, vertical = spacing.xs),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -480,7 +491,11 @@ private fun MessageBubble(
         message.isMine -> MaterialTheme.colorScheme.onPrimary
         else -> MaterialTheme.colorScheme.onSurface
     }
-    val metaColor = textColor.copy(alpha = 0.75f)
+    val metaColor = when {
+        status == MessageStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+        message.isMine -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     val alignment = if (message.isMine) Alignment.CenterEnd else Alignment.CenterStart
     val shape = RoundedCornerShape(
         topStart = 18.dp,
@@ -579,12 +594,13 @@ private fun SongShareCard(
     }
     val hasMeta = !message.songTitle.isNullOrBlank()
     val loading = message.songId != null && !hasMeta
+    val canPlay = !message.songId.isNullOrBlank()
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(spacing.sm))
-            .clickable(enabled = message.songId != null && hasMeta, onClick = onClick)
+            .clickable(enabled = canPlay, onClick = onClick)
             .background(bg)
             .padding(spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -598,7 +614,7 @@ private fun SongShareCard(
                     .size(52.dp)
                     .clip(RoundedCornerShape(spacing.xs)),
             )
-            if (hasMeta) {
+            if (canPlay) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)

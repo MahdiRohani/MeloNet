@@ -54,8 +54,10 @@ import com.melonet.app.data.model.MessageType
 import com.melonet.app.data.repository.ChatRepository
 import org.koin.compose.koinInject
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -299,7 +301,12 @@ private fun ConversationRow(
 }
 
 private fun formatConversationTime(instant: Instant): String {
-    val formatter = DateTimeFormatter.ofPattern("MMM d, HH:mm")
-        .withZone(ZoneId.systemDefault())
-    return formatter.format(instant)
+    val zone = ZoneId.systemDefault()
+    val day = instant.atZone(zone).toLocalDate()
+    val today = LocalDate.now(zone)
+    return if (ChronoUnit.DAYS.between(day, today) == 0L) {
+        DateTimeFormatter.ofPattern("HH:mm").withZone(zone).format(instant)
+    } else {
+        DateTimeFormatter.ofPattern("MMM d").withZone(zone).format(instant)
+    }
 }
