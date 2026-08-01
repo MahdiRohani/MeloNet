@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
+import com.melonet.app.core.designsystem.component.AnimateEnter
 import com.melonet.app.core.designsystem.component.ArtistCircleItem
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
@@ -177,61 +178,71 @@ private fun HomeFeedContent(
         }
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = Modifier.fillMaxSize(),
     ) {
         item {
-            HomeCarousel(
-                categories = carouselCategories,
-                isLoading = isLoading,
-                onCategoryClick = onSeeAllClick,
-            )
+            AnimateEnter(delayMillis = 0) {
+                HomeCarousel(
+                    categories = carouselCategories,
+                    isLoading = isLoading,
+                    onCategoryClick = onSeeAllClick,
+                )
+            }
         }
 
         item {
-            QuickActionsSection(
-                actions = quickActions,
-                isLoading = isLoading,
-                onActionClick = onQuickActionClick,
-            )
+            AnimateEnter(delayMillis = 40) {
+                QuickActionsSection(
+                    actions = quickActions,
+                    isLoading = isLoading,
+                    onActionClick = onQuickActionClick,
+                )
+            }
         }
 
         if (!isLoading) {
             item {
-                KaraokeBanner(onClick = onKaraokeClick)
+                AnimateEnter(delayMillis = 80) {
+                    KaraokeBanner(onClick = onKaraokeClick)
+                }
             }
         }
 
         if (isLoading) {
             items(3) {
-                SongSection(
-                    title = null,
-                    songs = emptyList(),
-                    seeAllPath = null,
-                    isLoading = true,
-                    onSongClick = {},
-                    onSeeAllClick = {},
-                )
+                AnimateEnter(delayMillis = 60) {
+                    SongSection(
+                        title = null,
+                        songs = emptyList(),
+                        seeAllPath = null,
+                        isLoading = true,
+                        onSongClick = {},
+                        onSeeAllClick = {},
+                    )
+                }
             }
         } else {
             items(rows, key = { it.id }) { row ->
-                SongSection(
-                    title = row.title,
-                    songs = row.items,
-                    seeAllPath = row.seeAllPath,
-                    isLoading = false,
-                    onSongClick = onSongClick,
-                    onSeeAllClick = { onSeeAllClick(row) },
-                )
+                AnimateEnter(delayMillis = 100) {
+                    SongSection(
+                        title = row.title,
+                        songs = row.items,
+                        seeAllPath = row.seeAllPath,
+                        isLoading = false,
+                        onSongClick = onSongClick,
+                        onSeeAllClick = { onSeeAllClick(row) },
+                    )
+                }
             }
 
             items(artistRows.filter { it.items.isNotEmpty() }, key = { it.id }) { row ->
-                ArtistSection(
-                    title = row.title,
-                    artists = row.items,
-                    onArtistClick = onArtistClick,
-                )
+                AnimateEnter(delayMillis = 120) {
+                    ArtistSection(
+                        title = row.title,
+                        artists = row.items,
+                        onArtistClick = onArtistClick,
+                    )
+                }
             }
         }
 
@@ -242,6 +253,8 @@ private fun HomeFeedContent(
 @Composable
 private fun KaraokeBanner(onClick: () -> Unit) {
     val spacing = MeloNetTheme.spacing
+    val colors = MeloNetTheme.colors
+    val onBanner = MaterialTheme.colorScheme.onPrimary
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -252,6 +265,7 @@ private fun KaraokeBanner(onClick: () -> Unit) {
                     listOf(
                         MaterialTheme.colorScheme.primary,
                         MaterialTheme.colorScheme.tertiary,
+                        colors.premium,
                     ),
                 ),
             )
@@ -263,13 +277,13 @@ private fun KaraokeBanner(onClick: () -> Unit) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)),
+                    .background(onBanner.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Mic,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = onBanner,
                 )
             }
             Spacer(modifier = Modifier.width(spacing.md))
@@ -278,18 +292,18 @@ private fun KaraokeBanner(onClick: () -> Unit) {
                     text = stringResource(R.string.karaoke_banner_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = onBanner,
                 )
                 Text(
                     text = stringResource(R.string.karaoke_banner_subtitle),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                    color = onBanner.copy(alpha = 0.85f),
                 )
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimary,
+                tint = onBanner,
             )
         }
     }

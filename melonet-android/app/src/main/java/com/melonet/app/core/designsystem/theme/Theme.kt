@@ -1,7 +1,10 @@
 package com.melonet.app.core.designsystem.theme
 
 import android.app.Activity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -9,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -78,7 +82,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun MeloNetTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val meloNetColors = if (darkTheme) DarkMeloNetColors else LightMeloNetColors
@@ -102,7 +106,15 @@ fun MeloNetTheme(
             colorScheme = colorScheme,
             typography = MeloNetTypography,
             shapes = MeloNetShapes,
-            content = content
+            content = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(meloNetColors.surfaceBrush),
+                ) {
+                    content()
+                }
+            },
         )
     }
 }

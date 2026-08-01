@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -37,6 +36,7 @@ fun RotatingCover(
     rotationDurationMs: Int = 16000,
 ) {
     val dimensions = MeloNetTheme.dimensions
+    val colors = MeloNetTheme.colors
 
     // Persist the current angle across recompositions and play/pause toggles.
     val angle = remember { mutableFloatStateOf(0f) }
@@ -69,7 +69,7 @@ fun RotatingCover(
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0xFF2A2A2A), Color(0xFF0D0D0D)),
+                        colors = listOf(colors.vinylInner, colors.vinylOuter),
                     ),
                 ),
         )
@@ -86,15 +86,15 @@ fun RotatingCover(
                     scaleY = scale
                 }
                 .clip(CircleShape)
-                .border(width = 2.dp, color = Color.White.copy(alpha = 0.08f), shape = CircleShape),
+                .border(width = 2.dp, color = colors.vinylRim, shape = CircleShape),
         )
         // Center spindle hole.
         Box(
             modifier = Modifier
                 .size(16.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF111111))
-                .border(width = 2.dp, color = Color.White.copy(alpha = 0.25f), shape = CircleShape),
+                .background(colors.vinylSpindle)
+                .border(width = 2.dp, color = colors.vinylRim.copy(alpha = 0.25f), shape = CircleShape),
         )
     }
 }

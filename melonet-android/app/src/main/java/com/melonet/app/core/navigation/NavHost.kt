@@ -1,5 +1,12 @@
 package com.melonet.app.core.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +34,7 @@ import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.MeloTopBar
 import com.melonet.app.core.designsystem.component.MiniPlayerBar
 import com.melonet.app.core.designsystem.component.OfflineBanner
+import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.network.NetworkConnectivityMonitor
 import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.model.AuthState
@@ -222,8 +230,19 @@ fun MelonetMainScreen() {
         bottomBar = {
             if (showBottomBar) {
                 Column {
-                    if (showMiniPlayer) {
-                        val song = playerState.currentSong!!
+                    val miniSong = playerState.currentSong
+                    AnimatedVisibility(
+                        visible = showMiniPlayer && miniSong != null,
+                        enter = slideInVertically(
+                            animationSpec = MeloMotion.slideTween,
+                            initialOffsetY = { it },
+                        ) + fadeIn(animationSpec = MeloMotion.fadeTween),
+                        exit = slideOutVertically(
+                            animationSpec = MeloMotion.slideTween,
+                            targetOffsetY = { it },
+                        ) + fadeOut(animationSpec = MeloMotion.fadeTween),
+                    ) {
+                        val song = miniSong ?: return@AnimatedVisibility
                         val progress = if (playerState.durationMs > 0) {
                             playerState.positionMs.toFloat() / playerState.durationMs
                         } else {
@@ -250,6 +269,34 @@ fun MelonetMainScreen() {
             navController = navController,
             startDestination = SplashRoute,
             modifier = Modifier.padding(innerPadding),
+            enterTransition = {
+                fadeIn(animationSpec = MeloMotion.fadeTween) +
+                    slideInHorizontally(
+                        animationSpec = MeloMotion.slideTween,
+                        initialOffsetX = { it / 12 },
+                    )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = MeloMotion.fadeTween) +
+                    slideOutHorizontally(
+                        animationSpec = MeloMotion.slideTween,
+                        targetOffsetX = { -it / 16 },
+                    )
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = MeloMotion.fadeTween) +
+                    slideInHorizontally(
+                        animationSpec = MeloMotion.slideTween,
+                        initialOffsetX = { -it / 16 },
+                    )
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = MeloMotion.fadeTween) +
+                    slideOutHorizontally(
+                        animationSpec = MeloMotion.slideTween,
+                        targetOffsetX = { it / 12 },
+                    )
+            },
         ) {
             composable<SplashRoute> {
                 SplashScreen(
