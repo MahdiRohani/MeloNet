@@ -19,6 +19,7 @@ object PlaylistDetailContract {
         data class SongClicked(val songId: String) : Event
         data object PlayAll : Event
         data object ShuffleAll : Event
+        data class RemoveSong(val songId: String) : Event
     }
 
     sealed interface Effect : UiEffect {

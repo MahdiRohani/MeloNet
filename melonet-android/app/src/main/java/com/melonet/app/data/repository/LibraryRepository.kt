@@ -122,6 +122,20 @@ class PlaylistRepository(
             localPlaylistDao.delete(playlistId, songId)
             Result.Success(Unit)
         }
+
+    suspend fun removeSongFromPlaylist(playlistId: Int, songId: String): Result<Unit> =
+        withContext(dispatchers.io) {
+            if (songId.startsWith("local_")) {
+                return@withContext removeLocalSongFromPlaylist(playlistId, songId)
+            }
+            when (val result = safeApiCall { playlistApi.removePlaylistSong(playlistId, songId) }) {
+                is Result.Success -> {
+                    localPlaylistDao.delete(playlistId, songId)
+                    Result.Success(Unit)
+                }
+                is Result.Error -> result
+            }
+        }
 }
 
 class LibraryRepository(

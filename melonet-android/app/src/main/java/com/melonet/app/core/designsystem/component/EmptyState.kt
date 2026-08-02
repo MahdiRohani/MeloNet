@@ -30,6 +30,8 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     description: String? = null,
     icon: ImageVector = Icons.Outlined.Inbox,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
 ) {
     val spacing = MeloNetTheme.spacing
     val colors = MeloNetTheme.colors
@@ -77,6 +79,14 @@ fun EmptyState(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
+            )
+        }
+        if (actionLabel != null && onAction != null) {
+            Spacer(modifier = Modifier.height(spacing.md))
+            MeloButton(
+                text = actionLabel,
+                onClick = onAction,
+                variant = MeloButtonVariant.Primary,
             )
         }
     }

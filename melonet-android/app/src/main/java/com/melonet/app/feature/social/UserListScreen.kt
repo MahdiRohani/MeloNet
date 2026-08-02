@@ -1,7 +1,10 @@
 package com.melonet.app.feature.social
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -29,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.melonet.app.R
 import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.EmptyState
@@ -108,14 +113,38 @@ fun SocialUserRow(
     user: SocialUser,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    largeAvatar: Boolean = false,
 ) {
     val dimensions = MeloNetTheme.dimensions
+    val spacing = MeloNetTheme.spacing
+    val avatarSize = if (largeAvatar) 56.dp else dimensions.avatarSm
     ListItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         headlineContent = {
-            Text(text = user.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            ) {
+                Text(
+                    text = user.displayName,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (user.isPremium) {
+                    Text(
+                        text = stringResource(R.string.profile_premium_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MeloNetTheme.colors.onPremiumContainer,
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(MeloNetTheme.colors.premiumContainer)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
         },
         supportingContent = {
             Text(
@@ -130,7 +159,7 @@ fun SocialUserRow(
                 contentDescription = user.displayName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(dimensions.avatarSm)
+                    .size(avatarSize)
                     .clip(CircleShape),
             )
         },

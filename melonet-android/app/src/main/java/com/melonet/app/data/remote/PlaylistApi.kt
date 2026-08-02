@@ -35,4 +35,16 @@ interface PlaylistApi {
         @Query("page") page: Int,
         @Query("limit") limit: Int,
     ): ApiResponse<List<SongDto>>
+
+    @POST("api/playlists/{id}/songs")
+    suspend fun addPlaylistSong(
+        @Path("id") id: Int,
+        @Body request: AddPlaylistSongRequestDto,
+    ): ApiResponse<Map<String, Any>>
+
+    @DELETE("api/playlists/{id}/songs/{songId}")
+    suspend fun removePlaylistSong(
+        @Path("id") id: Int,
+        @Path("songId") songId: String,
+    ): ApiResponse<Map<String, Any>>
 }

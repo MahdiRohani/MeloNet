@@ -108,4 +108,23 @@
     <string name="profile_stat_playlists">پلی‌لیست</string>
     <string name="profile_stat_liked">پسندیده‌ها</string>
     <string name="profile_username">@%1$s</string>
+
+    <string name="following_empty_people_description">از جستجو برای پیدا کردن افراد و دنبال کردنشان استفاده کنید.</string>
+    <string name="following_empty_artists_description">هنرمندان را از صفحهٔ پروفایلشان دنبال کنید تا اینجا دیده شوند.</string>
+    <string name="following_section_following">دنبال‌شونده‌ها</string>
+    <string name="following_section_discover">کشف</string>
+    <string name="following_section_artists">هنرمندانی که دنبال می‌کنید</string>
+    <string name="following_subtitle">افراد و هنرمندانی که برایتان مهم‌اند</string>
+    <string name="playlists_library_title">کتابخانه شما</string>
+    <string name="playlists_section_featured">ویژه</string>
+    <string name="playlists_create_hint">برای پلی‌لیست یک نام بگذارید</string>
+    <string name="playlists_empty_mine">هنوز پلی‌لیستی نساخته‌اید</string>
+    <string name="playlists_empty_mine_description">برای شروع یک مجموعهٔ جدید، ایجاد را بزنید.</string>
+    <string name="library_empty_liked_description">روی قلب هر آهنگ بزنید تا اینجا ذخیره شود.</string>
+    <string name="library_empty_recent_description">چیزی پخش کنید تا در تاریخچهٔ شنیدن ظاهر شود.</string>
+    <string name="playlist_detail_empty_description">آهنگ اضافه کنید تا این مجموعه شکل بگیرد.</string>
+    <string name="playlist_detail_add_songs">افزودن آهنگ</string>
+    <string name="playlist_remove_song">حذف از پلی‌لیست</string>
+    <string name="playlists_liked_subtitle">آهنگ‌های محبوب شما</string>
+    <string name="playlists_recent_subtitle">اخیراً پخش‌شده</string>
 </resources>

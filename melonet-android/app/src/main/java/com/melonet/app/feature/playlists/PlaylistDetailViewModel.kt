@@ -55,6 +55,21 @@ class PlaylistDetailViewModel(
                     PlaylistDetailContract.Effect.PlayQueue(startSongId = first, shuffle = true)
                 }
             }
+            is PlaylistDetailContract.Event.RemoveSong -> removeSong(event.songId)
+        }
+    }
+
+    private fun removeSong(songId: String) {
+        val playlistId = playlistIdFlow.value ?: return
+        viewModelScope.launch {
+            when (playlistRepository.removeSongFromPlaylist(playlistId, songId)) {
+                is Result.Success -> {
+                    cachedSongs.removeAll { it.id == songId }
+                    refreshTrigger.value++
+                    loadPlaylist(playlistId)
+                }
+                is Result.Error -> Unit
+            }
         }
     }
 

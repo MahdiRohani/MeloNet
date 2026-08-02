@@ -481,6 +481,7 @@ fun MelonetMainScreen() {
                         val start = queue.find { it.id == startId } ?: queue.firstOrNull() ?: return@LibrarySongsScreen
                         playSong(start, queue)
                     },
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
             composable<RecentSongsRoute> {
@@ -494,6 +495,7 @@ fun MelonetMainScreen() {
                         val start = queue.find { it.id == startId } ?: queue.firstOrNull() ?: return@LibrarySongsScreen
                         playSong(start, queue)
                     },
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
             composable<FollowingRoute> {
@@ -592,6 +594,7 @@ fun MelonetMainScreen() {
                         val start = queue.find { it.id == startId } ?: queue.firstOrNull() ?: return@PlaylistDetailScreen
                         playSong(start, queue)
                     },
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 

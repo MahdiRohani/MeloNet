@@ -74,7 +74,13 @@
     <string name="following_tab_people">People</string>
     <string name="following_tab_artists">Artists</string>
     <string name="following_empty_people">You\'re not following anyone yet</string>
+    <string name="following_empty_people_description">Search above to discover people and start following them.</string>
     <string name="following_empty_artists">You\'re not following any artists yet</string>
+    <string name="following_empty_artists_description">Follow artists from their profile to see them here.</string>
+    <string name="following_section_following">Following</string>
+    <string name="following_section_discover">Discover</string>
+    <string name="following_section_artists">Artists you follow</string>
+    <string name="following_subtitle">People and artists you care about</string>
 
     <!-- Errors -->
     <string name="error_timeout">The connection took too long. Please try again.</string>
@@ -170,16 +176,28 @@
     <string name="player_repeat_one">Repeat one</string>
 
     <!-- Playlists -->
+    <string name="playlists_library_title">Your Library</string>
+    <string name="playlists_section_featured">Featured</string>
     <string name="playlists_section_global">Global playlists</string>
     <string name="playlists_section_mine">My playlists</string>
     <string name="playlists_create_title">New playlist</string>
     <string name="playlists_create_name">Playlist name</string>
+    <string name="playlists_create_hint">Give your playlist a name</string>
     <string name="playlists_empty">No playlists yet</string>
     <string name="playlists_empty_description">Create a playlist to organize your favorite songs.</string>
+    <string name="playlists_empty_mine">You haven\'t created any playlists</string>
+    <string name="playlists_empty_mine_description">Tap Create to start a new collection.</string>
     <string name="library_empty_songs">No songs here yet</string>
     <string name="library_empty_songs_description">Songs you like or play will appear here.</string>
+    <string name="library_empty_liked_description">Tap the heart on any track to save it here.</string>
+    <string name="library_empty_recent_description">Play something and it will show up in your listening history.</string>
     <string name="playlist_detail_empty">This playlist is empty</string>
+    <string name="playlist_detail_empty_description">Add songs to start building this collection.</string>
+    <string name="playlist_detail_add_songs">Add songs</string>
+    <string name="playlist_remove_song">Remove from playlist</string>
     <string name="playlists_song_count">%1$d songs</string>
+    <string name="playlists_liked_subtitle">Your favorite tracks</string>
+    <string name="playlists_recent_subtitle">Recently played</string>
     <string name="library_play_all">Play all</string>
     <string name="library_shuffle">Shuffle</string>
     <string name="cd_create_playlist">Create playlist</string>
