@@ -12,6 +12,9 @@ class LocalMusicRepository(
     private val context: Context,
     private val dispatchers: DispatchersProvider,
 ) {
+    suspend fun getSongById(songId: String): Song? =
+        getLocalSongs().firstOrNull { it.id == songId }
+
     suspend fun getLocalSongs(): List<Song> = withContext(dispatchers.io) {
         val songs = mutableListOf<Song>()
         val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)

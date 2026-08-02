@@ -43,3 +43,8 @@ data class UnreadCountDto(
 data class MarkReadRequestDto(
     @SerializedName("message_ids") val messageIds: List<Long>,
 )
+
+data class ChatMediaUploadDto(
+    @SerializedName("url") val url: String,
+    @SerializedName("object_key") val objectKey: String? = null,
+)

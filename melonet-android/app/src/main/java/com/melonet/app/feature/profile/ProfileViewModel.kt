@@ -4,13 +4,15 @@ import androidx.lifecycle.viewModelScope
 import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
+import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.UserRepository
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository,
 ) : BaseViewModel<ProfileContract.State, ProfileContract.Event, ProfileContract.Effect>() {
 
     override fun createInitialState() = ProfileContract.State()
@@ -88,8 +90,22 @@ class ProfileViewModel(
     private fun upgradePremium() {
         viewModelScope.launch {
             setState { copy(isLoading = true) }
-            userRepository.setPremiumStatus(true)
-            setState { copy(isLoading = false, isPremium = true) }
+            when (val result = userRepository.activatePremium()) {
+                is Result.Success -> {
+                    authRepository.applyUser(result.data)
+                    setState {
+                        copy(
+                            isLoading = false,
+                            isPremium = result.data.isPremium,
+                        )
+                    }
+                    setEffect { ProfileContract.Effect.NavigateToDownloads }
+                }
+                is Result.Error -> {
+                    setState { copy(isLoading = false, error = result.error) }
+                    setEffect { ProfileContract.Effect.ShowError(result.error) }
+                }
+            }
         }
     }
 }

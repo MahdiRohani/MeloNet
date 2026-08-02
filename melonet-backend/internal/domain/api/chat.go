@@ -22,3 +22,8 @@ type UnreadCountResponse struct {
 type MarkReadRequest struct {
 	MessageIDs []uint `json:"message_ids"`
 }
+
+type ChatMediaUploadResponse struct {
+	URL       string `json:"url"`
+	ObjectKey string `json:"object_key"`
+}

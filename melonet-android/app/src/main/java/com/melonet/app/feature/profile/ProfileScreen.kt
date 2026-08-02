@@ -229,7 +229,6 @@ fun ProfileScreen(
                     isPremium = state.isPremium,
                     onActionClick = {
                         viewModel.handleEvent(ProfileContract.Event.UpgradePremiumClicked)
-                        onUpgradePremiumClick()
                     },
                 )
             }

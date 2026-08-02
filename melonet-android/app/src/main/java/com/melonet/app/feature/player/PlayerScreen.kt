@@ -137,14 +137,21 @@ fun PlayerScreen(
                 is PlayerContract.Effect.ShareToChat -> onShareToChat(effect.songId)
                 is PlayerContract.Effect.ShareExternal -> {
                     val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
+                        type = effect.mimeType
+                        putExtra(Intent.EXTRA_STREAM, effect.uri)
                         putExtra(Intent.EXTRA_TEXT, effect.text)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        clipData = android.content.ClipData.newUri(
+                            context.contentResolver,
+                            effect.text,
+                            effect.uri,
+                        )
                     }
                     val chooser = Intent.createChooser(
                         send,
                         context.getString(R.string.player_more_share),
                     ).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(chooser)
                 }
@@ -152,6 +159,13 @@ fun PlayerScreen(
                     android.widget.Toast.makeText(
                         context,
                         context.getString(R.string.player_added_to_playlist, effect.message),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                is PlayerContract.Effect.ShowError -> {
+                    android.widget.Toast.makeText(
+                        context,
+                        effect.message,
                         android.widget.Toast.LENGTH_SHORT,
                     ).show()
                 }

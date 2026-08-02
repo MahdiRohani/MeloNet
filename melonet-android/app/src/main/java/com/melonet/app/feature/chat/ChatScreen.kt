@@ -97,6 +97,7 @@ import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.ChatMessage
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.model.MessageType
+import com.melonet.app.data.model.Song
 import com.melonet.app.data.repository.ChatRepository
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.component.PlayerProgressBar
@@ -828,11 +829,14 @@ private fun SongShareCard(
     val playback by playbackManager.state.collectAsState()
 
     val songId = message.songId
+    val hasAttachment = !message.songAudioUrl.isNullOrBlank()
     val hasMeta = !message.songTitle.isNullOrBlank()
-    val loadingMeta = songId != null && !hasMeta
-    val isThisSong = songId != null && playback.currentSong?.id == songId
+    val loadingMeta = songId != null && !hasMeta && !hasAttachment
+    val isThisSong = (songId != null && playback.currentSong?.id == songId) ||
+        (hasAttachment && playback.currentSong?.audioUrl == message.songAudioUrl)
     val isPlayingThis = isThisSong && playback.isPlaying
     val isBuffering = isThisSong && playback.isLoading
+    val canPlay = (songId != null || hasAttachment) && !loadingMeta
 
     val bg = if (isMine) {
         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f)
@@ -856,10 +860,24 @@ private fun SongShareCard(
     }
 
     fun togglePlayback() {
-        val id = songId ?: return
         when {
             isThisSong -> playbackManager.togglePlayPause()
-            else -> playbackManager.playSongId(id)
+            !message.songAudioUrl.isNullOrBlank() -> {
+                val id = songId ?: "share_${message.stableKey}"
+                playbackManager.play(
+                    Song(
+                        id = id,
+                        title = message.songTitle.orEmpty().ifBlank { "Shared song" },
+                        artistName = message.songArtist.orEmpty(),
+                        coverUrl = message.songCoverUrl.orEmpty(),
+                        audioUrl = message.songAudioUrl.orEmpty(),
+                        category = "chat_share",
+                        lyrics = "",
+                        durationSec = 0,
+                    ),
+                )
+            }
+            songId != null -> playbackManager.playSongId(songId)
         }
     }
 
@@ -916,7 +934,7 @@ private fun SongShareCard(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(accent.copy(alpha = if (isMine) 0.18f else 0.14f))
-                    .clickable(enabled = songId != null && !loadingMeta, onClick = ::togglePlayback),
+                    .clickable(enabled = canPlay, onClick = ::togglePlayback),
                 contentAlignment = Alignment.Center,
             ) {
                 when {

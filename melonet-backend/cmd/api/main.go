@@ -119,7 +119,7 @@ func run(logger *slog.Logger) error {
 		Library:  handler.NewLibraryHandler(libraryService),
 		Playlist: handler.NewPlaylistHandler(playlistService),
 		Social:   handler.NewSocialHandler(socialService),
-		Chat:     handler.NewChatHandler(chatService, chatHub),
+		Chat:     handler.NewChatHandler(chatService, chatHub, mediaStorage),
 	})
 
 	server := &http.Server{

@@ -15,6 +15,7 @@ import com.melonet.app.data.model.ChatPeer
 import com.melonet.app.data.model.Conversation
 import com.melonet.app.data.model.MessageStatus
 import com.melonet.app.data.model.MessageType
+import com.melonet.app.data.model.Song
 import com.melonet.app.data.paging.ConversationsPagingSource
 import com.melonet.app.data.paging.MessagesPagingSource
 import com.melonet.app.data.realtime.ChatWebSocketClient
@@ -25,6 +26,7 @@ import com.melonet.app.data.realtime.WsSocketState
 import com.melonet.app.data.remote.ChatApi
 import com.melonet.app.data.remote.dto.CreateConversationRequestDto
 import com.melonet.app.data.remote.dto.MarkReadRequestDto
+import com.melonet.app.feature.chat.SongShareCodec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -38,15 +40,22 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class ChatRepository(
+    private val appContext: android.content.Context,
     private val chatApi: ChatApi,
     private val chatMessageDao: ChatMessageDao,
     private val webSocketClient: ChatWebSocketClient,
     private val playerRepository: PlayerRepository,
+    private val localMusicRepository: LocalMusicRepository,
+    private val downloadRepository: DownloadRepository,
+    private val playbackManager: com.melonet.app.feature.player.PlaybackManager,
     private val networkMonitor: NetworkConnectivityMonitor,
     private val dispatchers: DispatchersProvider,
 ) {
@@ -207,18 +216,69 @@ class ChatRepository(
         songId: String,
     ): ChatMessage = withContext(dispatchers.io) {
         val clientId = UUID.randomUUID().toString()
+        val resolved = resolveShareSong(songId)
+        val needsUpload = songId.startsWith("local_") ||
+            songId.startsWith("karaoke_") ||
+            resolved?.category == "local" ||
+            resolved?.category == "karaoke"
+
+        var content = ""
+        var songAudioUrl: String? = null
+        if (needsUpload && resolved != null) {
+            when (val upload = uploadSongAudio(resolved)) {
+                is Result.Success -> {
+                    songAudioUrl = upload.data
+                    val shareCover = resolved.coverUrl.takeUnless {
+                        it.startsWith("content://", ignoreCase = true) ||
+                            it.startsWith("file://", ignoreCase = true)
+                    }.orEmpty()
+                    content = SongShareCodec.encode(
+                        audioUrl = upload.data,
+                        title = resolved.title,
+                        artist = resolved.artistName,
+                        cover = shareCover,
+                    )
+                }
+                is Result.Error -> {
+                    val failed = ChatMessage(
+                        localId = clientId,
+                        serverId = null,
+                        conversationId = conversationId,
+                        senderId = currentUserId,
+                        receiverId = receiverId,
+                        content = "",
+                        msgType = MessageType.SONG,
+                        songId = songId,
+                        status = MessageStatus.FAILED,
+                        createdAt = Instant.now(),
+                        isMine = true,
+                        songTitle = resolved.title,
+                        songArtist = resolved.artistName,
+                        songCoverUrl = resolved.coverUrl,
+                    )
+                    chatMessageDao.upsert(ChatMapper.toEntity(failed))
+                    _messageUpdates.emit(Unit)
+                    return@withContext failed
+                }
+            }
+        }
+
         val pending = ChatMessage(
             localId = clientId,
             serverId = null,
             conversationId = conversationId,
             senderId = currentUserId,
             receiverId = receiverId,
-            content = "",
+            content = content,
             msgType = MessageType.SONG,
             songId = songId,
             status = MessageStatus.PENDING,
             createdAt = Instant.now(),
             isMine = true,
+            songTitle = resolved?.title,
+            songArtist = resolved?.artistName,
+            songCoverUrl = resolved?.coverUrl,
+            songAudioUrl = songAudioUrl,
         )
         val enriched = enrichSongMessage(pending)
         chatMessageDao.upsert(ChatMapper.toEntity(enriched))
@@ -226,6 +286,7 @@ class ChatRepository(
             WsMessageSendPayload(
                 conversation_id = conversationId,
                 receiver_id = receiverId,
+                content = enriched.content,
                 msg_type = MessageType.toApi(MessageType.SONG),
                 song_id = songId,
                 client_id = clientId,
@@ -248,6 +309,7 @@ class ChatRepository(
                 WsMessageSendPayload(
                     conversation_id = pending.conversationId,
                     receiver_id = pending.receiverId,
+                    content = pending.content,
                     msg_type = MessageType.toApi(MessageType.SONG),
                     song_id = pending.songId,
                     client_id = pending.localId,
@@ -305,6 +367,14 @@ class ChatRepository(
     }
 
     suspend fun enrichSongMessage(message: ChatMessage): ChatMessage {
+        SongShareCodec.parse(message.content)?.let { attachment ->
+            return message.copy(
+                songTitle = message.songTitle ?: attachment.title.takeIf { it.isNotBlank() },
+                songArtist = message.songArtist ?: attachment.artist.takeIf { it.isNotBlank() },
+                songCoverUrl = message.songCoverUrl ?: attachment.cover.takeIf { it.isNotBlank() },
+                songAudioUrl = message.songAudioUrl ?: attachment.audioUrl,
+            )
+        }
         val songId = message.songId ?: return message
         if (message.songTitle != null) return message
         return when (val result = playerRepository.getSong(songId)) {
@@ -315,6 +385,64 @@ class ChatRepository(
             )
             is Result.Error -> message
         }
+    }
+
+    private suspend fun resolveShareSong(songId: String): Song? {
+        val playback = playbackManager.state.value
+        playback.currentSong?.takeIf { it.id == songId }?.let { return it }
+        playback.queue.firstOrNull { it.id == songId }?.let { return it }
+        if (songId.startsWith("local_")) {
+            localMusicRepository.getSongById(songId)?.let { return it }
+        }
+        downloadRepository.getCompletedSong(songId)?.let { return it }
+        return when (val result = playerRepository.getSong(songId)) {
+            is Result.Success -> result.data
+            is Result.Error -> null
+        }
+    }
+
+    private suspend fun uploadSongAudio(song: Song): Result<String> {
+        val bytes = readSongBytes(song) ?: return Result.Error(
+            com.melonet.app.core.common.AppError.Unknown("Unable to read audio file"),
+        )
+        val filename = when {
+            song.audioUrl.contains(".m4a", ignoreCase = true) -> "share.m4a"
+            song.audioUrl.contains(".wav", ignoreCase = true) -> "share.wav"
+            else -> "share.mp3"
+        }
+        val mime = when {
+            filename.endsWith(".m4a") -> "audio/mp4"
+            filename.endsWith(".wav") -> "audio/wav"
+            else -> "audio/mpeg"
+        }
+        val part = MultipartBody.Part.createFormData(
+            "audio",
+            filename,
+            bytes.toRequestBody(mime.toMediaTypeOrNull()),
+        )
+        return when (val result = safeApiCall { chatApi.uploadMedia(part) }) {
+            is Result.Success -> Result.Success(result.data.url)
+            is Result.Error -> result
+        }
+    }
+
+    private fun readSongBytes(song: Song): ByteArray? {
+        val source = song.audioUrl
+        return runCatching {
+            when {
+                source.startsWith("content://", ignoreCase = true) ||
+                    source.startsWith("file://", ignoreCase = true) -> {
+                    appContext.contentResolver.openInputStream(android.net.Uri.parse(source))
+                        ?.use { it.readBytes() }
+                }
+                source.startsWith("http://", ignoreCase = true) ||
+                    source.startsWith("https://", ignoreCase = true) -> null
+                else -> {
+                    val file = java.io.File(source)
+                    if (file.exists()) file.readBytes() else null
+                }
+            }
+        }.getOrNull()
     }
 
     private suspend fun finalizeOutbound(message: ChatMessage, sent: Boolean): ChatMessage {

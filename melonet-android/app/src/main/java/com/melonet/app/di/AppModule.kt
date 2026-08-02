@@ -227,10 +227,14 @@ val appModule = module {
     single { ChatWebSocketClient(tokenManager = get(), dispatchers = get()) }
     single {
         ChatRepository(
+            appContext = androidContext(),
             chatApi = get(),
             chatMessageDao = get(),
             webSocketClient = get(),
             playerRepository = get(),
+            localMusicRepository = get(),
+            downloadRepository = get(),
+            playbackManager = get(),
             networkMonitor = get(),
             dispatchers = get(),
         )
@@ -259,7 +263,7 @@ val appModule = module {
             searchRepository = get(),
         )
     }
-    viewModel { ProfileViewModel(userRepository = get()) }
+    viewModel { ProfileViewModel(userRepository = get(), authRepository = get()) }
     viewModel { EditProfileViewModel(userRepository = get(), authRepository = get(), appContext = androidContext()) }
     viewModel { SettingsViewModel(settingsRepository = get(), authRepository = get()) }
     viewModel { UserProfileViewModel(socialRepository = get()) }
@@ -267,6 +271,13 @@ val appModule = module {
     viewModel { ConversationsViewModel(chatRepository = get()) }
     viewModel { ChatViewModel(chatRepository = get(), socialRepository = get()) }
     viewModel { SearchViewModel(searchRepository = get()) }
+    single {
+        com.melonet.app.feature.player.AudioShareHelper(
+            context = androidContext(),
+            downloadRepository = get(),
+            okHttpClient = get(),
+        )
+    }
     viewModel {
         PlayerViewModel(
             playbackManager = get(),
@@ -274,6 +285,7 @@ val appModule = module {
             userRepository = get(),
             libraryRepository = get(),
             playlistRepository = get(),
+            audioShareHelper = get(),
         )
     }
     viewModel { KaraokeViewModel(searchRepository = get()) }

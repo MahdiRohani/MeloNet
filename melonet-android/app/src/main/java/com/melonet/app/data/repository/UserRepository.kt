@@ -80,6 +80,20 @@ class UserRepository(
         }
     }
 
+    /**
+     * Demo premium activation against the backend. Server entitlement is the source of truth.
+     */
+    suspend fun activatePremium(): Result<User> = withContext(dispatchers.io) {
+        when (val result = safeApiCall { authApi.activatePremium() }) {
+            is Result.Success -> {
+                val user = UserMapper.toModel(result.data)
+                settingsRepository.saveCachedUser(user)
+                Result.Success(user)
+            }
+            is Result.Error -> result
+        }
+    }
+
     suspend fun setPremiumStatus(isPremium: Boolean) {
         settingsRepository.setPremiumStatus(isPremium)
     }

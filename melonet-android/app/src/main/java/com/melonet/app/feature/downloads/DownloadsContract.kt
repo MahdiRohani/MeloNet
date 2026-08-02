@@ -24,6 +24,5 @@ object DownloadsContract {
 
     sealed interface Effect : UiEffect {
         data class PlaySong(val item: DownloadItem) : Effect
-        data object NavigateToProfile : Effect
     }
 }

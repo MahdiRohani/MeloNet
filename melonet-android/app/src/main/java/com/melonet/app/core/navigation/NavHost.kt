@@ -457,7 +457,6 @@ fun MelonetMainScreen() {
                 DownloadsScreen(
                     viewModel = downloadsViewModel,
                     onPlaySong = { song -> playSong(song) },
-                    onNavigateToProfile = { navController.navigate(ProfileRoute) },
                 )
             }
             composable<PlaylistsRoute> {

@@ -123,6 +123,22 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	response.OK(c, user)
 }
 
+func (h *AuthHandler) ActivatePremium(c *gin.Context) {
+	userID, err := auth.UserIDFromGin(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "unauthorized", "authentication required")
+		return
+	}
+
+	user, err := h.auth.ActivatePremium(c.Request.Context(), userID)
+	if err != nil {
+		mapAuthError(c, err)
+		return
+	}
+
+	response.OK(c, user)
+}
+
 func (h *AuthHandler) UploadAvatar(c *gin.Context) {
 	userID, err := auth.UserIDFromGin(c)
 	if err != nil {

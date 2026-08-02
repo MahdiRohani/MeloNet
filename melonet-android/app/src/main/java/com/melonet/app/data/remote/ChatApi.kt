@@ -1,14 +1,18 @@
 package com.melonet.app.data.remote
 
 import com.melonet.app.core.network.ApiResponse
+import com.melonet.app.data.remote.dto.ChatMediaUploadDto
 import com.melonet.app.data.remote.dto.ConversationDto
 import com.melonet.app.data.remote.dto.CreateConversationRequestDto
 import com.melonet.app.data.remote.dto.MarkReadRequestDto
 import com.melonet.app.data.remote.dto.MessageDto
 import com.melonet.app.data.remote.dto.UnreadCountDto
+import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -44,4 +48,10 @@ interface ChatApi {
         @Path("id") conversationId: Int,
         @Body body: MarkReadRequestDto,
     ): ApiResponse<Map<String, Boolean>>
+
+    @Multipart
+    @POST("api/chat/media")
+    suspend fun uploadMedia(
+        @Part audio: MultipartBody.Part,
+    ): ApiResponse<ChatMediaUploadDto>
 }

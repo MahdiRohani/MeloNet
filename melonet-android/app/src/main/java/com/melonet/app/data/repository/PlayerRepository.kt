@@ -2,6 +2,7 @@ package com.melonet.app.data.repository
 
 import com.melonet.app.core.common.DispatchersProvider
 import com.melonet.app.core.common.Result
+import com.melonet.app.core.network.MediaUrl
 import com.melonet.app.core.network.safeApiCall
 import com.melonet.app.data.mapper.SongMapper
 import com.melonet.app.data.model.Song
@@ -62,9 +63,10 @@ class PlayerRepository(
         if (song.id.startsWith("local_") ||
             song.id.startsWith("karaoke_") ||
             song.category == "local" ||
-            song.category == "karaoke"
+            song.category == "karaoke" ||
+            song.category == "chat_share"
         ) {
-            return song.audioUrl
+            return MediaUrl.resolve(song.audioUrl) ?: song.audioUrl
         }
         val localPath = offlineSongResolver.localPathFor(song.id)
         if (!localPath.isNullOrBlank() && File(localPath).exists()) {
@@ -74,6 +76,6 @@ class PlayerRepository(
         if (song.audioUrl.isNotBlank() && !song.audioUrl.startsWith("http") && File(song.audioUrl).exists()) {
             return song.audioUrl
         }
-        return song.audioUrl
+        return MediaUrl.resolve(song.audioUrl) ?: song.audioUrl
     }
 }

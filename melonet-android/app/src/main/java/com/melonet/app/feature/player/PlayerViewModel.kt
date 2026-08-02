@@ -24,6 +24,7 @@ class PlayerViewModel(
     private val userRepository: UserRepository,
     private val libraryRepository: LibraryRepository,
     private val playlistRepository: PlaylistRepository,
+    private val audioShareHelper: AudioShareHelper,
 ) : BaseViewModel<PlayerContract.State, PlayerContract.Event, PlayerContract.Effect>() {
 
     private val speedSteps = listOf(1f, 1.25f, 1.5f, 2f, 0.5f, 0.75f)
@@ -170,7 +171,20 @@ class PlayerViewModel(
     private fun shareExternal() {
         val song = uiState.value.currentSong ?: return
         setState { copy(showShareSheet = false) }
-        setEffect { PlayerContract.Effect.ShareExternal("${song.title} — ${song.artistName}") }
+        viewModelScope.launch {
+            val payload = audioShareHelper.prepare(song)
+            if (payload == null) {
+                setEffect { PlayerContract.Effect.ShowError("Unable to share this track") }
+                return@launch
+            }
+            setEffect {
+                PlayerContract.Effect.ShareExternal(
+                    uri = payload.uri,
+                    mimeType = payload.mimeType,
+                    text = payload.text,
+                )
+            }
+        }
     }
 
     private fun shareToChat() {
@@ -195,10 +209,17 @@ class PlayerViewModel(
 
     fun upgradePremium() {
         viewModelScope.launch {
-            userRepository.setPremiumStatus(true)
-            setState { copy(isPremium = true, showUpgradeDialog = false) }
-            uiState.value.currentSong?.let { song ->
-                downloadRepository.enqueueDownload(song)
+            when (val result = userRepository.activatePremium()) {
+                is Result.Success -> {
+                    setState { copy(isPremium = true, showUpgradeDialog = false) }
+                    uiState.value.currentSong?.let { song ->
+                        downloadRepository.enqueueDownload(song)
+                    }
+                }
+                is Result.Error -> {
+                    setState { copy(showUpgradeDialog = false) }
+                    setEffect { PlayerContract.Effect.ShowError("Upgrade failed") }
+                }
             }
         }
     }

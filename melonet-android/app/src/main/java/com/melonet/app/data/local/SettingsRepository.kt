@@ -50,7 +50,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     val isPremiumFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[IS_PREMIUM] ?: false
+        prefs[CACHED_IS_PREMIUM] ?: prefs[IS_PREMIUM] ?: false
     }
 
     /** Crossfade duration in seconds: 0, 2, 5, or 8. Default 3s ≈ mid option. */
@@ -100,6 +100,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setPremiumStatus(isPremium: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[IS_PREMIUM] = isPremium
+            prefs[CACHED_IS_PREMIUM] = isPremium
         }
     }
 

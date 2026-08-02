@@ -215,6 +215,27 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uint, req api.Up
 	return s.buildUserResponse(ctx, updated)
 }
 
+// ActivatePremium grants a demo premium entitlement (no Play Billing).
+func (s *AuthService) ActivatePremium(ctx context.Context, userID uint) (api.UserResponse, error) {
+	user, err := s.users.GetByID(ctx, int64(userID))
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			return api.UserResponse{}, ErrUnauthorized
+		}
+		return api.UserResponse{}, err
+	}
+
+	if err := s.users.GrantPremium(ctx, user.ID, "demo_activate", nil); err != nil {
+		return api.UserResponse{}, err
+	}
+
+	updated, err := s.users.GetByID(ctx, user.ID)
+	if err != nil {
+		return api.UserResponse{}, err
+	}
+	return s.buildUserResponse(ctx, updated)
+}
+
 func (s *AuthService) UploadAvatar(ctx context.Context, userID uint, filename string, reader io.Reader, size int64, contentType string) (api.UserResponse, error) {
 	if size <= 0 || size > 5*1024*1024 {
 		return api.UserResponse{}, ErrInvalidInput

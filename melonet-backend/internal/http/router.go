@@ -13,22 +13,22 @@ import (
 )
 
 type Dependencies struct {
-	Config        *config.Config
-	Logger        *slog.Logger
-	TokenMgr      *auth.TokenManager
-	RateLimit     middleware.RateLimitStore
-	Health        *handler.HealthHandler
-	Auth       *handler.AuthHandler
-	Media      *handler.MediaHandler
-	Stream     *handler.StreamHandler
-	Catalog    *handler.CatalogHandler
-	Artist     *handler.ArtistHandler
-	Search     *handler.SearchHandler
-	Home       *handler.HomeHandler
-	Chat       *handler.ChatHandler
-	Library    *handler.LibraryHandler
-	Playlist   *handler.PlaylistHandler
-	Social     *handler.SocialHandler
+	Config    *config.Config
+	Logger    *slog.Logger
+	TokenMgr  *auth.TokenManager
+	RateLimit middleware.RateLimitStore
+	Health    *handler.HealthHandler
+	Auth      *handler.AuthHandler
+	Media     *handler.MediaHandler
+	Stream    *handler.StreamHandler
+	Catalog   *handler.CatalogHandler
+	Artist    *handler.ArtistHandler
+	Search    *handler.SearchHandler
+	Home      *handler.HomeHandler
+	Chat      *handler.ChatHandler
+	Library   *handler.LibraryHandler
+	Playlist  *handler.PlaylistHandler
+	Social    *handler.SocialHandler
 }
 
 func NewRouter(deps Dependencies) *gin.Engine {
@@ -139,6 +139,9 @@ func NewRouter(deps Dependencies) *gin.Engine {
 		api.GET("/genres/:id/songs", deps.Catalog.ListGenreSongs)
 
 		api.GET("/chat/history", deps.Chat.History)
+		api.POST("/chat/media", deps.Chat.UploadMedia)
+
+		api.POST("/me/premium/activate", deps.Auth.ActivatePremium)
 
 		api.GET("/conversations", deps.Chat.ListConversations)
 		api.POST("/conversations", deps.Chat.CreateConversation)

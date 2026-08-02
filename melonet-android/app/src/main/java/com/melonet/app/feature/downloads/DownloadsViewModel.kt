@@ -2,6 +2,7 @@ package com.melonet.app.feature.downloads
 
 import androidx.lifecycle.viewModelScope
 import com.melonet.app.core.common.BaseViewModel
+import com.melonet.app.core.common.Result
 import com.melonet.app.data.model.DownloadSort
 import com.melonet.app.data.repository.DownloadRepository
 import com.melonet.app.data.repository.UserRepository
@@ -62,8 +63,12 @@ class DownloadsViewModel(
 
     private fun upgradePremium() {
         viewModelScope.launch {
-            userRepository.setPremiumStatus(true)
-            setEffect { DownloadsContract.Effect.NavigateToProfile }
+            when (val result = userRepository.activatePremium()) {
+                is Result.Success -> {
+                    // Stay on Downloads so the unlocked list is immediately usable.
+                }
+                is Result.Error -> Unit
+            }
         }
     }
 }

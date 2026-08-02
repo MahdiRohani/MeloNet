@@ -215,7 +215,7 @@ func setupIntegration(t *testing.T) *integrationEnv {
 		Library:   handler.NewLibraryHandler(libraryService),
 		Playlist:  handler.NewPlaylistHandler(playlistService),
 		Social:    handler.NewSocialHandler(socialService),
-		Chat:      handler.NewChatHandler(chatService, noopChatHub{}),
+		Chat:      handler.NewChatHandler(chatService, noopChatHub{}, nil),
 	})
 
 	return &integrationEnv{router: router, db: db, redis: redisClient}

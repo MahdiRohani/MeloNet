@@ -2,27 +2,34 @@ package handler
 
 import (
 	"errors"
+	"io"
 	"net/http"
+	"path"
+	"strings"
 
 	"melonet-backend/internal/auth"
 	"melonet-backend/internal/domain/api"
 	"melonet-backend/internal/http/response"
 	"melonet-backend/internal/service"
+	minioStorage "melonet-backend/internal/storage/minio"
 
 	"github.com/gin-gonic/gin"
 )
 
+const maxChatMediaBytes = 25 * 1024 * 1024
+
 type ChatHandler struct {
-	chat *service.ChatService
-	hub  ChatHub
+	chat    *service.ChatService
+	hub     ChatHub
+	storage *minioStorage.MediaStorage
 }
 
 type ChatHub interface {
 	HandleConnection(c *gin.Context, userID uint)
 }
 
-func NewChatHandler(chat *service.ChatService, hub ChatHub) *ChatHandler {
-	return &ChatHandler{chat: chat, hub: hub}
+func NewChatHandler(chat *service.ChatService, hub ChatHub, storage *minioStorage.MediaStorage) *ChatHandler {
+	return &ChatHandler{chat: chat, hub: hub, storage: storage}
 }
 
 func (h *ChatHandler) ListConversations(c *gin.Context) {
@@ -179,6 +186,79 @@ func (h *ChatHandler) WebSocket(c *gin.Context) {
 	}
 
 	h.hub.HandleConnection(c, userID)
+}
+
+func (h *ChatHandler) UploadMedia(c *gin.Context) {
+	userID, err := auth.UserIDFromGin(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "unauthorized", "authentication required")
+		return
+	}
+	if h.storage == nil {
+		response.InternalError(c, "media storage unavailable")
+		return
+	}
+
+	file, err := c.FormFile("audio")
+	if err != nil {
+		response.BadRequest(c, "invalid_request", "audio file is required")
+		return
+	}
+	if file.Size <= 0 || file.Size > maxChatMediaBytes {
+		response.BadRequest(c, "invalid_request", "audio must be between 1 byte and 25MB")
+		return
+	}
+
+	opened, err := file.Open()
+	if err != nil {
+		response.InternalError(c, "failed to read audio")
+		return
+	}
+	defer opened.Close()
+
+	contentType := strings.TrimSpace(file.Header.Get("Content-Type"))
+	if contentType == "" || contentType == "application/octet-stream" {
+		contentType = guessAudioContentType(file.Filename)
+	}
+	if !strings.HasPrefix(contentType, "audio/") {
+		response.BadRequest(c, "invalid_request", "only audio uploads are allowed")
+		return
+	}
+
+	objectKey, publicURL, err := h.storage.UploadChatAudio(
+		c.Request.Context(),
+		int64(userID),
+		file.Filename,
+		io.LimitReader(opened, maxChatMediaBytes+1),
+		file.Size,
+		contentType,
+	)
+	if err != nil {
+		response.InternalError(c, "failed to upload audio")
+		return
+	}
+
+	response.Created(c, api.ChatMediaUploadResponse{
+		URL:       publicURL,
+		ObjectKey: objectKey,
+	})
+}
+
+func guessAudioContentType(filename string) string {
+	switch strings.ToLower(path.Ext(filename)) {
+	case ".m4a", ".mp4":
+		return "audio/mp4"
+	case ".wav":
+		return "audio/wav"
+	case ".ogg":
+		return "audio/ogg"
+	case ".flac":
+		return "audio/flac"
+	case ".aac":
+		return "audio/aac"
+	default:
+		return "audio/mpeg"
+	}
 }
 
 func mapChatError(c *gin.Context, err error) {

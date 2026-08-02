@@ -100,6 +100,13 @@ Base URL (local): `http://localhost:8080`
 | GET | `/api/conversations/:id/messages` | `page`, `limit` |
 | POST | `/api/conversations/:id/read` | `message_ids` |
 | GET | `/api/chat/history` | `with_id` (legacy) |
+| POST | `/api/chat/media` | multipart `audio` |
+
+## Premium (demo)
+
+| Method | Path | Body |
+|--------|------|------|
+| POST | `/api/me/premium/activate` | — (grants demo premium via `GrantPremium`) |
 
 ## WebSocket
 

@@ -49,7 +49,6 @@ import com.melonet.app.data.model.Song
 fun DownloadsScreen(
     viewModel: DownloadsViewModel,
     onPlaySong: (Song) -> Unit,
-    onNavigateToProfile: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
@@ -58,7 +57,6 @@ fun DownloadsScreen(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is DownloadsContract.Effect.PlaySong -> onPlaySong(effect.item.toSong())
-                DownloadsContract.Effect.NavigateToProfile -> onNavigateToProfile()
             }
         }
     }

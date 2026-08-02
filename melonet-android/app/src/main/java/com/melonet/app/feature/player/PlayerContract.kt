@@ -65,9 +65,14 @@ object PlayerContract {
 
     sealed interface Effect : UiEffect {
         data object NavigateBack : Effect
-        data class ShareExternal(val text: String) : Effect
+        data class ShareExternal(
+            val uri: android.net.Uri,
+            val mimeType: String,
+            val text: String,
+        ) : Effect
         data class ShareToChat(val songId: String) : Effect
         data class NavigateToArtist(val artistId: Int) : Effect
         data class ShowMessage(val message: String) : Effect
+        data class ShowError(val message: String) : Effect
     }
 }

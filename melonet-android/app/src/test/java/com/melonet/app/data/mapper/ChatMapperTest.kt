@@ -42,7 +42,7 @@ class ChatMapperTest {
             receiverId = 1,
             content = "",
             msgType = "song",
-            songId = 99,
+            songId = "99",
             status = "sent",
             createdAt = "2026-01-15T10:30:00Z",
         )

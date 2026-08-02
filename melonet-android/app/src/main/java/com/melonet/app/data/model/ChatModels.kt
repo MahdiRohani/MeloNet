@@ -75,6 +75,8 @@ data class ChatMessage(
     val songTitle: String? = null,
     val songArtist: String? = null,
     val songCoverUrl: String? = null,
+    /** Direct playable URL from uploaded chat attachment (local shares). */
+    val songAudioUrl: String? = null,
 ) {
     /** Prefer server id so pending UUID and paging `server_*` rows collapse after ack. */
     val stableKey: String = serverId?.let { "sid_$it" } ?: localId

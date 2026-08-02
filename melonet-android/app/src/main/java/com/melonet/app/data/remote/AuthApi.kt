@@ -39,4 +39,7 @@ interface AuthApi {
     @Multipart
     @POST("api/auth/me/avatar")
     suspend fun uploadAvatar(@Part avatar: MultipartBody.Part): ApiResponse<UserDto>
+
+    @POST("api/me/premium/activate")
+    suspend fun activatePremium(): ApiResponse<UserDto>
 }
