@@ -32,6 +32,8 @@ import kotlin.coroutines.resumeWithException
 data class PlaybackState(
     val currentSong: Song? = null,
     val queue: List<Song> = emptyList(),
+    /** Index of [currentSong] inside [queue], or -1 when unknown/empty. */
+    val currentIndex: Int = -1,
     val isPlaying: Boolean = false,
     /** True only while initially buffering a newly started track — not during seek. */
     val isLoading: Boolean = false,
@@ -220,6 +222,7 @@ class PlaybackManager(
                 it.copy(
                     currentSong = song,
                     queue = queue,
+                    currentIndex = startIndex,
                     isLoading = true,
                     isSeeking = false,
                     positionMs = 0L,
@@ -242,7 +245,13 @@ class PlaybackManager(
             c.prepare()
             c.pause()
             _state.update {
-                it.copy(currentSong = song, queue = queue, isPlaying = false, isLoading = true)
+                it.copy(
+                    currentSong = song,
+                    queue = queue,
+                    currentIndex = startIndex,
+                    isPlaying = false,
+                    isLoading = true,
+                )
             }
         }
     }
@@ -289,6 +298,122 @@ class PlaybackManager(
         skipCrossfadeOnce = true
         cancelCrossfade(resetVolume = true)
         controller?.seekToPreviousMediaItem()
+    }
+
+    /** Insert [song] to play immediately after the current track. */
+    fun playNext(song: Song) {
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val queue = _state.value.queue.toMutableList()
+            if (queue.isEmpty()) {
+                play(song, listOf(song))
+                return@launch
+            }
+            queue.removeAll { it.id == song.id }
+            val currentId = _state.value.currentSong?.id
+            val currentIndex = queue.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
+            val insertIndex = (currentIndex + 1).coerceAtMost(queue.size)
+            queue.add(insertIndex, song)
+            val mediaItem = buildMediaItem(song)
+            val playerInsert = (c.currentMediaItemIndex + 1).coerceAtMost(c.mediaItemCount)
+            c.addMediaItem(playerInsert, mediaItem)
+            _state.update { it.copy(queue = queue, currentIndex = indexOfCurrent(queue, it.currentSong)) }
+        }
+    }
+
+    fun addToQueue(song: Song) {
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val queue = _state.value.queue.toMutableList()
+            if (queue.isEmpty()) {
+                play(song, listOf(song))
+                return@launch
+            }
+            if (queue.any { it.id == song.id }) return@launch
+            queue.add(song)
+            c.addMediaItem(buildMediaItem(song))
+            _state.update { it.copy(queue = queue) }
+        }
+    }
+
+    fun removeFromQueue(songId: String) {
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val queue = _state.value.queue.toMutableList()
+            val index = queue.indexOfFirst { it.id == songId }
+            if (index < 0) return@launch
+            val removingCurrent = _state.value.currentSong?.id == songId
+            queue.removeAt(index)
+            if (index < c.mediaItemCount) {
+                c.removeMediaItem(index)
+            }
+            if (queue.isEmpty()) {
+                c.stop()
+                _state.update {
+                    it.copy(currentSong = null, queue = emptyList(), currentIndex = -1, isPlaying = false)
+                }
+                return@launch
+            }
+            if (removingCurrent) {
+                val nextIndex = index.coerceAtMost(queue.lastIndex)
+                c.seekTo(nextIndex, 0L)
+                c.play()
+                _state.update {
+                    it.copy(
+                        queue = queue,
+                        currentSong = queue[nextIndex],
+                        currentIndex = nextIndex,
+                    )
+                }
+            } else {
+                _state.update {
+                    it.copy(queue = queue, currentIndex = indexOfCurrent(queue, it.currentSong))
+                }
+            }
+        }
+    }
+
+    fun moveInQueue(fromIndex: Int, toIndex: Int) {
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val queue = _state.value.queue.toMutableList()
+            if (fromIndex !in queue.indices || toIndex !in queue.indices || fromIndex == toIndex) return@launch
+            val song = queue.removeAt(fromIndex)
+            queue.add(toIndex, song)
+            c.moveMediaItem(fromIndex, toIndex)
+            _state.update {
+                it.copy(queue = queue, currentIndex = indexOfCurrent(queue, it.currentSong))
+            }
+        }
+    }
+
+    fun playQueueIndex(index: Int) {
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val queue = _state.value.queue
+            if (index !in queue.indices) return@launch
+            skipCrossfadeOnce = true
+            cancelCrossfade(resetVolume = true)
+            c.seekTo(index, 0L)
+            c.play()
+            _state.update {
+                it.copy(currentSong = queue[index], currentIndex = index, isLoading = true, positionMs = 0L)
+            }
+        }
+    }
+
+    fun nextSongOrNull(): Song? {
+        val state = _state.value
+        if (state.queue.isEmpty()) return null
+        val index = state.currentIndex.takeIf { it >= 0 }
+            ?: state.queue.indexOfFirst { it.id == state.currentSong?.id }
+        if (index < 0 || index >= state.queue.lastIndex) return null
+        return state.queue[index + 1]
     }
 
     fun seekTo(positionMs: Long) {
@@ -464,12 +589,17 @@ class PlaybackManager(
 
     private fun updateCurrentSongFromPlayer() {
         val songId = controller?.currentMediaItem?.mediaId ?: return
-        val song = _state.value.queue.find { it.id == songId }
+        val queue = _state.value.queue
+        val index = queue.indexOfFirst { it.id == songId }
+        val song = queue.getOrNull(index)
             ?: _state.value.currentSong?.takeIf { it.id == songId }
         if (song != null) {
-            _state.update { it.copy(currentSong = song) }
+            _state.update { it.copy(currentSong = song, currentIndex = index) }
         }
     }
+
+    private fun indexOfCurrent(queue: List<Song>, current: Song?): Int =
+        current?.let { song -> queue.indexOfFirst { it.id == song.id } } ?: -1
 
     private fun startProgressUpdates() {
         progressJob?.cancel()

@@ -1,6 +1,7 @@
 package com.melonet.app.core.designsystem.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -90,9 +91,17 @@ fun MiniPlayerBar(
     onClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     modifier: Modifier = Modifier,
+    upNextTitle: String? = null,
+    onUpNextClick: (() -> Unit)? = null,
+    coverModifier: Modifier = Modifier,
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
+    val subtitle = if (!upNextTitle.isNullOrBlank()) {
+        stringResource(R.string.player_up_next, upNextTitle)
+    } else {
+        artist
+    }
 
     MeloCard(
         onClick = onClick,
@@ -115,10 +124,21 @@ fun MiniPlayerBar(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(dimensions.iconLg)
-                        .clip(MaterialTheme.shapes.medium),
+                        .clip(MaterialTheme.shapes.medium)
+                        .then(coverModifier),
                 )
                 Spacer(modifier = Modifier.width(spacing.sm))
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(
+                            if (onUpNextClick != null && !upNextTitle.isNullOrBlank()) {
+                                Modifier.clickable(onClick = onUpNextClick)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                ) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleSmall,
@@ -127,9 +147,13 @@ fun MiniPlayerBar(
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = artist,
+                        text = subtitle,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (!upNextTitle.isNullOrBlank()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
@@ -173,3 +197,4 @@ fun MiniPlayerBar(
         }
     }
 }
+

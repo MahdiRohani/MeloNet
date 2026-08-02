@@ -4,11 +4,14 @@ import androidx.lifecycle.viewModelScope
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
 import com.melonet.app.data.model.DownloadStatus
+import com.melonet.app.data.model.Lyrics
 import com.melonet.app.data.repository.DownloadRepository
 import com.melonet.app.data.repository.LibraryRepository
+import com.melonet.app.data.repository.LyricsRepository
 import com.melonet.app.data.repository.PlaylistRepository
 import com.melonet.app.data.repository.UserRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -25,9 +28,12 @@ class PlayerViewModel(
     private val libraryRepository: LibraryRepository,
     private val playlistRepository: PlaylistRepository,
     private val audioShareHelper: AudioShareHelper,
+    private val lyricsRepository: LyricsRepository,
 ) : BaseViewModel<PlayerContract.State, PlayerContract.Event, PlayerContract.Effect>() {
 
     private val speedSteps = listOf(1f, 1.25f, 1.5f, 2f, 0.5f, 0.75f)
+    private var lyricsJob: Job? = null
+    private var loadedLyricsSongId: String? = null
 
     override fun createInitialState() = PlayerContract.State()
 
@@ -35,10 +41,21 @@ class PlayerViewModel(
         playbackManager.connect()
         playbackManager.state
             .onEach { playback ->
+                val lyrics = uiState.value.lyrics
+                val lineIndex = if (uiState.value.lyricsReady && !lyrics.isEmpty) {
+                    lyrics.lineIndexAt(
+                        positionMs = playback.positionMs,
+                        durationMs = playback.durationMs,
+                        offsetMs = uiState.value.lyricsOffsetMs,
+                    )
+                } else {
+                    -1
+                }
                 setState {
                     copy(
                         currentSong = playback.currentSong,
                         queue = playback.queue,
+                        currentIndex = playback.currentIndex,
                         isPlaying = playback.isPlaying,
                         isLoading = playback.isLoading,
                         isSeeking = playback.isSeeking,
@@ -48,7 +65,13 @@ class PlayerViewModel(
                         sleepTimerMinutesLeft = playback.sleepTimerMinutesLeft,
                         shuffleEnabled = playback.shuffleEnabled,
                         repeatMode = playback.repeatMode,
+                        currentLyricLineIndex = lineIndex,
                     )
+                }
+                playback.currentSong?.id?.let { songId ->
+                    if (songId != loadedLyricsSongId) {
+                        loadLyricsFor(playback.currentSong)
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -116,6 +139,18 @@ class PlayerViewModel(
             PlayerContract.Event.GoToArtist -> goToArtist()
             PlayerContract.Event.ShareExternal -> shareExternal()
             PlayerContract.Event.ShareToChat -> shareToChat()
+            PlayerContract.Event.ShowQueueSheet -> setState { copy(showQueueSheet = true) }
+            PlayerContract.Event.HideQueueSheet -> setState { copy(showQueueSheet = false) }
+            PlayerContract.Event.ShowLyricsSheet -> {
+                setState { copy(showLyricsSheet = true) }
+                uiState.value.currentSong?.let { loadLyricsFor(it) }
+            }
+            PlayerContract.Event.HideLyricsSheet -> setState { copy(showLyricsSheet = false) }
+            is PlayerContract.Event.PlayQueueIndex -> playbackManager.playQueueIndex(event.index)
+            is PlayerContract.Event.RemoveFromQueue -> playbackManager.removeFromQueue(event.songId)
+            is PlayerContract.Event.MoveInQueue -> playbackManager.moveInQueue(event.fromIndex, event.toIndex)
+            is PlayerContract.Event.SeekToLyricLine -> seekToLyricLine(event.index)
+            is PlayerContract.Event.AdjustLyricsOffset -> adjustLyricsOffset(event.deltaMs)
         }
     }
 
@@ -125,6 +160,75 @@ class PlayerViewModel(
             if (current?.id != songId) {
                 handleEvent(PlayerContract.Event.PlaySongId(songId))
             }
+        }
+    }
+
+    private fun loadLyricsFor(song: com.melonet.app.data.model.Song?) {
+        if (song == null) return
+        if (song.id == loadedLyricsSongId && uiState.value.lyricsReady) return
+        lyricsJob?.cancel()
+        loadedLyricsSongId = song.id
+        lyricsJob = viewModelScope.launch {
+            setState {
+                copy(
+                    isLoadingLyrics = true,
+                    lyricsReady = false,
+                    lyrics = Lyrics.EMPTY,
+                    lyricsOffsetMs = 0L,
+                    currentLyricLineIndex = -1,
+                )
+            }
+            var lyrics = lyricsRepository.getLyrics(
+                title = song.title,
+                artist = song.artistName,
+                durationSec = song.durationSec,
+                album = song.albumTitle,
+                embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
+                syncedOnly = true,
+            )
+            if (lyrics.lines.isEmpty()) {
+                lyrics = lyricsRepository.getLyrics(
+                    title = song.title,
+                    artist = song.artistName,
+                    durationSec = song.durationSec,
+                    album = song.albumTitle,
+                    embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
+                    syncedOnly = false,
+                )
+            }
+            if (loadedLyricsSongId != song.id) return@launch
+            setState {
+                copy(
+                    lyrics = lyrics,
+                    isLoadingLyrics = false,
+                    lyricsReady = true,
+                    currentLyricLineIndex = lyrics.lineIndexAt(
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        offsetMs = lyricsOffsetMs,
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun seekToLyricLine(index: Int) {
+        val line = uiState.value.lyrics.lines.getOrNull(index) ?: return
+        if (!uiState.value.lyrics.synced || line.timeMs < 0) return
+        playbackManager.seekTo((line.timeMs - uiState.value.lyricsOffsetMs).coerceAtLeast(0L))
+    }
+
+    private fun adjustLyricsOffset(deltaMs: Long) {
+        setState {
+            val next = (lyricsOffsetMs + deltaMs).coerceIn(-10_000L, 10_000L)
+            copy(
+                lyricsOffsetMs = next,
+                currentLyricLineIndex = lyrics.lineIndexAt(
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    offsetMs = next,
+                ),
+            )
         }
     }
 

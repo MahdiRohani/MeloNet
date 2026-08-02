@@ -39,6 +39,7 @@ class SettingsRepository(private val context: Context) {
         val BUBBLE_Y = stringPreferencesKey("bubble_offset_y")
         val BUBBLE_HAS_POS = booleanPreferencesKey("bubble_has_pos")
         val CHAT_HISTORY_WIPED_V1 = booleanPreferencesKey("chat_history_wiped_v1")
+        val DOWNLOADS_WIFI_ONLY = booleanPreferencesKey("downloads_wifi_only")
     }
 
     val isDarkModeFlow: Flow<Boolean?> = context.settingsDataStore.data.map { prefs ->
@@ -56,6 +57,10 @@ class SettingsRepository(private val context: Context) {
     /** Crossfade duration in seconds: 0, 2, 5, or 8. Default 3s ≈ mid option. */
     val crossfadeSecondsFlow: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         (prefs[CROSSFADE_SECONDS] ?: 3).coerceIn(0, 8)
+    }
+
+    val downloadsWifiOnlyFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[DOWNLOADS_WIFI_ONLY] ?: false
     }
 
     val equalizerSettingsFlow: Flow<EqualizerSettings> = context.settingsDataStore.data.map { prefs ->
@@ -109,6 +114,15 @@ class SettingsRepository(private val context: Context) {
             prefs[CROSSFADE_SECONDS] = seconds.coerceIn(0, 8)
         }
     }
+
+    suspend fun setDownloadsWifiOnly(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[DOWNLOADS_WIFI_ONLY] = enabled
+        }
+    }
+
+    suspend fun getDownloadsWifiOnly(): Boolean =
+        context.settingsDataStore.data.first()[DOWNLOADS_WIFI_ONLY] ?: false
 
     suspend fun getCrossfadeSeconds(): Int =
         (context.settingsDataStore.data.first()[CROSSFADE_SECONDS] ?: 3).coerceIn(0, 8)

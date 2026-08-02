@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,9 +79,13 @@ import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.DownloadStatus
 import com.melonet.app.data.model.RepeatMode
+import com.melonet.app.core.ui.PlayerSharedKeys
+import com.melonet.app.core.ui.rememberMeloHaptics
 import com.melonet.app.feature.player.component.AudioVisualizer
 import com.melonet.app.feature.player.component.DynamicPlayerBackground
+import com.melonet.app.feature.player.component.LyricsSheet
 import com.melonet.app.feature.player.component.PlayerProgressBar
+import com.melonet.app.feature.player.component.QueueSheet
 import com.melonet.app.feature.player.component.RotatingCover
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -105,6 +110,7 @@ fun PlayerScreen(
     val imageLoader = remember { ImageLoader(context) }
     val onPrimary = MaterialTheme.colorScheme.onPrimary
     val fftMagnitudes by PlaybackAudioBridge.fftMagnitudes.collectAsState()
+    val haptics = rememberMeloHaptics()
 
     var contentEntered by remember(songId) { mutableStateOf(false) }
     LaunchedEffect(songId) {
@@ -198,7 +204,20 @@ fun PlayerScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = onPrimary,
                     )
-                    Spacer(modifier = Modifier.weight(1f))
+                }
+                IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.ShowLyricsSheet) }) {
+                    Icon(
+                        imageVector = Icons.Default.Lyrics,
+                        contentDescription = stringResource(R.string.cd_lyrics),
+                        tint = onPrimary,
+                    )
+                }
+                IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.ShowQueueSheet) }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = stringResource(R.string.cd_queue),
+                        tint = onPrimary,
+                    )
                 }
                 IconButton(onClick = onMinimize) {
                     Icon(
@@ -215,6 +234,7 @@ fun PlayerScreen(
                 coverUrl = state.currentSong?.coverUrl,
                 title = state.currentSong?.title.orEmpty(),
                 isPlaying = state.isPlaying,
+                sharedTransitionKey = state.currentSong?.id?.let(PlayerSharedKeys::songCover),
                 modifier = Modifier.graphicsLayer {
                     alpha = coverEnterAlpha
                     scaleX = coverEnterScale
@@ -265,7 +285,10 @@ fun PlayerScreen(
                     icon = if (state.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = stringResource(R.string.cd_favorite),
                     tint = if (state.isLiked) MaterialTheme.colorScheme.primary else onPrimary,
-                    onClick = { viewModel.handleEvent(PlayerContract.Event.ToggleLike) },
+                    onClick = {
+                        haptics.select()
+                        viewModel.handleEvent(PlayerContract.Event.ToggleLike)
+                    },
                 )
             }
 
@@ -276,10 +299,14 @@ fun PlayerScreen(
                 durationMs = state.durationMs,
                 isPlaying = state.isPlaying,
                 isSeeking = state.isSeeking,
-                onSeek = { viewModel.handleEvent(PlayerContract.Event.SeekTo(it)) },
-                activeColor = MaterialTheme.colorScheme.primary,
+                onSeek = {
+                    haptics.tick()
+                    viewModel.handleEvent(PlayerContract.Event.SeekTo(it))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                activeColor = onPrimary,
                 trackColor = onPrimary.copy(alpha = 0.25f),
-                thumbColor = MaterialTheme.colorScheme.primary,
+                thumbColor = onPrimary,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -468,6 +495,30 @@ fun PlayerScreen(
         UpgradeDialog(
             onUpgrade = { viewModel.upgradePremium() },
             onDismiss = { viewModel.handleEvent(PlayerContract.Event.DismissUpgradeDialog) },
+        )
+    }
+
+    if (state.showQueueSheet) {
+        QueueSheet(
+            queue = state.queue,
+            currentSongId = state.currentSong?.id,
+            onPlayIndex = { viewModel.handleEvent(PlayerContract.Event.PlayQueueIndex(it)) },
+            onRemove = { viewModel.handleEvent(PlayerContract.Event.RemoveFromQueue(it)) },
+            onMove = { from, to -> viewModel.handleEvent(PlayerContract.Event.MoveInQueue(from, to)) },
+            onDismiss = { viewModel.handleEvent(PlayerContract.Event.HideQueueSheet) },
+        )
+    }
+
+    if (state.showLyricsSheet) {
+        LyricsSheet(
+            lyrics = state.lyrics,
+            isLoading = state.isLoadingLyrics,
+            currentLineIndex = state.currentLyricLineIndex,
+            lyricsOffsetMs = state.lyricsOffsetMs,
+            synced = state.lyrics.synced,
+            onSeekToLine = { viewModel.handleEvent(PlayerContract.Event.SeekToLyricLine(it)) },
+            onAdjustOffset = { viewModel.handleEvent(PlayerContract.Event.AdjustLyricsOffset(it)) },
+            onDismiss = { viewModel.handleEvent(PlayerContract.Event.HideLyricsSheet) },
         )
     }
 }

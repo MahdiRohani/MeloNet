@@ -1,6 +1,8 @@
 package com.melonet.app.core.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -18,6 +20,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,6 +43,8 @@ import com.melonet.app.core.designsystem.component.MiniPlayerBar
 import com.melonet.app.core.designsystem.component.OfflineBanner
 import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.network.NetworkConnectivityMonitor
+import com.melonet.app.core.ui.LocalNavAnimatedVisibilityScope
+import com.melonet.app.core.ui.LocalSharedTransitionScope
 import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.model.AuthState
 import com.melonet.app.data.model.Song
@@ -111,6 +116,7 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MelonetMainScreen() {
     val navController = rememberNavController()
@@ -219,6 +225,8 @@ fun MelonetMainScreen() {
     val requestAudioPermission = rememberAudioPermissionRequesterWithCallback()
 
     Box(modifier = Modifier.fillMaxSize()) {
+    SharedTransitionLayout {
+    CompositionLocalProvider(LocalSharedTransitionScope provides this) {
     MelonetNavigationDrawer(
         drawerState = drawerState,
         scope = scope,
@@ -260,13 +268,24 @@ fun MelonetMainScreen() {
                         } else {
                             0f
                         }
+                        val nextSong = playerState.queue
+                            .getOrNull(playerState.currentIndex + 1)
+                            ?: playerState.queue
+                                .dropWhile { it.id != song.id }
+                                .drop(1)
+                                .firstOrNull()
                         MiniPlayerBar(
                             title = song.title,
                             artist = song.artistName,
                             coverUrl = song.coverUrl,
                             isPlaying = playerState.isPlaying,
                             progress = progress,
+                            upNextTitle = nextSong?.title,
                             onClick = { navController.navigate(PlayerRoute(songId = song.id)) },
+                            onUpNextClick = {
+                                playerViewModel.handleEvent(PlayerContract.Event.ShowQueueSheet)
+                                navController.navigate(PlayerRoute(songId = song.id))
+                            },
                             onPlayPauseClick = {
                                 playerViewModel.handleEvent(PlayerContract.Event.TogglePlayPause)
                             },
@@ -360,13 +379,15 @@ fun MelonetMainScreen() {
             }
 
             composable<HomeRoute> {
-                val homeViewModel: HomeViewModel = koinViewModel()
-                HomeScreen(
-                    viewModel = homeViewModel,
-                    onPlaySong = { song, queue -> playSong(song, queue) },
-                    onNavigate = { route -> navController.navigate(route) },
-                    onOpenKaraoke = { navController.navigate(KaraokeRoute) },
-                )
+                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                    val homeViewModel: HomeViewModel = koinViewModel()
+                    HomeScreen(
+                        viewModel = homeViewModel,
+                        onPlaySong = { song, queue -> playSong(song, queue) },
+                        onNavigate = { route -> navController.navigate(route) },
+                        onOpenKaraoke = { navController.navigate(KaraokeRoute) },
+                    )
+                }
             }
 
             composable<KaraokeRoute> {
@@ -435,17 +456,19 @@ fun MelonetMainScreen() {
             }
 
             composable<SearchRoute> {
-                val searchViewModel: SearchViewModel = koinViewModel()
-                SearchScreen(
-                    viewModel = searchViewModel,
-                    onPlaySong = { song -> playSong(song) },
-                    onNavigateToArtist = { artistId ->
-                        navController.navigate(ArtistDetailRoute(artistId = artistId))
-                    },
-                    onNavigateToUser = { userId ->
-                        navController.navigate(UserProfileRoute(userId = userId))
-                    },
-                )
+                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                    val searchViewModel: SearchViewModel = koinViewModel()
+                    SearchScreen(
+                        viewModel = searchViewModel,
+                        onPlaySong = { song -> playSong(song) },
+                        onNavigateToArtist = { artistId ->
+                            navController.navigate(ArtistDetailRoute(artistId = artistId))
+                        },
+                        onNavigateToUser = { userId ->
+                            navController.navigate(UserProfileRoute(userId = userId))
+                        },
+                    )
+                }
             }
             composable<LocalMusicRoute> {
                 val localMusicViewModel: LocalMusicViewModel = koinViewModel()
@@ -703,23 +726,25 @@ fun MelonetMainScreen() {
             }
 
             composable<PlayerRoute> { backStackEntry ->
-                val args = backStackEntry.toRoute<PlayerRoute>()
-                PlayerScreen(
-                    viewModel = playerViewModel,
-                    songId = args.songId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onMinimize = {
-                        bubbleVisible = true
-                        navController.popBackStack()
-                    },
-                    onOpenEqualizer = { navController.navigate(EqualizerRoute) },
-                    onNavigateToArtist = { artistId ->
-                        navController.navigate(ArtistDetailRoute(artistId = artistId))
-                    },
-                    onShareToChat = { shareSongId ->
-                        navController.navigate(ConversationsRoute(shareSongId = shareSongId))
-                    },
-                )
+                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                    val args = backStackEntry.toRoute<PlayerRoute>()
+                    PlayerScreen(
+                        viewModel = playerViewModel,
+                        songId = args.songId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onMinimize = {
+                            bubbleVisible = true
+                            navController.popBackStack()
+                        },
+                        onOpenEqualizer = { navController.navigate(EqualizerRoute) },
+                        onNavigateToArtist = { artistId ->
+                            navController.navigate(ArtistDetailRoute(artistId = artistId))
+                        },
+                        onShareToChat = { shareSongId ->
+                            navController.navigate(ConversationsRoute(shareSongId = shareSongId))
+                        },
+                    )
+                }
             }
 
             composable<EqualizerRoute> {
@@ -747,7 +772,9 @@ fun MelonetMainScreen() {
             }
         }
     }
-    }
+    } // MelonetNavigationDrawer
+    } // CompositionLocalProvider
+    } // SharedTransitionLayout
 
         if (bubbleVisible && showBottomBar) {
             playerState.currentSong?.let { song ->

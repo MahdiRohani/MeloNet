@@ -12,6 +12,8 @@ object DownloadsContract {
         val isPremium: Boolean = false,
         val sort: DownloadSort = DownloadSort.NEWEST,
         val downloads: List<DownloadItem> = emptyList(),
+        val storageUsedBytes: Long = 0L,
+        val downloadsWifiOnly: Boolean = false,
     ) : UiState
 
     sealed interface Event : UiEvent {
@@ -20,6 +22,7 @@ object DownloadsContract {
         data class DeleteDownload(val songId: String) : Event
         data class RetryDownload(val songId: String) : Event
         data object UpgradePremiumClicked : Event
+        data class WifiOnlyChanged(val enabled: Boolean) : Event
     }
 
     sealed interface Effect : UiEffect {

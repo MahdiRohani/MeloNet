@@ -1,5 +1,6 @@
 package com.melonet.app.core.designsystem.component
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,7 +24,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.core.ui.LocalNavAnimatedVisibilityScope
+import com.melonet.app.core.ui.LocalSharedTransitionScope
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SongCard(
     title: String,
@@ -42,6 +46,22 @@ fun SongCard(
         animationSpec = MeloMotion.pressSpring,
         label = "song_card_press",
     )
+    val sharedScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
+    val sharedImageModifier = if (
+        sharedTransitionKey != null &&
+        sharedScope != null &&
+        animatedVisibilityScope != null
+    ) {
+        with(sharedScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = sharedTransitionKey),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    } else {
+        Modifier
+    }
 
     Column(
         modifier = modifier
@@ -60,14 +80,8 @@ fun SongCard(
             targetSize = dimensions.songCardSize,
             modifier = Modifier
                 .size(dimensions.songCardSize)
-                .clip(MaterialTheme.shapes.medium)
-                .then(
-                    if (sharedTransitionKey != null) {
-                        Modifier
-                    } else {
-                        Modifier
-                    },
-                ),
+                .then(sharedImageModifier)
+                .clip(MaterialTheme.shapes.medium),
         )
         Spacer(modifier = Modifier.height(spacing.sm))
         Text(

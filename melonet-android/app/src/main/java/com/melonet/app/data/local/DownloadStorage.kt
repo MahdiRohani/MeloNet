@@ -11,4 +11,7 @@ class DownloadStorage(context: Context) {
     fun deleteFile(songId: String) {
         fileFor(songId).delete()
     }
+
+    fun usedBytes(): Long =
+        directory.listFiles()?.sumOf { it.length() } ?: 0L
 }

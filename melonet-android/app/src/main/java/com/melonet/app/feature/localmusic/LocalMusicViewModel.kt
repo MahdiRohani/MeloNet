@@ -24,9 +24,17 @@ class LocalMusicViewModel(
             is LocalMusicContract.Event.SearchQueryChanged -> {
                 setState { copy(searchQuery = event.query) }
             }
+            is LocalMusicContract.Event.TabSelected -> {
+                setState { copy(selectedTab = event.tab) }
+            }
             is LocalMusicContract.Event.SongClicked -> {
                 val queue = uiState.value.filteredSongs
                 setEffect { LocalMusicContract.Effect.PlaySong(event.song, queue) }
+            }
+            is LocalMusicContract.Event.GroupClicked -> {
+                val songs = event.group.songs
+                val first = songs.firstOrNull() ?: return
+                setEffect { LocalMusicContract.Effect.PlaySong(first, songs) }
             }
             LocalMusicContract.Event.PlayAll -> {
                 val songs = uiState.value.filteredSongs

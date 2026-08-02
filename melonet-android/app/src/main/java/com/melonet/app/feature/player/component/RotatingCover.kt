@@ -1,5 +1,6 @@
 package com.melonet.app.feature.player.component
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,12 +22,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.core.ui.LocalNavAnimatedVisibilityScope
+import com.melonet.app.core.ui.LocalSharedTransitionScope
 
 /**
  * A vinyl-style rotating cover. The rotation angle is accumulated manually so
  * that pausing freezes the disc in place (and resuming continues from there)
  * instead of snapping back to 0deg.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun RotatingCover(
     coverUrl: String?,
@@ -34,16 +38,14 @@ fun RotatingCover(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
     rotationDurationMs: Int = 16000,
+    sharedTransitionKey: String? = null,
 ) {
     val dimensions = MeloNetTheme.dimensions
     val colors = MeloNetTheme.colors
 
-    // Persist the current angle across recompositions and play/pause toggles.
     val angle = remember { mutableFloatStateOf(0f) }
     val degreesPerNano = 360f / (rotationDurationMs * 1_000_000f)
 
-    // Advance the angle only while playing, driven by the frame clock so it
-    // resumes smoothly from whatever value it currently holds.
     androidx.compose.runtime.LaunchedEffect(isPlaying) {
         if (!isPlaying) return@LaunchedEffect
         var last = withFrameNanos { it }
@@ -55,14 +57,28 @@ fun RotatingCover(
         }
     }
 
-    // Gently scale down when paused for a subtle "settle" effect.
     val scale by animateFloatAsState(targetValue = if (isPlaying) 1f else 0.94f, label = "cover_scale")
+    val sharedScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
+    val sharedModifier = if (
+        sharedTransitionKey != null &&
+        sharedScope != null &&
+        animatedVisibilityScope != null
+    ) {
+        with(sharedScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = sharedTransitionKey),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    } else {
+        Modifier
+    }
 
     Box(
         modifier = modifier.size(dimensions.playerCoverSize),
         contentAlignment = Alignment.Center,
     ) {
-        // Vinyl backing ring.
         Box(
             modifier = Modifier
                 .size(dimensions.playerCoverSize)
@@ -79,6 +95,7 @@ fun RotatingCover(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(dimensions.playerCoverSize)
+                .then(sharedModifier)
                 .padding(18.dp)
                 .graphicsLayer {
                     rotationZ = angle.floatValue
@@ -88,7 +105,6 @@ fun RotatingCover(
                 .clip(CircleShape)
                 .border(width = 2.dp, color = colors.vinylRim, shape = CircleShape),
         )
-        // Center spindle hole.
         Box(
             modifier = Modifier
                 .size(16.dp)

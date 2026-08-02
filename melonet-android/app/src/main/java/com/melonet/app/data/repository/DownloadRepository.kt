@@ -10,6 +10,7 @@ import com.melonet.app.core.common.DispatchersProvider
 import com.melonet.app.core.common.Result
 import com.melonet.app.data.local.DownloadDao
 import com.melonet.app.data.local.DownloadStorage
+import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.local.toDownloadEntity
 import com.melonet.app.data.local.toDownloadItem
 import com.melonet.app.data.model.DownloadItem
@@ -27,6 +28,7 @@ class DownloadRepository(
     private val downloadStorage: DownloadStorage,
     private val workManager: WorkManager,
     private val dispatchers: DispatchersProvider,
+    private val settingsRepository: SettingsRepository,
 ) {
     fun observeDownloads(sort: DownloadSort): Flow<List<DownloadItem>> =
         downloadDao.observeAll().map { entities ->
@@ -91,7 +93,11 @@ class DownloadRepository(
         entity.toDownloadItem().toSong()
     }
 
-    private fun enqueueWork(songId: String) {
+    suspend fun storageUsedBytes(): Long = withContext(dispatchers.io) {
+        downloadStorage.usedBytes()
+    }
+
+    private suspend fun enqueueWork(songId: String) {
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(workDataOf(DownloadWorker.KEY_SONG_ID to songId))
             .setConstraints(downloadConstraints())
@@ -105,8 +111,12 @@ class DownloadRepository(
         )
     }
 
-    private fun downloadConstraints(): Constraints =
-        Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
+    private suspend fun downloadConstraints(): Constraints {
+        val wifiOnly = settingsRepository.getDownloadsWifiOnly()
+        return Constraints.Builder()
+            .setRequiredNetworkType(
+                if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED,
+            )
             .build()
+    }
 }

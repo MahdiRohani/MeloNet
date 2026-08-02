@@ -44,6 +44,8 @@ import com.melonet.app.data.model.DownloadItem
 import com.melonet.app.data.model.DownloadSort
 import com.melonet.app.data.model.DownloadStatus
 import com.melonet.app.data.model.Song
+import com.melonet.app.feature.downloads.completedCount
+import com.melonet.app.feature.downloads.formatStorageBytes
 
 @Composable
 fun DownloadsScreen(
@@ -84,6 +86,46 @@ fun DownloadsScreen(
                 icon = Icons.Outlined.CloudDownload,
             )
             return@Column
+        }
+
+        Text(
+            text = stringResource(R.string.downloads_storage_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(
+                R.string.downloads_storage_summary,
+                formatStorageBytes(state.storageUsedBytes),
+                state.completedCount(),
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(bottom = spacing.sm),
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = spacing.md),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_downloads_wifi_only),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(R.string.settings_downloads_wifi_only_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            androidx.compose.material3.Switch(
+                checked = state.downloadsWifiOnly,
+                onCheckedChange = {
+                    viewModel.handleEvent(DownloadsContract.Event.WifiOnlyChanged(it))
+                },
+            )
         }
 
         DownloadSortRow(

@@ -246,6 +246,7 @@ val appModule = module {
             downloadStorage = get(),
             workManager = get(),
             dispatchers = get(),
+            settingsRepository = get(),
         )
     }
     single { SocialRepository(socialApi = get(), dispatchers = get()) }
@@ -311,6 +312,7 @@ val appModule = module {
             libraryRepository = get(),
             playlistRepository = get(),
             audioShareHelper = get(),
+            lyricsRepository = get(),
         )
     }
     viewModel {
@@ -341,6 +343,12 @@ val appModule = module {
     viewModel { AddSongsViewModel(playlistRepository = get(), localMusicRepository = get(), searchRepository = get()) }
     viewModel { LocalMusicViewModel(localMusicRepository = get()) }
     viewModel { LibrarySongsViewModel(libraryRepository = get()) }
-    viewModel { DownloadsViewModel(downloadRepository = get(), userRepository = get()) }
+    viewModel {
+        DownloadsViewModel(
+            downloadRepository = get(),
+            userRepository = get(),
+            settingsRepository = get(),
+        )
+    }
     viewModel { EqualizerViewModel(settingsRepository = get()) }
 }

@@ -4,6 +4,7 @@ import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
 import com.melonet.app.data.model.DownloadStatus
+import com.melonet.app.data.model.Lyrics
 import com.melonet.app.data.model.Playlist
 import com.melonet.app.data.model.RepeatMode
 import com.melonet.app.data.model.Song
@@ -13,6 +14,7 @@ object PlayerContract {
     data class State(
         val currentSong: Song? = null,
         val queue: List<Song> = emptyList(),
+        val currentIndex: Int = -1,
         val isPlaying: Boolean = false,
         val isLoading: Boolean = false,
         val isSeeking: Boolean = false,
@@ -31,7 +33,14 @@ object PlayerContract {
         val showMoreMenu: Boolean = false,
         val showShareSheet: Boolean = false,
         val showAddToPlaylistDialog: Boolean = false,
+        val showQueueSheet: Boolean = false,
+        val showLyricsSheet: Boolean = false,
         val playlists: List<Playlist> = emptyList(),
+        val lyrics: Lyrics = Lyrics.EMPTY,
+        val lyricsReady: Boolean = false,
+        val isLoadingLyrics: Boolean = false,
+        val lyricsOffsetMs: Long = 0L,
+        val currentLyricLineIndex: Int = -1,
     ) : UiState
 
     sealed interface Event : UiEvent {
@@ -61,6 +70,15 @@ object PlayerContract {
         data object GoToArtist : Event
         data object ShareExternal : Event
         data object ShareToChat : Event
+        data object ShowQueueSheet : Event
+        data object HideQueueSheet : Event
+        data object ShowLyricsSheet : Event
+        data object HideLyricsSheet : Event
+        data class PlayQueueIndex(val index: Int) : Event
+        data class RemoveFromQueue(val songId: String) : Event
+        data class MoveInQueue(val fromIndex: Int, val toIndex: Int) : Event
+        data class SeekToLyricLine(val index: Int) : Event
+        data class AdjustLyricsOffset(val deltaMs: Long) : Event
     }
 
     sealed interface Effect : UiEffect {

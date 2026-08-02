@@ -117,6 +117,31 @@ fun SettingsScreen(
                 }
             }
 
+            SettingsSection(title = stringResource(R.string.settings_downloads)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = spacing.md)) {
+                        Text(
+                            text = stringResource(R.string.settings_downloads_wifi_only),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_downloads_wifi_only_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = state.downloadsWifiOnly,
+                        onCheckedChange = {
+                            viewModel.handleEvent(SettingsContract.Event.DownloadsWifiOnlyChanged(it))
+                        },
+                    )
+                }
+            }
+
             MeloButton(
                 text = stringResource(R.string.settings_logout),
                 onClick = { viewModel.handleEvent(SettingsContract.Event.LogoutClicked) },

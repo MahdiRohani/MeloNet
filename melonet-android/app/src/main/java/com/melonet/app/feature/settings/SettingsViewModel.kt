@@ -22,12 +22,20 @@ class SettingsViewModel(
         settingsRepository.crossfadeSecondsFlow
             .onEach { seconds -> setState { copy(crossfadeSeconds = seconds) } }
             .launchIn(viewModelScope)
+        settingsRepository.downloadsWifiOnlyFlow
+            .onEach { wifiOnly -> setState { copy(downloadsWifiOnly = wifiOnly) } }
+            .launchIn(viewModelScope)
     }
 
     override fun handleEvent(event: SettingsContract.Event) {
         when (event) {
             is SettingsContract.Event.ThemeSelected -> setTheme(event.mode)
             is SettingsContract.Event.CrossfadeSelected -> setCrossfade(event.seconds)
+            is SettingsContract.Event.DownloadsWifiOnlyChanged -> {
+                viewModelScope.launch {
+                    settingsRepository.setDownloadsWifiOnly(event.enabled)
+                }
+            }
             SettingsContract.Event.LogoutClicked -> logout()
             SettingsContract.Event.PrivacyPolicyClicked -> {
                 setEffect { SettingsContract.Effect.OpenPrivacyPolicy(PRIVACY_POLICY_URL) }

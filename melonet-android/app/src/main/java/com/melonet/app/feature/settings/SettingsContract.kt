@@ -9,12 +9,14 @@ object SettingsContract {
     data class State(
         val themeMode: ThemeMode = ThemeMode.SYSTEM,
         val crossfadeSeconds: Int = 3,
+        val downloadsWifiOnly: Boolean = false,
         val isLoggingOut: Boolean = false,
     ) : UiState
 
     sealed interface Event : UiEvent {
         data class ThemeSelected(val mode: ThemeMode) : Event
         data class CrossfadeSelected(val seconds: Int) : Event
+        data class DownloadsWifiOnlyChanged(val enabled: Boolean) : Event
         data object LogoutClicked : Event
         data object PrivacyPolicyClicked : Event
         data object NavigateBack : Event
