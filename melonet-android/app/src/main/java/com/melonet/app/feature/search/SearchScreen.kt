@@ -56,6 +56,7 @@ import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloFilterChip
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.component.MeloImageFallback
 import com.melonet.app.core.designsystem.component.MeloSearchBar
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.core.network.toAppError
@@ -459,6 +460,7 @@ private fun UserResultRow(
                 imageUrl = user.avatarUrl,
                 contentDescription = user.displayName,
                 contentScale = ContentScale.Crop,
+                fallback = MeloImageFallback.Person,
                 modifier = Modifier
                     .size(dimensions.avatarSm)
                     .clip(CircleShape),

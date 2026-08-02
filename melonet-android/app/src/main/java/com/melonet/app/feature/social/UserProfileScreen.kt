@@ -41,6 +41,7 @@ import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloButtonVariant
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.component.MeloImageFallback
 import com.melonet.app.core.designsystem.component.PlaylistCard
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
@@ -117,6 +118,7 @@ fun UserProfileScreen(
                                 imageUrl = user.avatarUrl.ifBlank { null },
                                 contentDescription = user.displayName,
                                 contentScale = ContentScale.Crop,
+                                fallback = MeloImageFallback.Person,
                                 modifier = Modifier
                                     .size(MeloNetTheme.dimensions.avatarLg)
                                     .clip(CircleShape),

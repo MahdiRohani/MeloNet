@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.component.MeloImageFallback
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.SearchUser
 
@@ -138,6 +139,7 @@ private fun NewChatUserRow(user: SearchUser, onClick: () -> Unit) {
                 imageUrl = user.avatarUrl.ifBlank { null },
                 contentDescription = user.displayName,
                 contentScale = ContentScale.Crop,
+                fallback = MeloImageFallback.Person,
                 modifier = Modifier
                     .size(dimensions.avatarSm)
                     .clip(CircleShape),

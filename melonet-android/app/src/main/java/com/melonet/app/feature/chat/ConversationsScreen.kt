@@ -52,6 +52,7 @@ import com.melonet.app.core.designsystem.component.ChatConnectionBanner
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.component.MeloImageFallback
 import com.melonet.app.core.designsystem.component.MeloSearchBar
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.core.network.toAppError
@@ -244,6 +245,7 @@ private fun ConversationRow(
                 contentDescription = conversation.otherUser.displayName,
                 contentScale = ContentScale.Crop,
                 targetSize = 56.dp,
+                fallback = MeloImageFallback.Person,
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape),

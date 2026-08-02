@@ -92,6 +92,7 @@ import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.ChatConnectionBanner
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.component.MeloImageFallback
 import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.ChatMessage
@@ -223,6 +224,7 @@ fun ChatScreen(
                         contentDescription = state.otherUser?.displayName,
                         contentScale = ContentScale.Crop,
                         targetSize = 42.dp,
+                        fallback = MeloImageFallback.Person,
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape),

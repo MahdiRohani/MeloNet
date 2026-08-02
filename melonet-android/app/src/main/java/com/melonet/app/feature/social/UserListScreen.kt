@@ -39,6 +39,7 @@ import com.melonet.app.core.common.displayMessage
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.ErrorState
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.component.MeloImageFallback
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.SocialUser
 import com.melonet.app.data.model.UserListType
@@ -158,6 +159,7 @@ fun SocialUserRow(
                 imageUrl = user.avatarUrl.ifBlank { null },
                 contentDescription = user.displayName,
                 contentScale = ContentScale.Crop,
+                fallback = MeloImageFallback.Person,
                 modifier = Modifier
                     .size(avatarSize)
                     .clip(CircleShape),

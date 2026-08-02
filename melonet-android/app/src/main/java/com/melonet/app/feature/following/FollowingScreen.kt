@@ -54,6 +54,7 @@ import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.ArtistCircleItem
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.component.MeloImageFallback
 import com.melonet.app.core.designsystem.component.MeloSearchBar
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.SearchUser
@@ -328,6 +329,7 @@ private fun DiscoverUserRow(user: SearchUser, onClick: () -> Unit) {
                 imageUrl = user.avatarUrl.ifBlank { null },
                 contentDescription = user.displayName,
                 contentScale = ContentScale.Crop,
+                fallback = MeloImageFallback.Person,
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape),
