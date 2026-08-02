@@ -18,8 +18,12 @@ object KaraokePlayerContract {
         val isLoadingLyrics: Boolean = true,
         val lyricsReady: Boolean = false,
         val currentLineIndex: Int = -1,
+        /** Manual LRC calibration in milliseconds (positive = lyrics later). */
+        val lyricsOffsetMs: Long = 0L,
         val karaokeEnabled: Boolean = true,
         val isRecording: Boolean = false,
+        /** 3..1 during pre-roll; null when idle. */
+        val countdownSeconds: Int? = null,
         val recordingSeconds: Int = 0,
         val permissionNeeded: Boolean = false,
     ) : UiState
@@ -33,6 +37,9 @@ object KaraokePlayerContract {
         data object StopRecording : Event
         data object PermissionGranted : Event
         data object PermissionDenied : Event
+        data object NudgeOffsetEarlier : Event
+        data object NudgeOffsetLater : Event
+        data object ResetOffset : Event
     }
 
     sealed interface Effect : UiEffect {

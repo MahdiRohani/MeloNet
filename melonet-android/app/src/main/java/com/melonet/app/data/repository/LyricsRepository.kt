@@ -18,11 +18,18 @@ class LyricsRepository(
         durationSec: Int,
         album: String? = null,
         embeddedLyrics: String? = null,
+        syncedOnly: Boolean = false,
     ): Lyrics = withContext(dispatchers.io) {
         // Prefer synced lyrics already stored on the song when available.
         embeddedLyrics?.takeIf { it.isNotBlank() }?.let { raw ->
             val parsed = parseLrc(raw)
-            if (parsed.isNotEmpty()) return@withContext Lyrics(parsed, synced = true)
+            if (isMeaningfulSynced(parsed)) {
+                return@withContext Lyrics(parsed, synced = true)
+            }
+            // Tiny/demo LRC without real timing span — ignore when synced-only karaoke.
+            if (!syncedOnly && parsed.isNotEmpty()) {
+                return@withContext Lyrics(parsed, synced = true)
+            }
         }
 
         val cleanTitle = cleanTrackName(title)
@@ -36,10 +43,12 @@ class LyricsRepository(
                 durationSec = durationSec.takeIf { it > 0 },
                 albumName = cleanAlbum.takeIf { it.isNotBlank() },
             )
-        }.getOrNull()?.takeIf { hasUsableLyrics(it) }
+        }.getOrNull()?.takeIf { hasUsableLyrics(it, syncedOnly) }
 
-        if (direct != null && scoreCandidate(direct, cleanTitle, cleanArtist, durationSec) >= 0.55f) {
-            return@withContext toLyrics(direct)
+        val minScore = if (syncedOnly) 0.6f else 0.55f
+        if (direct != null && scoreCandidate(direct, cleanTitle, cleanArtist, durationSec, syncedOnly) >= minScore) {
+            val lyrics = toLyrics(direct, syncedOnly)
+            if (lyrics.lines.isNotEmpty()) return@withContext lyrics
         }
 
         val searchHits = buildList {
@@ -49,26 +58,39 @@ class LyricsRepository(
             }
         }
 
+        val searchMin = if (syncedOnly) 0.55f else 0.45f
         val best = searchHits
             .asSequence()
-            .filter(::hasUsableLyrics)
-            .map { it to scoreCandidate(it, cleanTitle, cleanArtist, durationSec) }
-            .filter { it.second >= 0.45f }
+            .filter { hasUsableLyrics(it, syncedOnly) }
+            .map { it to scoreCandidate(it, cleanTitle, cleanArtist, durationSec, syncedOnly) }
+            .filter { it.second >= searchMin }
             .maxByOrNull { it.second }
             ?.first
             ?: direct
 
-        best?.let(::toLyrics) ?: Lyrics.EMPTY
+        best?.let { toLyrics(it, syncedOnly) }?.takeIf { it.lines.isNotEmpty() } ?: Lyrics.EMPTY
     }
 
-    private fun hasUsableLyrics(dto: LrcLibResponseDto): Boolean =
-        !dto.syncedLyrics.isNullOrBlank() || !dto.plainLyrics.isNullOrBlank()
+    /** Fast local check — no network. True when [raw] parses as real timed LRC. */
+    fun hasEmbeddedSyncedLyrics(raw: String?): Boolean {
+        if (raw.isNullOrBlank()) return false
+        return isMeaningfulSynced(parseLrc(raw))
+    }
+
+    private fun hasUsableLyrics(dto: LrcLibResponseDto, syncedOnly: Boolean): Boolean {
+        if (syncedOnly) {
+            val synced = dto.syncedLyrics?.let(::parseLrc).orEmpty()
+            return isMeaningfulSynced(synced)
+        }
+        return !dto.syncedLyrics.isNullOrBlank() || !dto.plainLyrics.isNullOrBlank()
+    }
 
     private fun scoreCandidate(
         dto: LrcLibResponseDto,
         title: String,
         artist: String,
         durationSec: Int,
+        syncedOnly: Boolean,
     ): Float {
         val track = cleanTrackName(dto.trackName.orEmpty())
         val art = cleanArtistName(dto.artistName.orEmpty())
@@ -77,17 +99,20 @@ class LyricsRepository(
         score += titleSimilarity(title, track) * 0.5f
         score += titleSimilarity(artist, art) * 0.3f
 
-        if (!dto.syncedLyrics.isNullOrBlank()) score += 0.1f
+        if (!dto.syncedLyrics.isNullOrBlank()) score += 0.12f
 
         val candidateDuration = dto.duration?.toInt() ?: 0
         if (durationSec > 0 && candidateDuration > 0) {
             val diff = abs(durationSec - candidateDuration)
             score += when {
-                diff <= 2 -> 0.15f
-                diff <= 5 -> 0.08f
-                diff <= 12 -> 0.02f
-                else -> -0.25f
+                diff <= 2 -> 0.18f
+                diff <= 5 -> 0.1f
+                diff <= 8 -> 0.04f
+                // Karaoke needs tight duration match — reject loose matches harder.
+                else -> if (syncedOnly) -0.45f else -0.25f
             }
+        } else if (syncedOnly && durationSec > 0) {
+            score -= 0.08f
         }
 
         if (dto.instrumental == true) score -= 0.4f
@@ -127,10 +152,18 @@ class LyricsRepository(
         return s
     }
 
-    private fun toLyrics(dto: LrcLibResponseDto): Lyrics {
+    private fun toLyrics(dto: LrcLibResponseDto, syncedOnly: Boolean): Lyrics {
         val synced = dto.syncedLyrics?.let(::parseLrc).orEmpty()
-        if (synced.isNotEmpty()) {
+        if (isMeaningfulSynced(synced)) {
             return Lyrics(lines = synced, synced = true)
+        }
+        if (syncedOnly) return Lyrics.EMPTY
+        // Short/demo synced blob — surface as unsynced plain so UI can warn.
+        if (synced.isNotEmpty()) {
+            return Lyrics(
+                lines = synced.map { it.copy(timeMs = -1L) },
+                synced = false,
+            )
         }
         val plain = dto.plainLyrics
             ?.split("\n")
@@ -139,6 +172,15 @@ class LyricsRepository(
             ?.map { LyricLine(timeMs = -1L, text = it) }
             .orEmpty()
         return Lyrics(lines = plain, synced = false)
+    }
+
+    /**
+     * Rejects stub / demo LRC (e.g. 3 lines spanning a few seconds).
+     */
+    private fun isMeaningfulSynced(lines: List<LyricLine>): Boolean {
+        if (lines.size < 8) return false
+        val span = (lines.last().timeMs - lines.first().timeMs).coerceAtLeast(0L)
+        return span >= 30_000L
     }
 
     private fun parseLrc(raw: String): List<LyricLine> {

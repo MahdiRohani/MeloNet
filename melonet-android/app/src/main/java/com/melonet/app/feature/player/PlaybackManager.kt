@@ -42,7 +42,7 @@ data class PlaybackState(
     val sleepTimerMinutesLeft: Int? = null,
     val isConnected: Boolean = false,
     val shuffleEnabled: Boolean = false,
-    val repeatMode: RepeatMode = RepeatMode.OFF,
+    val repeatMode: RepeatMode = RepeatMode.ALL,
     val karaokeEnabled: Boolean = false,
     val crossfadeSeconds: Int = 3,
 )
@@ -167,16 +167,20 @@ class PlaybackManager(
                 val c = controllerFuture?.get() ?: return@addListener
                 controller = c
                 c.addListener(playerListener)
+                val mappedRepeat = when (c.repeatMode) {
+                    Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+                    else -> RepeatMode.ALL
+                }
+                // Never leave the player in one-and-done OFF mode.
+                if (c.repeatMode == Player.REPEAT_MODE_OFF) {
+                    c.repeatMode = Player.REPEAT_MODE_ALL
+                }
                 _state.update {
                     it.copy(
                         isConnected = true,
                         playbackSpeed = c.playbackParameters.speed,
                         shuffleEnabled = c.shuffleModeEnabled,
-                        repeatMode = when (c.repeatMode) {
-                            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
-                            Player.REPEAT_MODE_ALL -> RepeatMode.ALL
-                            else -> RepeatMode.OFF
-                        },
+                        repeatMode = mappedRepeat,
                     )
                 }
                 syncFromPlayer(c)
@@ -207,6 +211,7 @@ class PlaybackManager(
             isSeekingInternal = false
             c.volume = 1f
             c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
+            applyRepeatMode(_state.value.repeatMode)
             c.prepare()
             c.play()
             _state.update {
@@ -231,6 +236,7 @@ class PlaybackManager(
             awaitingInitialReady = true
             c.volume = 1f
             c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
+            applyRepeatMode(_state.value.repeatMode)
             c.prepare()
             c.pause()
             _state.update {
@@ -343,6 +349,22 @@ class PlaybackManager(
         }
     }
 
+    /**
+     * When false, ExoPlayer keeps playing even if mic recording requests audio focus.
+     * Restore to true when leaving karaoke record mode.
+     */
+    fun setHandleAudioFocus(handle: Boolean) {
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            val attrs = androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build()
+            c.setAudioAttributes(attrs, handle)
+        }
+    }
+
     fun toggleShuffle() {
         val c = controller ?: return
         val enabled = !c.shuffleModeEnabled
@@ -352,24 +374,23 @@ class PlaybackManager(
 
     fun cycleRepeatMode() {
         val next = when (_state.value.repeatMode) {
-            RepeatMode.OFF -> RepeatMode.ALL
-            RepeatMode.ALL -> RepeatMode.ONE
-            RepeatMode.ONE -> RepeatMode.OFF
+            RepeatMode.ALL, RepeatMode.OFF -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.ALL
         }
         applyRepeatMode(next)
     }
 
     private fun applyRepeatMode(mode: RepeatMode) {
+        val normalized = if (mode == RepeatMode.OFF) RepeatMode.ALL else mode
         val c = controller ?: run {
-            _state.update { it.copy(repeatMode = mode) }
+            _state.update { it.copy(repeatMode = normalized) }
             return
         }
-        c.repeatMode = when (mode) {
-            RepeatMode.OFF -> Player.REPEAT_MODE_OFF
-            RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+        c.repeatMode = when (normalized) {
             RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+            RepeatMode.ALL, RepeatMode.OFF -> Player.REPEAT_MODE_ALL
         }
-        _state.update { it.copy(repeatMode = mode) }
+        _state.update { it.copy(repeatMode = normalized) }
     }
 
     private fun handlePlaybackEnded() {

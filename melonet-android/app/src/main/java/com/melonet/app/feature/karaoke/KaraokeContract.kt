@@ -10,6 +10,8 @@ object KaraokeContract {
     data class State(
         val query: String = "",
         val results: List<Song> = emptyList(),
+        val suggestions: List<Song> = emptyList(),
+        val isLoadingSuggestions: Boolean = true,
         val isSearching: Boolean = false,
         val hasSearched: Boolean = false,
     ) : UiState
@@ -17,6 +19,7 @@ object KaraokeContract {
     sealed interface Event : UiEvent {
         data class QueryChanged(val query: String) : Event
         data object Submit : Event
+        data object RefreshSuggestions : Event
     }
 
     sealed interface Effect : UiEffect

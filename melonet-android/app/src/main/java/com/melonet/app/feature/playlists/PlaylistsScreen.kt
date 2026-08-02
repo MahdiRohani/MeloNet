@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +50,7 @@ import com.melonet.app.core.designsystem.component.AnimateEnter
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloButtonVariant
+import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.component.PlaylistCard
 import com.melonet.app.core.designsystem.component.SectionHeader
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
@@ -153,9 +155,9 @@ fun PlaylistsScreen(
                     SectionHeader(title = stringResource(R.string.playlists_section_mine))
                 }
             }
-            item(key = "mine_grid") {
+            item(key = "mine_list") {
                 AnimateEnter(delayMillis = 100) {
-                    PlaylistGrid(playlists = userPlaylists) { playlist ->
+                    PlaylistList(playlists = userPlaylists) { playlist ->
                         viewModel.handleEvent(PlaylistsContract.Event.PlaylistClicked(playlist))
                     }
                 }
@@ -277,11 +279,12 @@ private fun LibraryShortcutCard(
 }
 
 @Composable
-private fun PlaylistGrid(
+private fun PlaylistList(
     playlists: LazyPagingItems<Playlist>,
     onPlaylistClick: (Playlist) -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
+    val scheme = MaterialTheme.colorScheme
     val items = playlists.itemSnapshotList.items
     if (items.isEmpty()) {
         EmptyState(
@@ -291,6 +294,64 @@ private fun PlaylistGrid(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp),
+        )
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+        items.forEach { playlist ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(scheme.surfaceVariant.copy(alpha = 0.45f))
+                    .clickable { onPlaylistClick(playlist) }
+                    .padding(horizontal = spacing.sm, vertical = spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                MeloImage(
+                    imageUrl = playlist.coverUrl.ifBlank { null },
+                    contentDescription = playlist.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = playlist.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        color = scheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.playlists_song_count, playlist.songCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistGrid(
+    playlists: LazyPagingItems<Playlist>,
+    onPlaylistClick: (Playlist) -> Unit,
+) {
+    val spacing = MeloNetTheme.spacing
+    val items = playlists.itemSnapshotList.items
+    if (items.isEmpty()) {
+        EmptyState(
+            title = stringResource(R.string.playlists_empty),
+            description = stringResource(R.string.playlists_empty_description),
+            icon = Icons.Default.Add,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp),
         )
         return
     }

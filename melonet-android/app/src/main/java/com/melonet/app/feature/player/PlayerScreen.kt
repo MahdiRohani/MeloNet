@@ -84,6 +84,7 @@ import com.melonet.app.feature.player.component.PlayerProgressBar
 import com.melonet.app.feature.player.component.RotatingCover
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,8 +99,9 @@ fun PlayerScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val spacing = MeloNetTheme.spacing
-    val dimensions = MeloNetTheme.dimensions
     val context = LocalContext.current
+    val audioShareHelper: AudioShareHelper = koinInject()
+    val dimensions = MeloNetTheme.dimensions
     val imageLoader = remember { ImageLoader(context) }
     val onPrimary = MaterialTheme.colorScheme.onPrimary
     val fftMagnitudes by PlaybackAudioBridge.fftMagnitudes.collectAsState()
@@ -136,24 +138,15 @@ fun PlayerScreen(
                 is PlayerContract.Effect.NavigateToArtist -> onNavigateToArtist(effect.artistId)
                 is PlayerContract.Effect.ShareToChat -> onShareToChat(effect.songId)
                 is PlayerContract.Effect.ShareExternal -> {
-                    val send = Intent(Intent.ACTION_SEND).apply {
-                        type = effect.mimeType
-                        putExtra(Intent.EXTRA_STREAM, effect.uri)
-                        putExtra(Intent.EXTRA_TEXT, effect.text)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        clipData = android.content.ClipData.newUri(
-                            context.contentResolver,
-                            effect.text,
-                            effect.uri,
-                        )
-                    }
-                    val chooser = Intent.createChooser(
-                        send,
-                        context.getString(R.string.player_more_share),
-                    ).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    context.startActivity(chooser)
+                    audioShareHelper.launchShareChooser(
+                        context = context,
+                        payload = AudioSharePayload(
+                            uri = effect.uri,
+                            mimeType = effect.mimeType,
+                            text = effect.text,
+                        ),
+                        chooserTitle = context.getString(R.string.player_more_share),
+                    )
                 }
                 is PlayerContract.Effect.ShowMessage -> {
                     android.widget.Toast.makeText(
@@ -319,11 +312,7 @@ fun PlayerScreen(
                             else -> Icons.Default.Repeat
                         },
                         contentDescription = stringResource(R.string.cd_repeat),
-                        tint = if (state.repeatMode != RepeatMode.OFF) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            onPrimary.copy(alpha = 0.6f)
-                        },
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
                 IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.SkipPrevious) }) {

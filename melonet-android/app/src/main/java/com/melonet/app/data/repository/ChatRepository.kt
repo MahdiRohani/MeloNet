@@ -337,11 +337,24 @@ class ChatRepository(
     }
 
     suspend fun flushOutbox() = withContext(dispatchers.io) {
-        val pending = chatMessageDao.getByStatuses(listOf(MessageStatus.PENDING.name, MessageStatus.FAILED.name))
+        // Only retry hard failures. PENDING rows that were successfully written to the
+        // socket wait for ack and must not be duplicated on reconnect.
+        val pending = chatMessageDao.getByStatuses(listOf(MessageStatus.FAILED.name))
         for (entity in pending) {
             if (entity.serverId != null) continue
             retryMessage(entity.localId)
         }
+    }
+
+    /**
+     * Session-scoped guard so the same song is not auto-shared twice into one conversation
+     * when Chat is reopened with a leftover shareSongId nav arg.
+     */
+    private val consumedSongShares = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    fun tryConsumeSongShare(conversationId: Int, songId: String): Boolean {
+        if (conversationId <= 0 || songId.isBlank()) return false
+        return consumedSongShares.add("$conversationId::$songId")
     }
 
     suspend fun markConversationRead(conversationId: Int, messageIds: List<Long>) = withContext(dispatchers.io) {
@@ -447,7 +460,10 @@ class ChatRepository(
 
     private suspend fun finalizeOutbound(message: ChatMessage, sent: Boolean): ChatMessage {
         val result = if (sent) {
-            message
+            // Optimistic SENT so reconnect flushOutbox does not re-send already-delivered frames.
+            val confirmed = message.copy(status = MessageStatus.SENT)
+            chatMessageDao.updateStatusByLocalId(message.localId, MessageStatus.SENT.name)
+            confirmed
         } else {
             val failed = message.copy(status = MessageStatus.FAILED)
             chatMessageDao.updateStatusByLocalId(message.localId, MessageStatus.FAILED.name)

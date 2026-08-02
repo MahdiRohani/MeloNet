@@ -24,6 +24,7 @@ class KaraokePlayerViewModel(
 
     private var startedSongId: String? = null
     private var recordingTicker: Job? = null
+    private var countdownJob: Job? = null
     private var recordingStartedAtMs: Long = 0L
 
     override fun createInitialState() = KaraokePlayerContract.State()
@@ -42,7 +43,13 @@ class KaraokePlayerViewModel(
                         positionMs = position,
                         durationMs = duration,
                         karaokeEnabled = playback.karaokeEnabled,
-                        currentLineIndex = computeLineIndex(lyrics.lines, lyrics.synced, position, duration),
+                        currentLineIndex = computeLineIndex(
+                            lyrics.lines,
+                            lyrics.synced,
+                            position,
+                            duration,
+                            lyricsOffsetMs,
+                        ),
                     )
                 }
             }
@@ -63,7 +70,14 @@ class KaraokePlayerViewModel(
                 }
             } ?: return@launch
 
-            setState { copy(song = song, isLoadingLyrics = true, lyricsReady = false) }
+            setState {
+                copy(
+                    song = song,
+                    isLoadingLyrics = true,
+                    lyricsReady = false,
+                    lyricsOffsetMs = 0L,
+                )
+            }
             // Prepare audio paused — only start once lyrics are ready (or failed).
             playbackManager.preparePaused(song, listOf(song))
             playbackManager.setKaraoke(true)
@@ -74,13 +88,20 @@ class KaraokePlayerViewModel(
                 durationSec = song.durationSec,
                 album = song.albumTitle,
                 embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
+                syncedOnly = true,
             )
             setState {
                 copy(
                     lyrics = lyrics,
                     isLoadingLyrics = false,
                     lyricsReady = true,
-                    currentLineIndex = computeLineIndex(lyrics.lines, lyrics.synced, 0L, durationMs),
+                    currentLineIndex = computeLineIndex(
+                        lyrics.lines,
+                        lyrics.synced,
+                        0L,
+                        durationMs,
+                        lyricsOffsetMs,
+                    ),
                 )
             }
             // Start from the beginning together with lyrics highlighting.
@@ -92,7 +113,7 @@ class KaraokePlayerViewModel(
     override fun handleEvent(event: KaraokePlayerContract.Event) {
         when (event) {
             KaraokePlayerContract.Event.TogglePlayPause -> {
-                if (!uiState.value.lyricsReady) return
+                if (!uiState.value.lyricsReady || uiState.value.countdownSeconds != null) return
                 playbackManager.togglePlayPause()
             }
             is KaraokePlayerContract.Event.SeekTo -> {
@@ -104,28 +125,65 @@ class KaraokePlayerViewModel(
             }
             is KaraokePlayerContract.Event.LineClicked -> {
                 val line = uiState.value.lyrics.lines.getOrNull(event.index) ?: return
-                if (line.timeMs >= 0) playbackManager.seekTo(line.timeMs)
+                if (line.timeMs >= 0) {
+                    playbackManager.seekTo((line.timeMs - uiState.value.lyricsOffsetMs).coerceAtLeast(0L))
+                }
             }
             KaraokePlayerContract.Event.StartRecording -> {
                 setEffect { KaraokePlayerContract.Effect.RequestMicPermission }
             }
-            KaraokePlayerContract.Event.PermissionGranted -> beginRecording()
+            KaraokePlayerContract.Event.PermissionGranted -> beginCountdownAndRecord()
             KaraokePlayerContract.Event.PermissionDenied -> {
                 setState { copy(permissionNeeded = true) }
                 setEffect { KaraokePlayerContract.Effect.ShowMessage("mic_permission_denied") }
             }
             KaraokePlayerContract.Event.StopRecording -> finishRecording()
+            KaraokePlayerContract.Event.NudgeOffsetEarlier -> adjustOffset(-250L)
+            KaraokePlayerContract.Event.NudgeOffsetLater -> adjustOffset(250L)
+            KaraokePlayerContract.Event.ResetOffset -> adjustOffset(-uiState.value.lyricsOffsetMs)
         }
     }
 
-    private fun beginRecording() {
+    private fun adjustOffset(deltaMs: Long) {
+        setState {
+            val next = (lyricsOffsetMs + deltaMs).coerceIn(-10_000L, 10_000L)
+            copy(
+                lyricsOffsetMs = next,
+                currentLineIndex = computeLineIndex(
+                    lyrics.lines,
+                    lyrics.synced,
+                    positionMs,
+                    durationMs,
+                    next,
+                ),
+            )
+        }
+    }
+
+    private fun beginCountdownAndRecord() {
         val song = uiState.value.song ?: return
+        if (uiState.value.isRecording || uiState.value.countdownSeconds != null) return
+        countdownJob?.cancel()
+        countdownJob = viewModelScope.launch {
+            // Pause briefly so singer can prepare; resume when mic starts.
+            playbackManager.pause()
+            for (sec in 3 downTo 1) {
+                setState { copy(countdownSeconds = sec) }
+                delay(1_000)
+            }
+            setState { copy(countdownSeconds = null) }
+            beginRecording(song)
+        }
+    }
+
+    private fun beginRecording(song: Song) {
         if (uiState.value.isRecording) return
         runCatching {
+            playbackManager.setHandleAudioFocus(false)
             karaokeRecordingRepository.startRecording()
             recordingStartedAtMs = System.currentTimeMillis()
             setState { copy(isRecording = true, recordingSeconds = 0, permissionNeeded = false) }
-            if (!uiState.value.isPlaying && uiState.value.lyricsReady) {
+            if (uiState.value.lyricsReady) {
                 playbackManager.resume()
             }
             recordingTicker?.cancel()
@@ -137,6 +195,7 @@ class KaraokePlayerViewModel(
                 }
             }
         }.onFailure {
+            playbackManager.setHandleAudioFocus(true)
             setEffect { KaraokePlayerContract.Effect.ShowMessage("record_failed") }
         }
     }
@@ -144,9 +203,11 @@ class KaraokePlayerViewModel(
     private fun finishRecording() {
         if (!uiState.value.isRecording) return
         recordingTicker?.cancel()
+        countdownJob?.cancel()
         val song = uiState.value.song ?: return
         val file = karaokeRecordingRepository.stopRecording()
-        setState { copy(isRecording = false) }
+        playbackManager.setHandleAudioFocus(true)
+        setState { copy(isRecording = false, countdownSeconds = null) }
         if (file == null || !file.exists()) {
             setEffect { KaraokePlayerContract.Effect.ShowMessage("record_failed") }
             return
@@ -166,12 +227,14 @@ class KaraokePlayerViewModel(
         synced: Boolean,
         positionMs: Long,
         durationMs: Long,
+        offsetMs: Long,
     ): Int {
         if (lines.isEmpty()) return -1
+        val effective = positionMs + offsetMs
         return if (synced) {
             var index = -1
             for (i in lines.indices) {
-                if (lines[i].timeMs <= positionMs) index = i else break
+                if (lines[i].timeMs <= effective) index = i else break
             }
             index
         } else {
@@ -184,10 +247,12 @@ class KaraokePlayerViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        countdownJob?.cancel()
         if (uiState.value.isRecording) {
             karaokeRecordingRepository.cancelRecording()
         }
         recordingTicker?.cancel()
+        playbackManager.setHandleAudioFocus(true)
         playbackManager.setKaraoke(false)
     }
 }

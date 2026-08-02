@@ -1,6 +1,8 @@
 package com.melonet.app.feature.player
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -21,8 +23,8 @@ data class AudioSharePayload(
 
 /**
  * Prepares a shareable audio URI for ACTION_SEND + EXTRA_STREAM.
- * Local/media URIs are granted as-is; downloads use FileProvider;
- * remote streams are copied into cache first.
+ * Always prefers a FileProvider cache copy so target apps receive a stable grantable URI
+ * (MediaStore content:// URIs often fail on the first share attempt).
  */
 class AudioShareHelper(
     private val context: Context,
@@ -36,30 +38,52 @@ class AudioShareHelper(
             ?: song.audioUrl.takeIf { it.isNotBlank() }
             ?: return@withContext null
 
-        when {
-            resolved.startsWith("content://", ignoreCase = true) -> {
-                AudioSharePayload(
-                    uri = resolved.toUri(),
-                    mimeType = guessMime(resolved, song),
-                    text = text,
-                )
+        val cached = when {
+            resolved.startsWith("content://", ignoreCase = true) ||
+                resolved.startsWith("file://", ignoreCase = true) -> {
+                copyUriToCache(resolved.toUri(), song)
             }
-            resolved.startsWith("file://", ignoreCase = true) -> {
-                val file = File(resolved.removePrefix("file://"))
-                if (!file.exists()) return@withContext null
-                fileProviderPayload(file, text, guessMime(file.name, song))
-            }
-            !resolved.startsWith("http://", ignoreCase = true) &&
-                !resolved.startsWith("https://", ignoreCase = true) -> {
-                val file = File(resolved)
-                if (!file.exists()) return@withContext null
-                fileProviderPayload(file, text, guessMime(file.name, song))
+            resolved.startsWith("http://", ignoreCase = true) ||
+                resolved.startsWith("https://", ignoreCase = true) -> {
+                copyRemoteToCache(resolved, song)
             }
             else -> {
-                val cached = copyRemoteToCache(resolved, song) ?: return@withContext null
-                fileProviderPayload(cached, text, guessMime(cached.name, song))
+                val file = File(resolved)
+                if (!file.exists()) null else copyFileToCache(file, song)
             }
+        } ?: return@withContext null
+
+        fileProviderPayload(cached, text, guessMime(cached.name, song))
+    }
+
+    fun launchShareChooser(context: Context, payload: AudioSharePayload, chooserTitle: String) {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = payload.mimeType
+            putExtra(Intent.EXTRA_STREAM, payload.uri)
+            putExtra(Intent.EXTRA_TEXT, payload.text)
+            clipData = android.content.ClipData.newUri(
+                context.contentResolver,
+                payload.text,
+                payload.uri,
+            )
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        val chooser = Intent.createChooser(send, chooserTitle).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        // Explicitly grant every candidate so the first share attempt works.
+        val targets = context.packageManager.queryIntentActivities(
+            send,
+            PackageManager.MATCH_DEFAULT_ONLY,
+        )
+        for (info in targets) {
+            context.grantUriPermission(
+                info.activityInfo.packageName,
+                payload.uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+        context.startActivity(chooser)
     }
 
     private fun fileProviderPayload(file: File, text: String, mimeType: String): AudioSharePayload {
@@ -71,11 +95,45 @@ class AudioShareHelper(
         return AudioSharePayload(uri = uri, mimeType = mimeType, text = text)
     }
 
-    private fun copyRemoteToCache(url: String, song: Song): File? {
+    private fun cacheFileFor(song: Song, ext: String): File {
         val dir = File(context.cacheDir, "share").apply { mkdirs() }
-        val ext = extensionFor(url, song)
         val safeId = song.id.replace(Regex("[^A-Za-z0-9_-]"), "_").take(48)
-        val out = File(dir, "share_${safeId}$ext")
+        return File(dir, "share_${safeId}$ext")
+    }
+
+    private fun copyFileToCache(source: File, song: Song): File? {
+        val ext = extensionFor(source.name, song)
+        val out = cacheFileFor(song, ext)
+        if (out.exists() && out.length() > 0L && out.length() == source.length()) return out
+        return runCatching {
+            source.inputStream().use { input ->
+                FileOutputStream(out).use { output -> input.copyTo(output) }
+            }
+            out
+        }.getOrElse {
+            out.delete()
+            null
+        }
+    }
+
+    private fun copyUriToCache(uri: Uri, song: Song): File? {
+        val ext = extensionFor(uri.toString(), song)
+        val out = cacheFileFor(song, ext)
+        if (out.exists() && out.length() > 0L) return out
+        return runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(out).use { output -> input.copyTo(output) }
+            } ?: return null
+            out
+        }.getOrElse {
+            out.delete()
+            null
+        }
+    }
+
+    private fun copyRemoteToCache(url: String, song: Song): File? {
+        val ext = extensionFor(url, song)
+        val out = cacheFileFor(song, ext)
         if (out.exists() && out.length() > 0L) return out
 
         return runCatching {
@@ -97,10 +155,10 @@ class AudioShareHelper(
         }
     }
 
-    private fun extensionFor(url: String, song: Song): String {
-        val path = url.substringBefore('?').lowercase()
+    private fun extensionFor(nameOrUrl: String, song: Song): String {
+        val path = nameOrUrl.substringBefore('?').lowercase()
         return when {
-            path.endsWith(".m4a") -> ".m4a"
+            path.endsWith(".m4a") || path.contains("audio/mp4") -> ".m4a"
             path.endsWith(".wav") -> ".wav"
             path.endsWith(".ogg") -> ".ogg"
             path.endsWith(".flac") -> ".flac"
@@ -118,7 +176,7 @@ class AudioShareHelper(
             lower.endsWith(".ogg") -> "audio/ogg"
             lower.endsWith(".flac") -> "audio/flac"
             lower.endsWith(".aac") -> "audio/aac"
-            else -> "audio/*"
+            else -> "audio/mpeg"
         }
     }
 }

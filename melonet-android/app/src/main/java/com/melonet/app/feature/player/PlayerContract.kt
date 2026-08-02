@@ -26,7 +26,7 @@ object PlayerContract {
         val downloadStatus: DownloadStatus? = null,
         val showUpgradeDialog: Boolean = false,
         val shuffleEnabled: Boolean = false,
-        val repeatMode: RepeatMode = RepeatMode.OFF,
+        val repeatMode: RepeatMode = RepeatMode.ALL,
         val isLiked: Boolean = false,
         val showMoreMenu: Boolean = false,
         val showShareSheet: Boolean = false,

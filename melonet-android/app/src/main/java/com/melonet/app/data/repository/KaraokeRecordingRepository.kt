@@ -54,25 +54,35 @@ class KaraokeRecordingRepository(
         stopRecordingInternal(delete = true)
         val dir = File(context.filesDir, "karaoke_recordings").apply { mkdirs() }
         val file = File(dir, "take_${System.currentTimeMillis()}.m4a")
-        val mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            MediaRecorder(context)
-        } else {
-            @Suppress("DEPRECATION")
-            MediaRecorder()
+
+        var lastError: Throwable? = null
+        for (source in micSources()) {
+            val mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }
+            val ok = runCatching {
+                mediaRecorder.setAudioSource(source)
+                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                mediaRecorder.setAudioEncodingBitRate(128_000)
+                mediaRecorder.setAudioSamplingRate(44_100)
+                mediaRecorder.setOutputFile(file.absolutePath)
+                mediaRecorder.prepare()
+                mediaRecorder.start()
+            }
+            if (ok.isSuccess) {
+                recorder = mediaRecorder
+                currentFile = file
+                return file
+            }
+            lastError = ok.exceptionOrNull()
+            runCatching { mediaRecorder.release() }
         }
-        mediaRecorder.apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setAudioEncodingBitRate(128_000)
-            setAudioSamplingRate(44_100)
-            setOutputFile(file.absolutePath)
-            prepare()
-            start()
-        }
-        recorder = mediaRecorder
-        currentFile = file
-        return file
+        file.delete()
+        throw lastError ?: IllegalStateException("Could not start MediaRecorder")
     }
 
     fun stopRecording(): File? {
@@ -118,6 +128,15 @@ class KaraokeRecordingRepository(
             File(existing.vocalPath).delete()
             dao.delete(id)
         }
+    }
+
+    private fun micSources(): List<Int> = buildList {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            add(MediaRecorder.AudioSource.UNPROCESSED)
+        }
+        add(MediaRecorder.AudioSource.CAMCORDER)
+        add(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+        add(MediaRecorder.AudioSource.MIC)
     }
 
     private fun stopRecordingInternal(delete: Boolean): File? {

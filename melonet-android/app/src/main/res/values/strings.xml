@@ -340,6 +340,7 @@
     <string name="karaoke_loading_lyrics">Finding synced lyrics…</string>
     <string name="karaoke_record">Record</string>
     <string name="karaoke_recording">Recording %1$s</string>
+    <string name="karaoke_countdown">Get ready… %1$d</string>
     <string name="karaoke_record_saved">Take saved in My Recordings</string>
     <string name="karaoke_record_failed">Could not save recording</string>
     <string name="karaoke_mic_permission">Microphone permission is required to record</string>
@@ -350,6 +351,15 @@
     <string name="karaoke_takes_empty_description">Open a karaoke song and tap the mic to record your take.</string>
     <string name="karaoke_share_text">My karaoke take of %1$s — %2$s</string>
     <string name="karaoke_open_my_takes">My Recordings</string>
+    <string name="karaoke_synced_badge">Synced lyrics</string>
+    <string name="karaoke_suggestions_title">Ready to sing</string>
+    <string name="karaoke_suggestions_subtitle">Tracks with real timed lyrics</string>
+    <string name="karaoke_offset_label">Sync %1$s</string>
+    <string name="karaoke_offset_earlier">Earlier</string>
+    <string name="karaoke_offset_later">Later</string>
+    <string name="karaoke_offset_reset">Reset sync</string>
+    <string name="karaoke_unsynced_warning">Timed lyrics unavailable — try another song</string>
+    <string name="karaoke_hero_cta">Browse My Recordings</string>
 
     <!-- Downloads -->
     <string name="downloads_title">Downloads</string>
@@ -380,13 +390,13 @@
     <string name="placeholder_user_profile">User profile — ID: %1$d</string>
 
     <string name="karaoke_title">Karaoke</string>
-    <string name="karaoke_banner_title">Karaoke Mode</string>
-    <string name="karaoke_banner_subtitle">Sing along — instrumental + synced lyrics</string>
+    <string name="karaoke_banner_title">Karaoke</string>
+    <string name="karaoke_banner_subtitle">Instrumental mix with timed lyrics — tap mic to record your take</string>
     <string name="karaoke_search_hint">Search any song…</string>
     <string name="karaoke_empty_title">Pick a song to sing</string>
-    <string name="karaoke_empty_description">Search for any song to play its instrumental version with synced lyrics.</string>
+    <string name="karaoke_empty_description">Search for a track, or choose one below with synced lyrics.</string>
     <string name="karaoke_no_results">No songs found</string>
-    <string name="karaoke_lyrics_not_found">Lyrics not available for this song</string>
+    <string name="karaoke_lyrics_not_found">Synced lyrics not available for this song</string>
     <string name="karaoke_mode_instrumental">Instrumental</string>
     <string name="karaoke_mode_original">Original</string>
 </resources>

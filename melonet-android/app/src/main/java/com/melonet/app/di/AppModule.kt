@@ -288,7 +288,13 @@ val appModule = module {
             audioShareHelper = get(),
         )
     }
-    viewModel { KaraokeViewModel(searchRepository = get()) }
+    viewModel {
+        KaraokeViewModel(
+            searchRepository = get(),
+            homeRepository = get(),
+            lyricsRepository = get(),
+        )
+    }
     viewModel {
         KaraokePlayerViewModel(
             playbackManager = get(),

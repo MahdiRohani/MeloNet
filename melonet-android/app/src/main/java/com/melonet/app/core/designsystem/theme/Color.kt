@@ -41,34 +41,34 @@ val DarkInverseOnSurface = Color(0xFF1A160E)
 val DarkInversePrimary = Color(0xFF4A3F00)
 val DarkScrim = Color(0x99000000)
 
-// Light palette — warm slate + amber (copper tertiary, not purple)
-val LightPrimary = Amber
+// Light palette — clean cool neutrals + restrained gold accent
+val LightPrimary = Color(0xFFA67C00)
 val LightOnPrimary = Color(0xFFFFFFFF)
-val LightPrimaryContainer = Color(0xFFFEF3C7)
-val LightOnPrimaryContainer = Color(0xFF451A03)
-val LightSecondary = Color(0xFFD97706)
+val LightPrimaryContainer = Color(0xFFF3E8C8)
+val LightOnPrimaryContainer = Color(0xFF3A2E00)
+val LightSecondary = Color(0xFF5B6670)
 val LightOnSecondary = Color(0xFFFFFFFF)
-val LightSecondaryContainer = Color(0xFFFFEDD5)
-val LightOnSecondaryContainer = Color(0xFF431407)
-val LightTertiary = Color(0xFF9A3412)
+val LightSecondaryContainer = Color(0xFFE4E8EC)
+val LightOnSecondaryContainer = Color(0xFF1F282F)
+val LightTertiary = Color(0xFF6B7C6E)
 val LightOnTertiary = Color(0xFFFFFFFF)
-val LightTertiaryContainer = Color(0xFFFFEDD5)
-val LightOnTertiaryContainer = Color(0xFF431407)
-val LightError = Color(0xFFDC2626)
+val LightTertiaryContainer = Color(0xFFDCE6DF)
+val LightOnTertiaryContainer = Color(0xFF1C2A20)
+val LightError = Color(0xFFC62828)
 val LightOnError = Color(0xFFFFFFFF)
-val LightErrorContainer = Color(0xFFFEE2E2)
+val LightErrorContainer = Color(0xFFFFEBEE)
 val LightOnErrorContainer = Color(0xFF7F1D1D)
-val LightBackground = Color(0xFFF8F5EF)
-val LightOnBackground = Color(0xFF1C1914)
-val LightSurface = Color(0xFFFFFCF7)
-val LightOnSurface = Color(0xFF1C1914)
-val LightSurfaceVariant = Color(0xFFEDE6D9)
-val LightOnSurfaceVariant = Color(0xFF5C5346)
-val LightOutline = Color(0xFF9A9080)
-val LightOutlineVariant = Color(0xFFD6CEBF)
-val LightInverseSurface = Color(0xFF2A251C)
-val LightInverseOnSurface = Color(0xFFF8F5EF)
-val LightInversePrimary = Color(0xFFFEF3C7)
+val LightBackground = Color(0xFFF3F4F6)
+val LightOnBackground = Color(0xFF171A1F)
+val LightSurface = Color(0xFFFFFFFF)
+val LightOnSurface = Color(0xFF171A1F)
+val LightSurfaceVariant = Color(0xFFE6E8EC)
+val LightOnSurfaceVariant = Color(0xFF4A5058)
+val LightOutline = Color(0xFF8B929A)
+val LightOutlineVariant = Color(0xFFCED3D8)
+val LightInverseSurface = Color(0xFF23272E)
+val LightInverseOnSurface = Color(0xFFF3F4F6)
+val LightInversePrimary = Color(0xFFF3E8C8)
 val LightScrim = Color(0x99000000)
 
 /** Semantic extension colors + atmospheric brushes (keep feature code off raw Color(0x…)). */
@@ -118,16 +118,16 @@ val DarkMeloNetColors = MeloNetColors(
 val LightMeloNetColors = MeloNetColors(
     premium = GoldDark,
     onPremium = Color(0xFFFFFFFF),
-    premiumContainer = Gold.copy(alpha = 0.12f),
+    premiumContainer = Gold.copy(alpha = 0.14f),
     onPremiumContainer = GoldDark,
     placeholder = LightSurfaceVariant,
     disabled = Color(0xFF9CA3AF),
-    shimmerBase = 0.07f,
-    shimmerHighlight = 0.28f,
-    surfaceGradientTop = Color(0xFFFFFCF7),
+    shimmerBase = 0.06f,
+    shimmerHighlight = 0.22f,
+    surfaceGradientTop = Color(0xFFFFFFFF),
     surfaceGradientBottom = LightBackground,
-    illustrationWell = Color(0xFFF0E9DC),
-    brandSoft = Amber.copy(alpha = 0.16f),
+    illustrationWell = Color(0xFFE8EBEE),
+    brandSoft = Gold.copy(alpha = 0.14f),
     vinylInner = Color(0xFF2A2A2A),
     vinylOuter = Color(0xFF0D0D0D),
     vinylSpindle = Color(0xFF111111),

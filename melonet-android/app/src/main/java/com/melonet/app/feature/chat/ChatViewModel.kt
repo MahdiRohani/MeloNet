@@ -251,6 +251,10 @@ class ChatViewModel(
         if (uiState.value.shareHandled) return
         val conversationId = uiState.value.conversationId
         if (conversationId == 0 || receiverId == 0) return
+        if (!chatRepository.tryConsumeSongShare(conversationId, songId)) {
+            setState { copy(shareHandled = true) }
+            return
+        }
         viewModelScope.launch {
             setState { copy(shareHandled = true) }
             val pending = chatRepository.sendSongShare(conversationId, receiverId, songId)
