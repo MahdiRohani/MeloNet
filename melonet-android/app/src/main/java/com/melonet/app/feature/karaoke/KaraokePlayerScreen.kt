@@ -217,6 +217,16 @@ fun KaraokePlayerScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(spacing.xs))
+            } else if (state.lyricsReady && !state.lyrics.isEmpty && !state.lyrics.synced) {
+                Text(
+                    text = stringResource(R.string.karaoke_unsynced_warning),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.md, vertical = spacing.xs),
+                )
             }
 
             Box(
@@ -240,15 +250,6 @@ fun KaraokePlayerScreen(
                     state.lyrics.isEmpty -> {
                         Text(
                             text = stringResource(R.string.karaoke_lyrics_not_found),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = scheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(spacing.lg),
-                        )
-                    }
-                    !state.lyrics.synced -> {
-                        Text(
-                            text = stringResource(R.string.karaoke_unsynced_warning),
                             style = MaterialTheme.typography.bodyLarge,
                             color = scheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,

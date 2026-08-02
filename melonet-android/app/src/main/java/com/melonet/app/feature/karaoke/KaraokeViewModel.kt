@@ -50,29 +50,50 @@ class KaraokeViewModel(
                 }
                 is Result.Error -> emptyList()
             }
-            val synced = filterSynced(candidates).take(12)
-            setState { copy(suggestions = synced, isLoadingSuggestions = false) }
+
+            if (candidates.isEmpty()) {
+                setState { copy(suggestions = emptyList(), isLoadingSuggestions = false) }
+                return@launch
+            }
+
+            // Show catalog songs immediately so the hub is never empty.
+            setState {
+                copy(
+                    suggestions = candidates.take(20),
+                    isLoadingSuggestions = false,
+                )
+            }
+
+            // Prefer tracks that actually have timed LRC; reorder when probe finishes.
+            val synced = filterSynced(candidates).take(16)
+            if (synced.isNotEmpty()) {
+                setState {
+                    copy(
+                        suggestions = (synced + candidates.filter { c -> synced.none { it.id == c.id } })
+                            .distinctBy { it.id }
+                            .take(20),
+                    )
+                }
+            }
         }
     }
 
     private suspend fun filterSynced(songs: List<Song>): List<Song> = coroutineScope {
-        // Prefer songs that already ship real LRC embedded in the catalog.
         val embedded = songs.filter { lyricsRepository.hasEmbeddedSyncedLyrics(it.lyrics) }
-        if (embedded.size >= 6) return@coroutineScope embedded
-
-        // Probe a limited batch via LRCLIB so hub stays synced-only without flooding the API.
-        val remaining = songs.filter { song -> embedded.none { it.id == song.id } }.take(16)
+        val remaining = songs.filter { song -> embedded.none { it.id == song.id } }.take(12)
         val probed = remaining.map { song ->
             async {
-                val lyrics = lyricsRepository.getLyrics(
-                    title = song.title,
-                    artist = song.artistName,
-                    durationSec = song.durationSec,
-                    album = song.albumTitle,
-                    embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
-                    syncedOnly = true,
-                )
-                song.takeIf { lyrics.synced && lyrics.lines.isNotEmpty() }
+                val lyrics = runCatching {
+                    lyricsRepository.getLyrics(
+                        title = song.title,
+                        artist = song.artistName,
+                        durationSec = song.durationSec,
+                        album = song.albumTitle,
+                        embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
+                        syncedOnly = true,
+                    )
+                }.getOrNull()
+                song.takeIf { lyrics != null && lyrics.synced && lyrics.lines.isNotEmpty() }
             }
         }.awaitAll().filterNotNull()
 
@@ -98,7 +119,6 @@ class KaraokeViewModel(
         searchJob = viewModelScope.launch {
             setState { copy(isSearching = true) }
             val songs = searchRepository.searchSongs(trimmed, limit = 30)
-            // Keep search snappy: surface catalog hits; player enforces synced-only LRC.
             setState { copy(results = songs, isSearching = false, hasSearched = true) }
         }
     }

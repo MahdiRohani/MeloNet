@@ -50,6 +50,7 @@ fun ProfileAvatar(
             imageUrl = avatarUrl?.ifBlank { null },
             contentDescription = stringResource(R.string.cd_user_avatar),
             contentScale = ContentScale.Crop,
+            fallback = MeloImageFallback.Person,
             modifier = Modifier
                 .size(dimensions.avatarLg)
                 .clip(CircleShape)

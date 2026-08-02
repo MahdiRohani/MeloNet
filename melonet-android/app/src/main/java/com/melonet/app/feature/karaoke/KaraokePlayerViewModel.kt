@@ -76,36 +76,61 @@ class KaraokePlayerViewModel(
                     isLoadingLyrics = true,
                     lyricsReady = false,
                     lyricsOffsetMs = 0L,
+                    currentLineIndex = -1,
                 )
             }
-            // Prepare audio paused — only start once lyrics are ready (or failed).
             playbackManager.preparePaused(song, listOf(song))
             playbackManager.setKaraoke(true)
 
-            val lyrics = lyricsRepository.getLyrics(
+            // Wait until media is prepared so lyric timing matches real duration.
+            repeat(60) {
+                val playback = playbackManager.state.value
+                if (playback.currentSong?.id == song.id &&
+                    !playback.isLoading &&
+                    playback.durationMs > 0L
+                ) {
+                    return@repeat
+                }
+                delay(100)
+            }
+
+            val playbackDurationSec = (playbackManager.state.value.durationMs / 1000L).toInt()
+            val durationForLyrics = when {
+                playbackDurationSec in 30..900 -> playbackDurationSec
+                song.durationSec in 30..900 -> song.durationSec
+                else -> 0
+            }
+
+            var lyrics = lyricsRepository.getLyrics(
                 title = song.title,
                 artist = song.artistName,
-                durationSec = song.durationSec,
+                durationSec = durationForLyrics,
                 album = song.albumTitle,
                 embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
                 syncedOnly = true,
             )
+            if (lyrics.lines.isEmpty()) {
+                lyrics = lyricsRepository.getLyrics(
+                    title = song.title,
+                    artist = song.artistName,
+                    durationSec = durationForLyrics,
+                    album = song.albumTitle,
+                    embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
+                    syncedOnly = false,
+                )
+            }
+
             setState {
                 copy(
                     lyrics = lyrics,
                     isLoadingLyrics = false,
                     lyricsReady = true,
-                    currentLineIndex = computeLineIndex(
-                        lyrics.lines,
-                        lyrics.synced,
-                        0L,
-                        durationMs,
-                        lyricsOffsetMs,
-                    ),
+                    currentLineIndex = -1,
                 )
             }
-            // Start from the beginning together with lyrics highlighting.
+            // Align highlight + audio from t=0 together.
             playbackManager.seekTo(0)
+            delay(120)
             playbackManager.resume()
         }
     }

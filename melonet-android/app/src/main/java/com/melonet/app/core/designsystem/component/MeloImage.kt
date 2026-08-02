@@ -1,7 +1,11 @@
 package com.melonet.app.core.designsystem.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -12,12 +16,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
 import com.melonet.app.R
 import com.melonet.app.core.network.MediaUrl
+
+enum class MeloImageFallback {
+    Album,
+    Person,
+}
 
 @Composable
 fun MeloImage(
@@ -26,10 +36,11 @@ fun MeloImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     targetSize: Dp? = null,
+    fallback: MeloImageFallback = MeloImageFallback.Album,
 ) {
     val resolvedUrl = MediaUrl.resolve(imageUrl)
     if (resolvedUrl.isNullOrBlank()) {
-        MeloImagePlaceholder(modifier = modifier)
+        MeloImagePlaceholder(modifier = modifier, fallback = fallback)
         return
     }
 
@@ -52,21 +63,36 @@ fun MeloImage(
         contentDescription = contentDescription,
         contentScale = contentScale,
         modifier = modifier,
-        loading = { MeloImagePlaceholder(modifier = Modifier.fillMaxSize()) },
-        error = { MeloImagePlaceholder(modifier = Modifier.fillMaxSize()) },
+        loading = { MeloImagePlaceholder(modifier = Modifier.fillMaxSize(), fallback = fallback) },
+        error = { MeloImagePlaceholder(modifier = Modifier.fillMaxSize(), fallback = fallback) },
     )
 }
 
 @Composable
-private fun MeloImagePlaceholder(modifier: Modifier = Modifier) {
+private fun MeloImagePlaceholder(
+    modifier: Modifier = Modifier,
+    fallback: MeloImageFallback,
+) {
     Box(
-        modifier = modifier,
+        modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_album_placeholder),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        when (fallback) {
+            MeloImageFallback.Album -> {
+                Icon(
+                    painter = painterResource(R.drawable.ic_album_placeholder),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            MeloImageFallback.Person -> {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
     }
 }

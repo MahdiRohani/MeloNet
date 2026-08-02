@@ -358,7 +358,7 @@
     <string name="karaoke_offset_earlier">Earlier</string>
     <string name="karaoke_offset_later">Later</string>
     <string name="karaoke_offset_reset">Reset sync</string>
-    <string name="karaoke_unsynced_warning">Timed lyrics unavailable — try another song</string>
+    <string name="karaoke_unsynced_warning">Timed sync unavailable — lyrics still shown; use ± to adjust if needed</string>
     <string name="karaoke_hero_cta">Browse My Recordings</string>
 
     <!-- Downloads -->

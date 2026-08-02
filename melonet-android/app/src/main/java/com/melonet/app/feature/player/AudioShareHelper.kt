@@ -1,11 +1,14 @@
 package com.melonet.app.feature.player
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import com.melonet.app.core.network.MediaUrl
 import com.melonet.app.data.model.Song
 import com.melonet.app.data.repository.DownloadRepository
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +38,7 @@ class AudioShareHelper(
         val text = "${song.title} — ${song.artistName}"
         val resolved = downloadRepository.localPathFor(song.id)
             ?.takeIf { File(it).exists() }
+            ?: MediaUrl.resolve(song.audioUrl)
             ?: song.audioUrl.takeIf { it.isNotBlank() }
             ?: return@withContext null
 
@@ -58,7 +62,8 @@ class AudioShareHelper(
 
     fun launchShareChooser(context: Context, payload: AudioSharePayload, chooserTitle: String) {
         val send = Intent(Intent.ACTION_SEND).apply {
-            type = payload.mimeType
+            // Broad type so more targets appear; stream still carries the real file.
+            type = "audio/*"
             putExtra(Intent.EXTRA_STREAM, payload.uri)
             putExtra(Intent.EXTRA_TEXT, payload.text)
             clipData = android.content.ClipData.newUri(
@@ -68,20 +73,28 @@ class AudioShareHelper(
             )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val chooser = Intent.createChooser(send, chooserTitle).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val chooser = Intent.createChooser(send, chooserTitle)
+        if (context !is Activity) {
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        // Explicitly grant every candidate so the first share attempt works.
-        val targets = context.packageManager.queryIntentActivities(
-            send,
-            PackageManager.MATCH_DEFAULT_ONLY,
-        )
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PackageManager.MATCH_ALL
+        } else {
+            PackageManager.MATCH_DEFAULT_ONLY
+        }
+        val targets = runCatching {
+            context.packageManager.queryIntentActivities(send, flags)
+        }.getOrDefault(emptyList())
         for (info in targets) {
-            context.grantUriPermission(
-                info.activityInfo.packageName,
-                payload.uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
+            runCatching {
+                context.grantUriPermission(
+                    info.activityInfo.packageName,
+                    payload.uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
         }
         context.startActivity(chooser)
     }
