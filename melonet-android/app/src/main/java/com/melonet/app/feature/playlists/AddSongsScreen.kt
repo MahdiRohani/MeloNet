@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,10 +33,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.EmptyState
+import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.permission.hasAudioReadPermission
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.Song
@@ -231,23 +238,36 @@ private fun AddSongListItem(
     isAdded: Boolean,
     onAdd: () -> Unit,
 ) {
+    val spacing = MeloNetTheme.spacing
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = MeloNetTheme.spacing.xs),
+            .padding(vertical = spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
+        MeloImage(
+            imageUrl = song.coverUrl.ifBlank { null },
+            contentDescription = song.title,
+            contentScale = ContentScale.Crop,
+            targetSize = 56.dp,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp)),
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = song.artistName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         TextButton(

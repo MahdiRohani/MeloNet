@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"io"
 	"net/http"
 	"strings"
 
@@ -33,16 +32,8 @@ func (h *StreamHandler) Stream(c *gin.Context) {
 		return
 	}
 
-	upstream, err := h.audius.ProxyGet(ctx, streamURL, c.GetHeader("Range"))
-	if err != nil {
-		response.InternalError(c, "failed to stream track")
-		return
-	}
-	defer audius.Drain(upstream)
-
-	copyProxyHeaders(c, upstream.Header)
-	c.Status(upstream.StatusCode)
-	_, _ = io.Copy(c.Writer, upstream.Body)
+	// Redirect client straight to Audius CDN — avoids double-hop proxy latency.
+	c.Redirect(http.StatusFound, streamURL)
 }
 
 func (h *StreamHandler) Artwork(c *gin.Context) {
@@ -59,23 +50,6 @@ func (h *StreamHandler) Artwork(c *gin.Context) {
 		return
 	}
 
-	upstream, err := h.audius.ProxyGet(ctx, artURL, "")
-	if err != nil {
-		response.InternalError(c, "failed to fetch artwork")
-		return
-	}
-	defer audius.Drain(upstream)
-
-	copyProxyHeaders(c, upstream.Header)
 	c.Header("Cache-Control", "public, max-age=86400")
-	c.Status(upstream.StatusCode)
-	_, _ = io.Copy(c.Writer, upstream.Body)
-}
-
-func copyProxyHeaders(c *gin.Context, headers http.Header) {
-	for _, key := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
-		if value := headers.Get(key); value != "" {
-			c.Header(key, value)
-		}
-	}
+	c.Redirect(http.StatusFound, artURL)
 }

@@ -393,6 +393,8 @@
     <string name="karaoke_banner_title">Karaoke</string>
     <string name="karaoke_banner_subtitle">Instrumental mix with timed lyrics — tap mic to record your take</string>
     <string name="karaoke_search_hint">Search any song…</string>
+    <string name="karaoke_search_failed">Search failed</string>
+    <string name="karaoke_search_rate_limited_hint">Wait a few seconds, then search again.</string>
     <string name="karaoke_empty_title">Pick a song to sing</string>
     <string name="karaoke_empty_description">Search for a track, or choose one below with synced lyrics.</string>
     <string name="karaoke_no_results">No songs found</string>

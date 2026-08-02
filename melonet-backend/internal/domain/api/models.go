@@ -73,10 +73,11 @@ type PlaylistResponse struct {
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
 	Visibility  string `json:"visibility"`
-	CoverURL    string `json:"cover_url"`
-	IsSystem    bool   `json:"is_system"`
-	IsOwner     bool   `json:"is_owner,omitempty"`
-	SongCount   int    `json:"song_count,omitempty"`
+	CoverURL    string   `json:"cover_url"`
+	CoverURLs   []string `json:"cover_urls,omitempty"`
+	IsSystem    bool     `json:"is_system"`
+	IsOwner     bool     `json:"is_owner,omitempty"`
+	SongCount   int      `json:"song_count"`
 }
 
 type NotificationResponse struct {

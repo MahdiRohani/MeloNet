@@ -39,7 +39,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,14 +46,18 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.AnimateEnter
+import com.melonet.app.core.designsystem.component.CoverMosaic
 import com.melonet.app.core.designsystem.component.EmptyState
 import com.melonet.app.core.designsystem.component.MeloButton
 import com.melonet.app.core.designsystem.component.MeloButtonVariant
-import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.component.PlaylistCard
 import com.melonet.app.core.designsystem.component.SectionHeader
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.Playlist
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +72,17 @@ fun PlaylistsScreen(
     val userPlaylists = viewModel.userPlaylistsFlow.collectAsLazyPagingItems()
     val spacing = MeloNetTheme.spacing
     val scheme = MaterialTheme.colorScheme
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.handleEvent(PlaylistsContract.Event.Refresh)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -309,10 +323,8 @@ private fun PlaylistList(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
-                MeloImage(
-                    imageUrl = playlist.coverUrl.ifBlank { null },
-                    contentDescription = playlist.title,
-                    contentScale = ContentScale.Crop,
+                CoverMosaic(
+                    coverUrls = playlist.displayCoverUrls,
                     modifier = Modifier
                         .size(64.dp)
                         .clip(RoundedCornerShape(12.dp)),
@@ -371,6 +383,7 @@ private fun PlaylistGrid(
                 title = playlist.title,
                 songCount = playlist.songCount,
                 imageUrl = playlist.coverUrl.ifBlank { null },
+                coverUrls = playlist.displayCoverUrls,
                 onClick = { onPlaylistClick(playlist) },
                 large = true,
             )

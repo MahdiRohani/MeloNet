@@ -14,6 +14,7 @@ object KaraokeContract {
         val isLoadingSuggestions: Boolean = true,
         val isSearching: Boolean = false,
         val hasSearched: Boolean = false,
+        val searchError: String? = null,
     ) : UiState
 
     sealed interface Event : UiEvent {

@@ -88,6 +88,10 @@ func AlbumsToAPI(albums []db.Album) []api.AlbumResponse {
 }
 
 func PlaylistToAPI(playlist db.Playlist, viewerID int64) api.PlaylistResponse {
+	coverURL := playlist.CoverURL
+	if coverURL == "" && len(playlist.CoverURLs) > 0 {
+		coverURL = playlist.CoverURLs[0]
+	}
 	return api.PlaylistResponse{
 		ID:          uint(playlist.ID),
 		OwnerID:     uint(playlist.OwnerID),
@@ -95,7 +99,8 @@ func PlaylistToAPI(playlist db.Playlist, viewerID int64) api.PlaylistResponse {
 		Title:       playlist.Title,
 		Description: playlist.Description,
 		Visibility:  string(playlist.Visibility),
-		CoverURL:    playlist.CoverURL,
+		CoverURL:    coverURL,
+		CoverURLs:   playlist.CoverURLs,
 		IsSystem:    playlist.IsSystem,
 		IsOwner:     viewerID > 0 && playlist.OwnerID == viewerID,
 		SongCount:   playlist.SongCount,

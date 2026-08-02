@@ -179,6 +179,24 @@ private fun KaraokeHubBody(
         showingSearch && state.isSearching -> {
             LoadingCentered()
         }
+        showingSearch && !state.searchError.isNullOrBlank() -> {
+            EmptyState(
+                title = stringResource(
+                    when (state.searchError) {
+                        "rate_limited" -> R.string.error_rate_limited
+                        "no_connection" -> R.string.error_no_connection
+                        "timeout" -> R.string.error_timeout
+                        else -> R.string.karaoke_search_failed
+                    },
+                ),
+                description = if (state.searchError == "rate_limited") {
+                    stringResource(R.string.karaoke_search_rate_limited_hint)
+                } else {
+                    null
+                },
+                modifier = Modifier.padding(top = spacing.xl),
+            )
+        }
         showingSearch && state.results.isEmpty() && state.hasSearched -> {
             EmptyState(
                 title = stringResource(R.string.karaoke_no_results),

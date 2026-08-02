@@ -88,7 +88,10 @@ fun PlaylistDetailScreen(
             when (effect) {
                 is PlaylistDetailContract.Effect.NavigateToPlayer -> onNavigateToPlayer(effect.songId)
                 is PlaylistDetailContract.Effect.PlayQueue -> {
-                    onPlayQueue(effect.startSongId, viewModel.getCachedSongs(), effect.shuffle)
+                    val queue = viewModel.getCachedSongs()
+                    if (queue.isNotEmpty()) {
+                        onPlayQueue(effect.startSongId, queue, effect.shuffle)
+                    }
                 }
                 is PlaylistDetailContract.Effect.ShowError -> Unit
             }
@@ -96,7 +99,19 @@ fun PlaylistDetailScreen(
     }
 
     LaunchedEffect(songs.itemSnapshotList.items) {
-        viewModel.updateCachedSongs(songs.itemSnapshotList.items)
+        viewModel.updateCachedSongs(songs.itemSnapshotList.items.filterNotNull())
+    }
+
+    // Ensure list reloads when returning to this screen (e.g. after adding songs).
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner, playlistId) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshSongs()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Box(
@@ -117,7 +132,7 @@ fun PlaylistDetailScreen(
                     item(key = "hero") {
                         PlaylistHeroHeader(
                             title = playlist?.title.orEmpty(),
-                            coverUrl = playlist?.coverUrl,
+                            coverUrls = playlist?.displayCoverUrls.orEmpty(),
                             songCount = playlist?.songCount ?: songs.itemCount,
                             canPlay = songs.itemCount > 0,
                             showAdd = isOwner,
@@ -166,7 +181,7 @@ fun PlaylistDetailScreen(
                                     song = song,
                                     index = index + 1,
                                     onClick = {
-                                        viewModel.handleEvent(PlaylistDetailContract.Event.SongClicked(song.id))
+                                        viewModel.handleEvent(PlaylistDetailContract.Event.SongClicked(song))
                                     },
                                     onMoreClick = if (isOwner) {
                                         {
@@ -192,7 +207,7 @@ fun PlaylistDetailScreen(
 @Composable
 private fun PlaylistHeroHeader(
     title: String,
-    coverUrl: String?,
+    coverUrls: List<String>,
     songCount: Int,
     canPlay: Boolean,
     showAdd: Boolean,
@@ -209,11 +224,8 @@ private fun PlaylistHeroHeader(
             .fillMaxWidth()
             .height(340.dp),
     ) {
-        MeloImage(
-            imageUrl = coverUrl?.ifBlank { null },
-            contentDescription = title,
-            contentScale = ContentScale.Crop,
-            targetSize = 420.dp,
+        com.melonet.app.core.designsystem.component.CoverMosaic(
+            coverUrls = coverUrls,
             modifier = Modifier.fillMaxSize(),
         )
         Box(

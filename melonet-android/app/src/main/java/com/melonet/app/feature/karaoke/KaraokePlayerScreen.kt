@@ -170,9 +170,18 @@ fun KaraokePlayerScreen(
                         contentDescription = stringResource(R.string.cd_player_back),
                     )
                 }
+                MeloImage(
+                    imageUrl = state.song?.coverUrl,
+                    contentDescription = state.song?.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                )
+                Spacer(modifier = Modifier.size(spacing.sm))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = state.song?.title.orEmpty(),
+                        text = state.song?.title.orEmpty().ifBlank { "…" },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -189,6 +198,7 @@ fun KaraokePlayerScreen(
                 FilterChip(
                     selected = state.karaokeEnabled,
                     onClick = { viewModel.handleEvent(KaraokePlayerContract.Event.ToggleVocals) },
+                    enabled = state.lyricsReady,
                     label = {
                         Text(
                             stringResource(
@@ -349,6 +359,23 @@ fun KaraokePlayerScreen(
                     trackColor = scheme.onSurface.copy(alpha = 0.2f),
                     thumbColor = scheme.primary,
                 )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = spacing.xs),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = formatDuration(state.positionMs),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = formatDuration(state.durationMs),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(modifier = Modifier.height(spacing.sm))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -479,4 +506,11 @@ private fun formatSeconds(total: Int): String {
     val m = total / 60
     val s = total % 60
     return "%d:%02d".format(m, s)
+}
+
+private fun formatDuration(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }

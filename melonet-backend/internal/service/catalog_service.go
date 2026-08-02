@@ -220,8 +220,8 @@ func normalizeCategory(category string) string {
 // trendingPage fetches Audius trending and applies a user-facing sort key.
 func (s *CatalogService) trendingPage(ctx context.Context, genre, timeRange, sort string, page, limit int) ([]api.SongResponse, domain.Pagination, error) {
 	fetchLimit := page * limit
-	if fetchLimit < 50 {
-		fetchLimit = 50
+	if fetchLimit < 20 {
+		fetchLimit = 20
 	}
 	if fetchLimit > 100 {
 		fetchLimit = 100

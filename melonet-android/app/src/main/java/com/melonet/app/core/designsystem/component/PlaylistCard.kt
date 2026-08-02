@@ -13,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,20 +28,21 @@ fun PlaylistCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     large: Boolean = false,
+    coverUrls: List<String> = emptyList(),
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
+    val mosaicUrls = coverUrls.filter { it.isNotBlank() }.ifEmpty {
+        listOfNotNull(imageUrl?.takeIf { it.isNotBlank() })
+    }
 
     Column(
         modifier = modifier
             .then(if (large) Modifier.fillMaxWidth() else Modifier.width(dimensions.songCardSize))
             .clickable(onClick = onClick),
     ) {
-        MeloImage(
-            imageUrl = imageUrl,
-            contentDescription = title,
-            contentScale = ContentScale.Crop,
-            targetSize = if (large) 220.dp else dimensions.songCardSize,
+        CoverMosaic(
+            coverUrls = mosaicUrls,
             modifier = Modifier
                 .then(
                     if (large) {

@@ -53,10 +53,11 @@ class KaraokeRecordingRepository(
     fun startRecording(): File {
         stopRecordingInternal(delete = true)
         val dir = File(context.filesDir, "karaoke_recordings").apply { mkdirs() }
-        val file = File(dir, "take_${System.currentTimeMillis()}.m4a")
-
         var lastError: Throwable? = null
+
         for (source in micSources()) {
+            // Fresh file per attempt — reuse after a failed prepare/start leaves a broken container.
+            val file = File(dir, "take_${System.currentTimeMillis()}.m4a")
             val mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
             } else {
@@ -69,6 +70,9 @@ class KaraokeRecordingRepository(
                 mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 mediaRecorder.setAudioEncodingBitRate(128_000)
                 mediaRecorder.setAudioSamplingRate(44_100)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
+                    mediaRecorder.setAudioChannels(1)
+                }
                 mediaRecorder.setOutputFile(file.absolutePath)
                 mediaRecorder.prepare()
                 mediaRecorder.start()
@@ -79,9 +83,10 @@ class KaraokeRecordingRepository(
                 return file
             }
             lastError = ok.exceptionOrNull()
+            runCatching { mediaRecorder.reset() }
             runCatching { mediaRecorder.release() }
+            file.delete()
         }
-        file.delete()
         throw lastError ?: IllegalStateException("Could not start MediaRecorder")
     }
 
@@ -98,6 +103,9 @@ class KaraokeRecordingRepository(
         vocalFile: File,
         durationSec: Int,
     ): KaraokeRecording = withContext(dispatchers.io) {
+        require(vocalFile.exists() && vocalFile.length() >= MIN_VALID_BYTES) {
+            "Recording file is empty or corrupt"
+        }
         val id = dao.insert(
             KaraokeRecordingEntity(
                 songId = song.id,
@@ -131,27 +139,41 @@ class KaraokeRecordingRepository(
     }
 
     private fun micSources(): List<Int> = buildList {
+        // Prefer plain MIC — UNPROCESSED often fails mid-session and leaves corrupt m4a files.
+        add(MediaRecorder.AudioSource.MIC)
+        add(MediaRecorder.AudioSource.CAMCORDER)
+        add(MediaRecorder.AudioSource.VOICE_RECOGNITION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             add(MediaRecorder.AudioSource.UNPROCESSED)
         }
-        add(MediaRecorder.AudioSource.CAMCORDER)
-        add(MediaRecorder.AudioSource.VOICE_RECOGNITION)
-        add(MediaRecorder.AudioSource.MIC)
     }
 
     private fun stopRecordingInternal(delete: Boolean): File? {
         val file = currentFile
-        try {
-            recorder?.apply {
-                stop()
-                release()
-            }
-        } catch (_: Exception) {
-            // stop can throw if nothing was recorded
-        }
+        val active = recorder
         recorder = null
         currentFile = null
-        if (delete) {
+        if (active == null) {
+            if (delete) file?.delete()
+            return null
+        }
+        var stopOk = false
+        try {
+            active.stop()
+            stopOk = true
+        } catch (_: RuntimeException) {
+            // stop() throws when nothing meaningful was captured — treat as failure.
+            stopOk = false
+        } finally {
+            runCatching { active.reset() }
+            runCatching { active.release() }
+        }
+
+        if (delete || !stopOk) {
+            file?.delete()
+            return null
+        }
+        if (file == null || !file.exists() || file.length() < MIN_VALID_BYTES) {
             file?.delete()
             return null
         }
@@ -169,4 +191,8 @@ class KaraokeRecordingRepository(
         durationSec = durationSec,
         createdAt = createdAt,
     )
+
+    companion object {
+        private const val MIN_VALID_BYTES = 2_048L
+    }
 }

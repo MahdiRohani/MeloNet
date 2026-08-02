@@ -5,6 +5,7 @@ import com.melonet.app.core.common.UiEffect
 import com.melonet.app.core.common.UiEvent
 import com.melonet.app.core.common.UiState
 import com.melonet.app.data.model.Playlist
+import com.melonet.app.data.model.Song
 
 object PlaylistDetailContract {
 
@@ -16,7 +17,7 @@ object PlaylistDetailContract {
 
     sealed interface Event : UiEvent {
         data class Load(val playlistId: Int) : Event
-        data class SongClicked(val songId: String) : Event
+        data class SongClicked(val song: Song) : Event
         data object PlayAll : Event
         data object ShuffleAll : Event
         data class RemoveSong(val songId: String) : Event

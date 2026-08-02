@@ -97,8 +97,8 @@ func (s *SearchService) Search(ctx context.Context, query, searchType string, pa
 // by real popularity (play count) so the most-listened matches surface first.
 func (s *SearchService) searchTracksRanked(ctx context.Context, query string, page, limit int) ([]audius.Track, error) {
 	fetchLimit := page * limit
-	if fetchLimit < 50 {
-		fetchLimit = 50
+	if fetchLimit < 20 {
+		fetchLimit = 20
 	}
 	if fetchLimit > 100 {
 		fetchLimit = 100

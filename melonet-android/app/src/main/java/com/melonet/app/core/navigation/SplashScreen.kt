@@ -22,7 +22,7 @@ fun SplashScreen(
 ) {
     LaunchedEffect(authState) {
         if (authState is AuthState.Loading) return@LaunchedEffect
-        delay(800L)
+        delay(200L)
         when (authState) {
             is AuthState.Authenticated -> onNavigateToMain()
             AuthState.Unauthenticated -> onNavigateToAuth()

@@ -39,9 +39,9 @@ const playlistFromClause = `
 	FROM playlists AS p
 	INNER JOIN users AS u ON u.id = p.owner_id
 	LEFT JOIN (
-		SELECT playlist_id, COUNT(*)::int AS song_count
-		FROM playlist_songs
-		GROUP BY playlist_id
+		SELECT ps.playlist_id, COUNT(*)::int AS song_count
+		FROM playlist_songs AS ps
+		GROUP BY ps.playlist_id
 	) AS sc ON sc.playlist_id = p.id
 `
 
@@ -85,6 +85,7 @@ func (r *PlaylistRepository) List(ctx context.Context, userID int64, scope Playl
 	if err != nil {
 		return nil, 0, err
 	}
+	r.enrichCoverURLs(ctx, playlists)
 	return playlists, total, nil
 }
 
@@ -121,6 +122,7 @@ func (r *PlaylistRepository) ListPublicByOwner(ctx context.Context, ownerID int6
 	if err != nil {
 		return nil, 0, err
 	}
+	r.enrichCoverURLs(ctx, playlists)
 	return playlists, total, nil
 }
 
@@ -137,7 +139,9 @@ func (r *PlaylistRepository) GetByID(ctx context.Context, playlistID int64) (db.
 		}
 		return db.Playlist{}, fmt.Errorf("get playlist: %w", err)
 	}
-	return playlist, nil
+	list := []db.Playlist{playlist}
+	r.enrichCoverURLs(ctx, list)
+	return list[0], nil
 }
 
 func (r *PlaylistRepository) Create(ctx context.Context, ownerID int64, title, description string, visibility domain.PlaylistVisibility) (db.Playlist, error) {
@@ -241,8 +245,9 @@ func (r *PlaylistRepository) ListSongs(ctx context.Context, playlistID int64, pa
 	var total int
 	if err := r.db.Pool.QueryRow(ctx, `
 		SELECT COUNT(*)
-		FROM playlist_songs
-		WHERE playlist_id = $1
+		FROM playlist_songs AS ps
+		INNER JOIN song_cache AS sc ON sc.audius_id = ps.song_id
+		WHERE ps.playlist_id = $1
 	`, playlistID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count playlist songs: %w", err)
 	}
@@ -538,6 +543,67 @@ func scanPlaylist(scan func(dest ...any) error) (db.Playlist, error) {
 		return db.Playlist{}, err
 	}
 	return playlist, nil
+}
+
+// CoverURLsByPlaylistIDs returns up to 4 song cover URLs per playlist (ordered by position).
+func (r *PlaylistRepository) CoverURLsByPlaylistIDs(ctx context.Context, playlistIDs []int64) (map[int64][]string, error) {
+	out := make(map[int64][]string, len(playlistIDs))
+	if len(playlistIDs) == 0 {
+		return out, nil
+	}
+	rows, err := r.db.Pool.Query(ctx, `
+		SELECT playlist_id, cover_url FROM (
+			SELECT
+				ps.playlist_id,
+				sc.cover_url,
+				ROW_NUMBER() OVER (PARTITION BY ps.playlist_id ORDER BY ps.position ASC, ps.added_at ASC) AS rn
+			FROM playlist_songs AS ps
+			INNER JOIN song_cache AS sc ON sc.audius_id = ps.song_id
+			WHERE ps.playlist_id = ANY($1)
+			  AND sc.cover_url IS NOT NULL
+			  AND sc.cover_url <> ''
+		) AS ranked
+		WHERE rn <= 4
+		ORDER BY playlist_id, rn
+	`, playlistIDs)
+	if err != nil {
+		return nil, fmt.Errorf("playlist cover urls: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var playlistID int64
+		var coverURL string
+		if err := rows.Scan(&playlistID, &coverURL); err != nil {
+			return nil, fmt.Errorf("scan playlist cover url: %w", err)
+		}
+		out[playlistID] = append(out[playlistID], coverURL)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate playlist cover urls: %w", err)
+	}
+	return out, nil
+}
+
+func (r *PlaylistRepository) enrichCoverURLs(ctx context.Context, playlists []db.Playlist) {
+	if len(playlists) == 0 {
+		return
+	}
+	ids := make([]int64, len(playlists))
+	for i, p := range playlists {
+		ids[i] = p.ID
+	}
+	covers, err := r.CoverURLsByPlaylistIDs(ctx, ids)
+	if err != nil {
+		return
+	}
+	for i := range playlists {
+		urls := covers[playlists[i].ID]
+		playlists[i].CoverURLs = urls
+		if playlists[i].CoverURL == "" && len(urls) > 0 {
+			playlists[i].CoverURL = urls[0]
+		}
+	}
 }
 
 var ErrForbidden = errors.New("forbidden")

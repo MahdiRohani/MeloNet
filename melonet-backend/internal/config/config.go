@@ -102,8 +102,9 @@ func Load() (*Config, error) {
 			Enabled:           getEnvBool("RATE_LIMIT_ENABLED", true),
 			LoginPerMinute:    getEnvInt("RATE_LIMIT_LOGIN_PER_MIN", 10),
 			RegisterPerMinute: getEnvInt("RATE_LIMIT_REGISTER_PER_MIN", 5),
-			SearchPerMinute:   getEnvInt("RATE_LIMIT_SEARCH_PER_MIN", 60),
-			ChatPerMinute:     getEnvInt("RATE_LIMIT_CHAT_PER_MIN", 120),
+			// Typing in search/karaoke can fire many requests; keep this generous.
+			SearchPerMinute: getEnvInt("RATE_LIMIT_SEARCH_PER_MIN", 300),
+			ChatPerMinute:   getEnvInt("RATE_LIMIT_CHAT_PER_MIN", 120),
 		},
 		TrustedProxies: getEnvSlice("TRUSTED_PROXIES", nil),
 	}
@@ -134,7 +135,7 @@ func (c *Config) Validate() error {
 		c.RateLimit.RegisterPerMinute = 5
 	}
 	if c.RateLimit.SearchPerMinute < 1 {
-		c.RateLimit.SearchPerMinute = 60
+		c.RateLimit.SearchPerMinute = 300
 	}
 	if c.RateLimit.ChatPerMinute < 1 {
 		c.RateLimit.ChatPerMinute = 120

@@ -11,10 +11,16 @@ data class Playlist(
     val description: String,
     val visibility: String,
     val coverUrl: String,
+    val coverUrls: List<String> = emptyList(),
     val isSystem: Boolean,
     val isOwner: Boolean,
     val songCount: Int,
-)
+) {
+    val displayCoverUrls: List<String>
+        get() = coverUrls.filter { it.isNotBlank() }.ifEmpty {
+            listOfNotNull(coverUrl.takeIf { it.isNotBlank() })
+        }
+}
 
 enum class PlaylistScope(val apiValue: String) {
     MINE("mine"),

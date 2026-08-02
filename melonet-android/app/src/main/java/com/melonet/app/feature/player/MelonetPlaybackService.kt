@@ -119,7 +119,10 @@ class MelonetPlaybackService : MediaSessionService() {
             args: Bundle,
         ): ListenableFuture<SessionResult> {
             if (customCommand.customAction == COMMAND_SET_KARAOKE) {
-                karaokeProcessor.karaokeEnabled = args.getBoolean(KEY_KARAOKE_ENABLED, false)
+                val enabled = args.getBoolean(KEY_KARAOKE_ENABLED, false)
+                karaokeProcessor.karaokeEnabled = enabled
+                // Keep backing quieter so the singer (mic) stays readable live and on takes.
+                player.volume = if (enabled) KARAOKE_BACKING_VOLUME else 1f
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             return super.onCustomCommand(session, controller, customCommand, args)
@@ -144,5 +147,7 @@ class MelonetPlaybackService : MediaSessionService() {
     companion object {
         const val COMMAND_SET_KARAOKE = "com.melonet.app.command.SET_KARAOKE"
         const val KEY_KARAOKE_ENABLED = "karaoke_enabled"
+        /** Backing-track level while karaoke (instrumental) mode is on. */
+        const val KARAOKE_BACKING_VOLUME = 0.22f
     }
 }

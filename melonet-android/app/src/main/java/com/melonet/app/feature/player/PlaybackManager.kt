@@ -130,11 +130,13 @@ class PlaybackManager(
                 reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK ||
                 reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
             if (!crossfadeActive) {
-                controller?.volume = 1f
+                controller?.volume = defaultPlaybackVolume()
             } else if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
                 reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
             ) {
-                scope.launch { fadeVolume(from = 0f, to = 1f, durationMs = crossfadeMs()) }
+                scope.launch {
+                    fadeVolume(from = 0f, to = defaultPlaybackVolume(), durationMs = crossfadeMs())
+                }
             }
             playRecordedForSongId = null
         }
@@ -209,7 +211,7 @@ class PlaybackManager(
             playRecordedForSongId = null
             awaitingInitialReady = true
             isSeekingInternal = false
-            c.volume = 1f
+            c.volume = defaultPlaybackVolume()
             c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
             applyRepeatMode(_state.value.repeatMode)
             c.prepare()
@@ -234,7 +236,7 @@ class PlaybackManager(
             val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
             playRecordedForSongId = null
             awaitingInitialReady = true
-            c.volume = 1f
+            c.volume = defaultPlaybackVolume()
             c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
             applyRepeatMode(_state.value.repeatMode)
             c.prepare()
@@ -346,6 +348,12 @@ class PlaybackManager(
                 ),
                 args,
             )
+            // Mirror volume on the controller so UI/session stay in sync with the service.
+            c.volume = if (enabled) {
+                MelonetPlaybackService.KARAOKE_BACKING_VOLUME
+            } else {
+                1f
+            }
         }
     }
 
@@ -508,9 +516,9 @@ class PlaybackManager(
             if (c.hasNextMediaItem() || _state.value.repeatMode == RepeatMode.ALL) {
                 c.volume = 0f
                 c.seekToNextMediaItem()
-                fadeVolume(from = 0f, to = 1f, durationMs = fadeMs)
+                fadeVolume(from = 0f, to = defaultPlaybackVolume(), durationMs = fadeMs)
             } else {
-                c.volume = 1f
+                c.volume = defaultPlaybackVolume()
             }
             crossfadeActive = false
         }
@@ -537,9 +545,16 @@ class PlaybackManager(
         crossfadeJob = null
         crossfadeActive = false
         if (resetVolume) {
-            controller?.volume = 1f
+            controller?.volume = defaultPlaybackVolume()
         }
     }
+
+    private fun defaultPlaybackVolume(): Float =
+        if (_state.value.karaokeEnabled) {
+            MelonetPlaybackService.KARAOKE_BACKING_VOLUME
+        } else {
+            1f
+        }
 
     private fun crossfadeMs(): Long = _state.value.crossfadeSeconds.coerceAtLeast(0) * 1000L
 

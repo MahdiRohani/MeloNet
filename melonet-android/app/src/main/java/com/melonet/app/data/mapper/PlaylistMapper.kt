@@ -12,6 +12,7 @@ object PlaylistMapper {
         description = dto.description.orEmpty(),
         visibility = dto.visibility,
         coverUrl = dto.coverUrl.orEmpty(),
+        coverUrls = dto.coverUrls.orEmpty().filter { it.isNotBlank() },
         isSystem = dto.isSystem,
         isOwner = dto.isOwner,
         songCount = dto.songCount,

@@ -66,7 +66,7 @@ class HomeViewModel(
                     copy(isLoading = true, error = null)
                 }
             }
-            when (val result = homeRepository.getHomeFeed()) {
+            when (val result = homeRepository.getHomeFeed(forceRefresh = refreshing)) {
                 is Result.Success -> setState {
                     copy(
                         isLoading = false,

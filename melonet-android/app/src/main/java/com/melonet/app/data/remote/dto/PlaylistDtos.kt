@@ -10,6 +10,7 @@ data class PlaylistDto(
     @SerializedName("description") val description: String?,
     @SerializedName("visibility") val visibility: String,
     @SerializedName("cover_url") val coverUrl: String?,
+    @SerializedName("cover_urls") val coverUrls: List<String>? = null,
     @SerializedName("is_system") val isSystem: Boolean = false,
     @SerializedName("is_owner") val isOwner: Boolean = false,
     @SerializedName("song_count") val songCount: Int = 0,

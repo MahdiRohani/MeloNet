@@ -3,12 +3,14 @@ package com.melonet.app.feature.karaoke
 import androidx.lifecycle.viewModelScope
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
+import com.melonet.app.data.model.Lyrics
 import com.melonet.app.data.model.Song
 import com.melonet.app.data.repository.KaraokeRecordingRepository
 import com.melonet.app.data.repository.LyricsRepository
 import com.melonet.app.data.repository.PlayerRepository
 import com.melonet.app.feature.player.PlaybackManager
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -26,6 +28,7 @@ class KaraokePlayerViewModel(
     private var recordingTicker: Job? = null
     private var countdownJob: Job? = null
     private var recordingStartedAtMs: Long = 0L
+    private var startJob: Job? = null
 
     override fun createInitialState() = KaraokePlayerContract.State()
 
@@ -34,32 +37,63 @@ class KaraokePlayerViewModel(
         playbackManager.state
             .onEach { playback ->
                 setState {
-                    val duration = playback.durationMs
-                    val position = playback.positionMs
-                    copy(
-                        song = playback.currentSong ?: song,
-                        isPlaying = playback.isPlaying,
-                        isLoading = playback.isLoading,
-                        positionMs = position,
-                        durationMs = duration,
-                        karaokeEnabled = playback.karaokeEnabled,
-                        currentLineIndex = computeLineIndex(
-                            lyrics.lines,
-                            lyrics.synced,
-                            position,
-                            duration,
-                            lyricsOffsetMs,
-                        ),
-                    )
+                    // While switching tracks, keep progress at 0 until the new song is ready.
+                    if (!lyricsReady && isLoadingLyrics) {
+                        copy(
+                            isPlaying = false,
+                            isLoading = true,
+                            positionMs = 0L,
+                            durationMs = 0L,
+                            currentLineIndex = -1,
+                        )
+                    } else {
+                        val duration = playback.durationMs
+                        val position = playback.positionMs
+                        copy(
+                            song = playback.currentSong?.takeIf { it.id == song?.id } ?: song,
+                            isPlaying = playback.isPlaying,
+                            isLoading = playback.isLoading,
+                            positionMs = position,
+                            durationMs = duration,
+                            karaokeEnabled = playback.karaokeEnabled,
+                            currentLineIndex = computeLineIndex(
+                                lyrics.lines,
+                                lyrics.synced,
+                                position,
+                                duration,
+                                lyricsOffsetMs,
+                            ),
+                        )
+                    }
                 }
             }
             .launchIn(viewModelScope)
     }
 
     fun start(songId: String) {
-        if (startedSongId == songId) return
+        if (startedSongId == songId && startJob?.isActive == true) return
+        if (startedSongId == songId && uiState.value.lyricsReady && uiState.value.song?.id == songId) return
         startedSongId = songId
-        viewModelScope.launch {
+        startJob?.cancel()
+        startJob = viewModelScope.launch {
+            // Reset UI immediately so previous song progress/lyrics don't linger.
+            setState {
+                copy(
+                    song = null,
+                    isPlaying = false,
+                    isLoading = true,
+                    isLoadingLyrics = true,
+                    lyricsReady = false,
+                    lyrics = Lyrics.EMPTY,
+                    lyricsOffsetMs = 0L,
+                    positionMs = 0L,
+                    durationMs = 0L,
+                    currentLineIndex = -1,
+                    isRecording = false,
+                    countdownSeconds = null,
+                )
+            }
+
             val current = playbackManager.state.value.currentSong
             val song = if (current?.id == songId) {
                 current
@@ -70,20 +104,47 @@ class KaraokePlayerViewModel(
                 }
             } ?: return@launch
 
-            setState {
-                copy(
-                    song = song,
-                    isLoadingLyrics = true,
-                    lyricsReady = false,
-                    lyricsOffsetMs = 0L,
-                    currentLineIndex = -1,
+            setState { copy(song = song) }
+
+            // Fetch lyrics in parallel with audio prepare — don't block on ExoPlayer.
+            val lyricsDeferred = async {
+                var lyrics = lyricsRepository.getLyrics(
+                    title = song.title,
+                    artist = song.artistName,
+                    durationSec = song.durationSec,
+                    album = song.albumTitle,
+                    embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
+                    syncedOnly = true,
                 )
+                if (lyrics.lines.isEmpty()) {
+                    lyrics = lyricsRepository.getLyrics(
+                        title = song.title,
+                        artist = song.artistName,
+                        durationSec = song.durationSec,
+                        album = song.albumTitle,
+                        embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
+                        syncedOnly = false,
+                    )
+                }
+                lyrics
             }
+
             playbackManager.preparePaused(song, listOf(song))
             playbackManager.setKaraoke(true)
 
-            // Wait until media is prepared so lyric timing matches real duration.
-            repeat(60) {
+            val lyrics = lyricsDeferred.await()
+            setState {
+                copy(
+                    lyrics = lyrics,
+                    isLoadingLyrics = false,
+                    lyricsReady = true,
+                    positionMs = 0L,
+                    currentLineIndex = -1,
+                )
+            }
+
+            // Wait briefly for media readiness, then start from t=0 together.
+            repeat(40) {
                 val playback = playbackManager.state.value
                 if (playback.currentSong?.id == song.id &&
                     !playback.isLoading &&
@@ -91,46 +152,10 @@ class KaraokePlayerViewModel(
                 ) {
                     return@repeat
                 }
-                delay(100)
+                delay(50)
             }
-
-            val playbackDurationSec = (playbackManager.state.value.durationMs / 1000L).toInt()
-            val durationForLyrics = when {
-                playbackDurationSec in 30..900 -> playbackDurationSec
-                song.durationSec in 30..900 -> song.durationSec
-                else -> 0
-            }
-
-            var lyrics = lyricsRepository.getLyrics(
-                title = song.title,
-                artist = song.artistName,
-                durationSec = durationForLyrics,
-                album = song.albumTitle,
-                embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
-                syncedOnly = true,
-            )
-            if (lyrics.lines.isEmpty()) {
-                lyrics = lyricsRepository.getLyrics(
-                    title = song.title,
-                    artist = song.artistName,
-                    durationSec = durationForLyrics,
-                    album = song.albumTitle,
-                    embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
-                    syncedOnly = false,
-                )
-            }
-
-            setState {
-                copy(
-                    lyrics = lyrics,
-                    isLoadingLyrics = false,
-                    lyricsReady = true,
-                    currentLineIndex = -1,
-                )
-            }
-            // Align highlight + audio from t=0 together.
             playbackManager.seekTo(0)
-            delay(120)
+            delay(80)
             playbackManager.resume()
         }
     }
@@ -190,7 +215,6 @@ class KaraokePlayerViewModel(
         if (uiState.value.isRecording || uiState.value.countdownSeconds != null) return
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
-            // Pause briefly so singer can prepare; resume when mic starts.
             playbackManager.pause()
             for (sec in 3 downTo 1) {
                 setState { copy(countdownSeconds = sec) }
@@ -230,20 +254,30 @@ class KaraokePlayerViewModel(
         recordingTicker?.cancel()
         countdownJob?.cancel()
         val song = uiState.value.song ?: return
-        val file = karaokeRecordingRepository.stopRecording()
-        playbackManager.setHandleAudioFocus(true)
-        setState { copy(isRecording = false, countdownSeconds = null) }
-        if (file == null || !file.exists()) {
-            setEffect { KaraokePlayerContract.Effect.ShowMessage("record_failed") }
-            return
-        }
+        // Pause backing briefly so MediaRecorder can finalize the AAC container cleanly.
+        playbackManager.pause()
         viewModelScope.launch {
+            delay(150)
+            val file = karaokeRecordingRepository.stopRecording()
+            playbackManager.setHandleAudioFocus(true)
+            setState { copy(isRecording = false, countdownSeconds = null) }
+            if (file == null || !file.exists() || file.length() < 2_048L) {
+                file?.delete()
+                setEffect { KaraokePlayerContract.Effect.ShowMessage("record_failed") }
+                return@launch
+            }
             val durationSec = uiState.value.recordingSeconds.coerceAtLeast(
                 (uiState.value.positionMs / 1000).toInt().coerceAtLeast(1),
             )
-            val saved = karaokeRecordingRepository.saveRecording(song, file, durationSec)
-            setEffect { KaraokePlayerContract.Effect.RecordingSaved(saved.id) }
-            setEffect { KaraokePlayerContract.Effect.ShowMessage("record_saved") }
+            runCatching {
+                karaokeRecordingRepository.saveRecording(song, file, durationSec)
+            }.onSuccess { saved ->
+                setEffect { KaraokePlayerContract.Effect.RecordingSaved(saved.id) }
+                setEffect { KaraokePlayerContract.Effect.ShowMessage("record_saved") }
+            }.onFailure {
+                file.delete()
+                setEffect { KaraokePlayerContract.Effect.ShowMessage("record_failed") }
+            }
         }
     }
 
@@ -272,6 +306,7 @@ class KaraokePlayerViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        startJob?.cancel()
         countdownJob?.cancel()
         if (uiState.value.isRecording) {
             karaokeRecordingRepository.cancelRecording()

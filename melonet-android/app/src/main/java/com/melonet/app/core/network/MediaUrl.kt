@@ -1,6 +1,8 @@
 package com.melonet.app.core.network
 
+import android.net.Uri
 import com.melonet.app.BuildConfig
+import java.io.File
 
 /**
  * Resolves media/avatar paths that may be absolute or API-relative (`/api/media/...`).
@@ -16,7 +18,21 @@ object MediaUrl {
         ) {
             return raw
         }
+        // On-device absolute paths (karaoke takes, downloads) must not be prefixed with API base.
+        if (isLocalFilesystemPath(raw)) {
+            return Uri.fromFile(File(raw)).toString()
+        }
         val base = BuildConfig.API_BASE_URL.trimEnd('/')
         return if (raw.startsWith('/')) "$base$raw" else "$base/$raw"
+    }
+
+    private fun isLocalFilesystemPath(path: String): Boolean {
+        if (!path.startsWith('/')) return false
+        if (path.startsWith("/api/")) return false
+        return File(path).exists() ||
+            path.startsWith("/data/") ||
+            path.startsWith("/storage/") ||
+            path.startsWith("/sdcard/") ||
+            path.startsWith("/mnt/")
     }
 }

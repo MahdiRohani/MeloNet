@@ -41,7 +41,15 @@ class PlaylistDetailViewModel(
         when (event) {
             is PlaylistDetailContract.Event.Load -> loadPlaylist(event.playlistId)
             is PlaylistDetailContract.Event.SongClicked -> {
-                setEffect { PlaylistDetailContract.Effect.NavigateToPlayer(event.songId) }
+                if (cachedSongs.none { it.id == event.song.id }) {
+                    cachedSongs.add(event.song)
+                }
+                setEffect {
+                    PlaylistDetailContract.Effect.PlayQueue(
+                        startSongId = event.song.id,
+                        shuffle = false,
+                    )
+                }
             }
             PlaylistDetailContract.Event.PlayAll -> {
                 val first = cachedSongs.firstOrNull()?.id ?: return
@@ -75,13 +83,19 @@ class PlaylistDetailViewModel(
 
     fun updateCachedSongs(songs: List<Song>) {
         cachedSongs.clear()
-        cachedSongs.addAll(songs)
+        cachedSongs.addAll(songs.filterNotNull())
     }
 
     fun getCachedSongs(): List<Song> = cachedSongs.toList()
 
     fun refreshSongs() {
         refreshTrigger.value++
+    }
+
+    fun onReturnedFromAddSongs() {
+        val playlistId = playlistIdFlow.value ?: return
+        refreshTrigger.value++
+        loadPlaylist(playlistId)
     }
 
     private fun loadPlaylist(playlistId: Int) {

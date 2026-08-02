@@ -8,7 +8,11 @@ import (
 
 func ToSongResponse(publicBase string, track Track) api.SongResponse {
 	base := strings.TrimRight(publicBase, "/")
-	cover := proxyArtURL(base, track.ID)
+	// Prefer CDN artwork directly — proxied /api/art causes N+1 GetTrack calls on home.
+	cover := strings.TrimSpace(track.CoverURL)
+	if cover == "" {
+		cover = proxyArtURL(base, track.ID)
+	}
 	genre := strings.TrimSpace(track.Genre)
 	return api.SongResponse{
 		ID:            track.ID,

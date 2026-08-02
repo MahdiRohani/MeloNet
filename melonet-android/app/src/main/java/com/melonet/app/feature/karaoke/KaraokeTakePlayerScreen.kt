@@ -1,6 +1,7 @@
 package com.melonet.app.feature.karaoke
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,16 +43,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Player
 import com.melonet.app.R
 import com.melonet.app.core.designsystem.component.MeloImage
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
+import com.melonet.app.core.network.MediaUrl
 import com.melonet.app.data.repository.KaraokeRecording
 import com.melonet.app.data.repository.KaraokeRecordingRepository
 import com.melonet.app.feature.player.AudioShareHelper
+import com.melonet.app.feature.player.KaraokeExoPlayerFactory
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.component.PlayerProgressBar
 import kotlinx.coroutines.delay
@@ -96,32 +98,17 @@ fun KaraokeTakePlayerScreen(
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
 
-    // Two local players, both without audio-focus steal — single mix timeline.
-    val instrumentalPlayer = remember {
-        ExoPlayer.Builder(context)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                /* handleAudioFocus = */ false,
-            )
-            .build()
+    // Instrumental player applies the same L−R vocal cancel used during recording.
+    // Must follow HTTP→HTTPS 302 redirects from /api/stream to the CDN.
+    val instrumentalPair = remember {
+        KaraokeExoPlayerFactory.createInstrumentalPlayer(context, handleAudioFocus = false)
     }
+    val instrumentalPlayer = instrumentalPair.first
     val vocalPlayer = remember {
-        ExoPlayer.Builder(context)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                /* handleAudioFocus = */ false,
-            )
-            .build()
+        KaraokeExoPlayerFactory.createVocalPlayer(context, handleAudioFocus = false)
     }
 
     DisposableEffect(Unit) {
-        // Stop the main session so it doesn't compete with the take mix.
         playbackManager.pause()
         playbackManager.setKaraoke(false)
         onDispose {
@@ -134,15 +121,18 @@ fun KaraokeTakePlayerScreen(
     DisposableEffect(recording) {
         val take = recording
         if (take != null) {
-            instrumentalPlayer.setMediaItem(MediaItem.fromUri(take.instrumentalUrl))
+            val instrumentalUri = MediaUrl.resolve(take.instrumentalUrl) ?: take.instrumentalUrl
+            instrumentalPlayer.setMediaItem(MediaItem.fromUri(instrumentalUri))
             instrumentalPlayer.prepare()
             instrumentalPlayer.playWhenReady = false
 
-            vocalPlayer.setMediaItem(MediaItem.fromUri(take.vocalPath))
+            val vocalUri = MediaUrl.resolve(take.vocalPath) ?: take.vocalPath
+            vocalPlayer.setMediaItem(MediaItem.fromUri(vocalUri))
             vocalPlayer.prepare()
             vocalPlayer.playWhenReady = false
 
             durationMs = (take.durationSec * 1000L).coerceAtLeast(1L)
+            positionMs = 0L
         }
         onDispose {
             instrumentalPlayer.stop()
@@ -154,20 +144,47 @@ fun KaraokeTakePlayerScreen(
         }
     }
 
-    LaunchedEffect(isPlaying) {
+    LaunchedEffect(isPlaying, recording) {
         while (isActive && isPlaying) {
-            val instPos = instrumentalPlayer.currentPosition
-            val vocalPos = vocalPlayer.currentPosition
-            positionMs = instPos
-            // Keep vocal locked to instrumental (±80ms).
-            if (kotlin.math.abs(vocalPos - instPos) > 80) {
-                vocalPlayer.seekTo(instPos)
+            val instrumentalOk = instrumentalPlayer.playbackState != Player.STATE_IDLE &&
+                instrumentalPlayer.playerError == null
+            val vocalOk = vocalPlayer.playbackState != Player.STATE_IDLE &&
+                vocalPlayer.playerError == null
+
+            val vocalDur = vocalPlayer.duration
+            if (vocalDur > 0L && vocalDur != C.TIME_UNSET) {
+                durationMs = vocalDur
             }
-            val ended = !instrumentalPlayer.isPlaying &&
-                instrumentalPlayer.playbackState == androidx.media3.common.Player.STATE_ENDED
-            if (ended) {
+
+            val masterPos = when {
+                instrumentalOk && instrumentalPlayer.duration > 0 ->
+                    instrumentalPlayer.currentPosition
+                else -> vocalPlayer.currentPosition
+            }.coerceAtLeast(0L)
+            positionMs = masterPos.coerceAtMost(durationMs)
+
+            // Keep vocal locked to instrumental only while both are healthy.
+            if (instrumentalOk && vocalOk) {
+                val vocalPos = vocalPlayer.currentPosition
+                if (kotlin.math.abs(vocalPos - masterPos) > 80) {
+                    vocalPlayer.seekTo(masterPos)
+                }
+            }
+
+            val instrumentalEnded = instrumentalOk &&
+                !instrumentalPlayer.isPlaying &&
+                instrumentalPlayer.playbackState == Player.STATE_ENDED
+            val vocalEnded = vocalOk &&
+                !vocalPlayer.isPlaying &&
+                vocalPlayer.playbackState == Player.STATE_ENDED
+            val reachedEnd = positionMs >= durationMs - 120 || instrumentalEnded || vocalEnded
+
+            if (reachedEnd) {
+                instrumentalPlayer.pause()
+                vocalPlayer.pause()
                 isPlaying = false
                 positionMs = durationMs
+                break
             }
             delay(100)
         }
@@ -179,19 +196,26 @@ fun KaraokeTakePlayerScreen(
             vocalPlayer.pause()
             isPlaying = false
         } else {
-            val target = positionMs.coerceAtMost(durationMs)
-            instrumentalPlayer.seekTo(target)
-            vocalPlayer.seekTo(target)
-            instrumentalPlayer.play()
-            vocalPlayer.play()
+            val target = positionMs.coerceIn(0L, durationMs)
+            val restart = target >= durationMs - 80
+            val seekTarget = if (restart) 0L else target
+            if (restart) positionMs = 0L
+            if (instrumentalPlayer.playerError == null) {
+                instrumentalPlayer.seekTo(seekTarget)
+                instrumentalPlayer.play()
+            }
+            if (vocalPlayer.playerError == null) {
+                vocalPlayer.seekTo(seekTarget)
+                vocalPlayer.play()
+            }
             isPlaying = true
         }
     }
 
     fun seekTo(ms: Long) {
         val target = ms.coerceIn(0L, durationMs)
-        instrumentalPlayer.seekTo(target)
-        vocalPlayer.seekTo(target)
+        if (instrumentalPlayer.playerError == null) instrumentalPlayer.seekTo(target)
+        if (vocalPlayer.playerError == null) vocalPlayer.seekTo(target)
         positionMs = target
     }
 
@@ -292,13 +316,31 @@ fun KaraokeTakePlayerScreen(
 
             PlayerProgressBar(
                 positionMs = positionMs,
-                durationMs = durationMs,
+                durationMs = durationMs.coerceAtLeast(1L),
                 isPlaying = isPlaying,
                 onSeek = { seekTo(it) },
                 activeColor = scheme.primary,
                 trackColor = scheme.onSurface.copy(alpha = 0.2f),
                 thumbColor = scheme.primary,
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = spacing.xs),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = formatTakeDuration(positionMs),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+                Text(
+                    text = formatTakeDuration(durationMs),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
 
             Spacer(modifier = Modifier.height(spacing.md))
 
@@ -322,4 +364,11 @@ fun KaraokeTakePlayerScreen(
             Spacer(modifier = Modifier.height(spacing.xl))
         }
     }
+}
+
+private fun formatTakeDuration(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }

@@ -1,6 +1,7 @@
 package com.melonet.app.feature.karaoke
 
 import androidx.lifecycle.viewModelScope
+import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
 import com.melonet.app.data.model.Song
@@ -13,6 +14,11 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
+import java.util.concurrent.atomic.AtomicReference
 
 class KaraokeViewModel(
     private val searchRepository: SearchRepository,
@@ -31,95 +37,223 @@ class KaraokeViewModel(
     override fun handleEvent(event: KaraokeContract.Event) {
         when (event) {
             is KaraokeContract.Event.QueryChanged -> {
-                setState { copy(query = event.query) }
+                setState { copy(query = event.query, searchError = null) }
                 scheduleSearch(event.query)
             }
             KaraokeContract.Event.Submit -> runSearch(uiState.value.query)
-            KaraokeContract.Event.RefreshSuggestions -> loadSuggestions()
+            KaraokeContract.Event.RefreshSuggestions -> loadSuggestions(force = true)
         }
     }
 
-    private fun loadSuggestions() {
+    private fun loadSuggestions(force: Boolean = false) {
         viewModelScope.launch {
-            setState { copy(isLoadingSuggestions = true) }
-            val candidates = when (val result = homeRepository.getHomeFeed()) {
-                is Result.Success -> {
-                    val feed = result.data
-                    (feed.carousel + feed.rows.flatMap { it.items })
-                        .distinctBy { it.id }
+            if (!force) {
+                suggestionCache.get()?.takeIf { it.isNotEmpty() }?.let { cached ->
+                    setState {
+                        copy(
+                            suggestions = cached,
+                            isLoadingSuggestions = false,
+                        )
+                    }
+                    // Refresh quietly in background.
                 }
-                is Result.Error -> emptyList()
             }
 
-            if (candidates.isEmpty()) {
-                setState { copy(suggestions = emptyList(), isLoadingSuggestions = false) }
-                return@launch
-            }
-
-            // Show catalog songs immediately so the hub is never empty.
             setState {
                 copy(
-                    suggestions = candidates.take(20),
-                    isLoadingSuggestions = false,
+                    isLoadingSuggestions = suggestions.isEmpty(),
                 )
             }
 
-            // Prefer tracks that actually have timed LRC; reorder when probe finishes.
-            val synced = filterSynced(candidates).take(16)
-            if (synced.isNotEmpty()) {
-                setState {
-                    copy(
-                        suggestions = (synced + candidates.filter { c -> synced.none { it.id == c.id } })
-                            .distinctBy { it.id }
-                            .take(20),
-                    )
+            val found = mutableListOf<Song>()
+            val foundLock = Mutex()
+
+            suspend fun publish(song: Song) {
+                foundLock.withLock {
+                    if (found.any { it.id == song.id }) return
+                    found += song
+                    val snapshot = found.toList()
+                    suggestionCache.set(snapshot)
+                    setState {
+                        copy(
+                            suggestions = snapshot,
+                            isLoadingSuggestions = snapshot.size < TARGET_COUNT,
+                        )
+                    }
                 }
+            }
+
+            // 1) Fast path: probe already-warm home feed (few LRCLIB calls).
+            val homeCandidates = homeRepository.peekCachedFeed()?.let { feed ->
+                (feed.carousel + feed.rows.flatMap { it.items }).distinctBy { it.id }
+            }.orEmpty().ifEmpty {
+                when (val result = homeRepository.getHomeFeed()) {
+                    is Result.Success -> {
+                        val feed = result.data
+                        (feed.carousel + feed.rows.flatMap { it.items }).distinctBy { it.id }
+                    }
+                    is Result.Error -> emptyList()
+                }
+            }
+
+            probeUntilFilled(
+                songs = homeCandidates.take(16),
+                target = TARGET_COUNT,
+                onHit = { publish(it) },
+                shouldStop = { foundLock.withLock { found.size >= TARGET_COUNT } },
+            )
+
+            // 2) Top up with a small curated search set if still short.
+            if (found.size < TARGET_COUNT) {
+                val curated = collectCuratedCandidates(limitPerQuery = 1)
+                probeUntilFilled(
+                    songs = curated,
+                    target = TARGET_COUNT,
+                    onHit = { publish(it) },
+                    shouldStop = { foundLock.withLock { found.size >= TARGET_COUNT } },
+                )
+            }
+
+            setState {
+                copy(
+                    suggestions = found.toList().ifEmpty { suggestions },
+                    isLoadingSuggestions = false,
+                )
+            }
+            if (found.isNotEmpty()) {
+                suggestionCache.set(found.toList())
             }
         }
     }
 
-    private suspend fun filterSynced(songs: List<Song>): List<Song> = coroutineScope {
-        val embedded = songs.filter { lyricsRepository.hasEmbeddedSyncedLyrics(it.lyrics) }
-        val remaining = songs.filter { song -> embedded.none { it.id == song.id } }.take(12)
-        val probed = remaining.map { song ->
+    private suspend fun collectCuratedCandidates(limitPerQuery: Int): List<Song> = coroutineScope {
+        val semaphore = Semaphore(4)
+        SUGGESTION_QUERIES.map { query ->
             async {
-                val lyrics = runCatching {
-                    lyricsRepository.getLyrics(
-                        title = song.title,
-                        artist = song.artistName,
-                        durationSec = song.durationSec,
-                        album = song.albumTitle,
-                        embeddedLyrics = song.lyrics.takeIf { it.isNotBlank() },
-                        syncedOnly = true,
-                    )
-                }.getOrNull()
-                song.takeIf { lyrics != null && lyrics.synced && lyrics.lines.isNotEmpty() }
+                semaphore.withPermit {
+                    runCatching {
+                        searchRepository.searchSongs(query, limit = limitPerQuery)
+                    }.getOrElse { emptyList() }
+                }
             }
-        }.awaitAll().filterNotNull()
+        }.awaitAll()
+            .flatten()
+            .distinctBy { it.id }
+    }
 
-        (embedded + probed).distinctBy { it.id }
+    private suspend fun probeUntilFilled(
+        songs: List<Song>,
+        target: Int,
+        onHit: suspend (Song) -> Unit,
+        shouldStop: suspend () -> Boolean,
+    ) = coroutineScope {
+        if (songs.isEmpty()) return@coroutineScope
+        val semaphore = Semaphore(6)
+        songs.map { song ->
+            async {
+                if (shouldStop()) return@async
+                semaphore.withPermit {
+                    if (shouldStop()) return@withPermit
+                    val ok = if (lyricsRepository.hasEmbeddedSyncedLyrics(song.lyrics)) {
+                        true
+                    } else {
+                        runCatching {
+                            lyricsRepository.hasSyncedLyricsFast(song.title, song.artistName)
+                        }.getOrDefault(false)
+                    }
+                    if (ok) onHit(song)
+                }
+            }
+        }.awaitAll()
+        // silence unused target warning in signature for readability
+        @Suppress("UNUSED_EXPRESSION")
+        target
     }
 
     private fun scheduleSearch(query: String) {
         searchJob?.cancel()
-        if (query.isBlank()) {
-            setState { copy(results = emptyList(), isSearching = false, hasSearched = false) }
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) {
+            setState {
+                copy(
+                    results = emptyList(),
+                    isSearching = false,
+                    hasSearched = false,
+                    searchError = null,
+                )
+            }
             return
         }
+        if (trimmed.length < 2) {
+            setState {
+                copy(
+                    results = emptyList(),
+                    isSearching = false,
+                    hasSearched = false,
+                    searchError = null,
+                )
+            }
+            return
+        }
+        setState { copy(isSearching = true, hasSearched = false, searchError = null) }
         searchJob = viewModelScope.launch {
-            delay(350)
-            runSearch(query)
+            delay(450)
+            runSearch(trimmed)
         }
     }
 
     private fun runSearch(query: String) {
         val trimmed = query.trim()
-        if (trimmed.isBlank()) return
+        if (trimmed.length < 2) return
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            setState { copy(isSearching = true) }
-            val songs = searchRepository.searchSongs(trimmed, limit = 30)
-            setState { copy(results = songs, isSearching = false, hasSearched = true) }
+            setState { copy(isSearching = true, searchError = null) }
+            when (val result = searchRepository.searchSongsResult(trimmed, limit = 30)) {
+                is Result.Success -> {
+                    setState {
+                        copy(
+                            results = result.data,
+                            isSearching = false,
+                            hasSearched = true,
+                            searchError = null,
+                        )
+                    }
+                }
+                is Result.Error -> {
+                    setState {
+                        copy(
+                            results = emptyList(),
+                            isSearching = false,
+                            hasSearched = true,
+                            searchError = mapSearchError(result.error),
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    private fun mapSearchError(error: AppError): String = when (error) {
+        is AppError.Http -> when (error.code) {
+            "rate_limited" -> "rate_limited"
+            else -> error.code
+        }
+        AppError.NoConnection -> "no_connection"
+        AppError.Timeout -> "timeout"
+        else -> "search_failed"
+    }
+
+    companion object {
+        private const val TARGET_COUNT = 10
+        private val suggestionCache = AtomicReference<List<Song>?>(null)
+
+        private val SUGGESTION_QUERIES = listOf(
+            "Mohsen Yeganeh Behet Ghol Midam",
+            "Coldplay Yellow",
+            "Ed Sheeran Perfect",
+            "Adele Someone Like You",
+            "Imagine Dragons Believer",
+            "The Weeknd Blinding Lights",
+        )
     }
 }

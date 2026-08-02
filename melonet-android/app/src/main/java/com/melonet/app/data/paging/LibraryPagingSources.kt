@@ -9,6 +9,7 @@ import com.melonet.app.data.model.Playlist
 import com.melonet.app.data.model.Song
 import com.melonet.app.data.remote.LibraryApi
 import com.melonet.app.data.remote.PlaylistApi
+import com.melonet.app.data.remote.dto.AddPlaylistSongRequestDto
 import java.io.IOException
 
 class PlaylistSongsPagingSource(
@@ -130,6 +131,7 @@ class RecentSongsPagingSource(
 class PlaylistsPagingSource(
     private val playlistApi: PlaylistApi,
     private val scope: String,
+    private val localPlaylistDao: LocalPlaylistDao? = null,
 ) : PagingSource<Int, Playlist>() {
 
     override fun getRefreshKey(state: PagingState<Int, Playlist>): Int? {
@@ -148,7 +150,53 @@ class PlaylistsPagingSource(
                 limit = params.loadSize,
             )
             response.error?.let { return LoadResult.Error(IOException(it.message)) }
-            val items = response.data?.map(PlaylistMapper::toModel).orEmpty()
+            var items = response.data?.map(PlaylistMapper::toModel).orEmpty()
+            val dao = localPlaylistDao
+            if (dao != null && items.isNotEmpty()) {
+                // Backfill songs that were saved only in Room on older builds.
+                if (page == 1) {
+                    items.forEach { playlist ->
+                        val local = dao.getSongsForPlaylist(playlist.id)
+                        for (entity in local) {
+                            if (entity.isLocal || entity.songId.startsWith("local_")) continue
+                            runCatching {
+                                playlistApi.addPlaylistSong(
+                                    playlist.id,
+                                    AddPlaylistSongRequestDto(songId = entity.songId),
+                                )
+                            }
+                        }
+                    }
+                    // Re-fetch so server song_count / cover_urls reflect the sync.
+                    val refreshed = playlistApi.getPlaylists(
+                        scope = scope,
+                        page = page,
+                        limit = params.loadSize,
+                    )
+                    if (refreshed.error == null) {
+                        items = refreshed.data?.map(PlaylistMapper::toModel).orEmpty()
+                    }
+                }
+                val localSongs = dao.getSongsForPlaylists(items.map { it.id })
+                val byPlaylist = localSongs.groupBy { it.playlistId }
+                items = items.map { playlist ->
+                    val local = byPlaylist[playlist.id].orEmpty()
+                    if (local.isEmpty()) return@map playlist
+                    val localCovers = local.map { it.coverUrl }.filter { it.isNotBlank() }.distinct().take(4)
+                    val apiCovers = playlist.coverUrls.filter { it.isNotBlank() }.distinct().take(4)
+                    val mosaic = when {
+                        localCovers.size >= 2 && localCovers.size >= apiCovers.size -> localCovers
+                        apiCovers.size >= 2 -> apiCovers
+                        localCovers.isNotEmpty() -> localCovers
+                        else -> apiCovers
+                    }
+                    playlist.copy(
+                        songCount = maxOf(playlist.songCount, local.size),
+                        coverUrls = mosaic,
+                        coverUrl = playlist.coverUrl.ifBlank { mosaic.firstOrNull().orEmpty() },
+                    )
+                }
+            }
             val hasMore = response.meta?.hasMore == true
             LoadResult.Page(
                 data = items,

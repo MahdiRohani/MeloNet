@@ -24,6 +24,7 @@ type Client struct {
 	publicBase string
 	host       string
 	hostMu     sync.Mutex
+	cache      *responseCache
 }
 
 func NewClient(appName, publicBase string) *Client {
@@ -31,10 +32,11 @@ func NewClient(appName, publicBase string) *Client {
 		appName = "MeloNet"
 	}
 	return &Client{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: &http.Client{Timeout: 12 * time.Second},
 		streamHTTP: &http.Client{Timeout: 0}, // no timeout for streaming proxy
 		appName:    appName,
 		publicBase: strings.TrimRight(publicBase, "/"),
+		cache:      newResponseCache(),
 	}
 }
 
@@ -157,12 +159,17 @@ func (c *Client) GetBulkTracks(ctx context.Context, ids []string) ([]Track, erro
 }
 
 func (c *Client) SearchTracks(ctx context.Context, query string, limit int) ([]Track, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	cacheKey := fmt.Sprintf("search:%s:%d", strings.ToLower(strings.TrimSpace(query)), limit)
+	if cached, ok := c.cache.get(cacheKey); ok {
+		return cached, nil
+	}
+
 	host, err := c.resolveHost(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if limit <= 0 {
-		limit = 20
 	}
 
 	params := url.Values{}
@@ -192,16 +199,23 @@ func (c *Client) SearchTracks(ctx context.Context, query string, limit int) ([]T
 		return nil, fmt.Errorf("decode search: %w", err)
 	}
 
-	return dtoListToTracks(payload.Data, limit), nil
+	tracks := dtoListToTracks(payload.Data, limit)
+	c.cache.set(cacheKey, tracks, 3*time.Minute)
+	return tracks, nil
 }
 
 func (c *Client) Trending(ctx context.Context, genre, timeRange string, limit int) ([]Track, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	cacheKey := fmt.Sprintf("trending:%s:%s:%d", genre, timeRange, limit)
+	if cached, ok := c.cache.get(cacheKey); ok {
+		return cached, nil
+	}
+
 	host, err := c.resolveHost(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if limit <= 0 {
-		limit = 20
 	}
 
 	params := url.Values{}
@@ -235,7 +249,9 @@ func (c *Client) Trending(ctx context.Context, genre, timeRange string, limit in
 		return nil, fmt.Errorf("decode trending: %w", err)
 	}
 
-	return dtoListToTracks(payload.Data, limit), nil
+	tracks := dtoListToTracks(payload.Data, limit)
+	c.cache.set(cacheKey, tracks, 3*time.Minute)
+	return tracks, nil
 }
 
 func (c *Client) StreamURL(ctx context.Context, trackID string) (string, error) {
@@ -289,10 +305,13 @@ func dtoToTrack(dto trackDTO) (Track, bool) {
 	if dto.ID == "" || dto.Duration <= 0 {
 		return Track{}, false
 	}
+	rawTitle := strings.TrimSpace(dto.Title)
+	uploader := strings.TrimSpace(dto.User.Name)
+	artist, title := splitArtistTitle(rawTitle, uploader)
 	return Track{
 		ID:            dto.ID,
-		Title:         strings.TrimSpace(dto.Title),
-		Artist:        strings.TrimSpace(dto.User.Name),
+		Title:         title,
+		Artist:        artist,
 		Genre:         strings.TrimSpace(dto.Genre),
 		Mood:          strings.TrimSpace(dto.Mood),
 		CoverURL:      firstNonEmpty(dto.Artwork.Large, dto.Artwork.Medium, dto.Artwork.Small),
@@ -303,6 +322,32 @@ func dtoToTrack(dto trackDTO) (Track, bool) {
 		FavoriteCount: dto.FavoriteCount,
 		ReleaseDate:   strings.TrimSpace(dto.ReleaseDate),
 	}, true
+}
+
+// splitArtistTitle extracts a real performer from titles like "Ebi - Goriz".
+// Audius often puts the uploader in user.name while the performer is in the title.
+func splitArtistTitle(title, fallbackArtist string) (artist, cleanTitle string) {
+	seps := []string{" - ", " – ", " — ", " | "}
+	for _, sep := range seps {
+		idx := strings.Index(title, sep)
+		if idx < 2 {
+			continue
+		}
+		a := strings.TrimSpace(title[:idx])
+		t := strings.TrimSpace(title[idx+len(sep):])
+		if len(a) < 2 || t == "" {
+			continue
+		}
+		// Avoid splitting remix/feat noise that isn't "Artist - Song".
+		if strings.Contains(strings.ToLower(a), "feat") || strings.Contains(strings.ToLower(a), "ft.") {
+			continue
+		}
+		return a, t
+	}
+	if fallbackArtist != "" {
+		return fallbackArtist, title
+	}
+	return "Unknown", title
 }
 
 func firstNonEmpty(values ...string) string {

@@ -36,14 +36,16 @@ func (s *RedisRateLimitStore) Allow(ctx context.Context, key string, limit int, 
 		return true, nil
 	}
 	redisKey := fmt.Sprintf("%s:%s", s.prefix, key)
-	count, err := s.client.Incr(ctx, redisKey).Result()
-	if err != nil {
+	// Always refresh TTL so a missed Expire can't leave a permanent counter.
+	pipe := s.client.TxPipeline()
+	incr := pipe.Incr(ctx, redisKey)
+	pipe.Expire(ctx, redisKey, window)
+	if _, err := pipe.Exec(ctx); err != nil {
 		return false, err
 	}
-	if count == 1 {
-		if err := s.client.Expire(ctx, redisKey, window).Err(); err != nil {
-			return false, err
-		}
+	count, err := incr.Result()
+	if err != nil {
+		return false, err
 	}
 	return count <= int64(limit), nil
 }

@@ -94,7 +94,11 @@ val appModule = module {
 
     single {
         HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
     }
 
@@ -146,10 +150,31 @@ val appModule = module {
     single { get<Retrofit>().create(SocialApi::class.java) }
     single { get<Retrofit>().create(ChatApi::class.java) }
 
+    // Dedicated client: LRCLIB rejects OkHttp's default User-Agent (HTTP 520).
+    single(named("lyricsClient")) {
+        OkHttpClient.Builder()
+            .applyAppTimeouts()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header(
+                        "User-Agent",
+                        "MeloNet/${BuildConfig.VERSION_NAME} (https://github.com/melonet; Android karaoke)",
+                    )
+                    .header(
+                        "Lrclib-Client",
+                        "MeloNet/${BuildConfig.VERSION_NAME}",
+                    )
+                    .build()
+                chain.proceed(request)
+            }
+            .addInterceptor(get<HttpLoggingInterceptor>())
+            .build()
+    }
+
     single(named("lyricsRetrofit")) {
         Retrofit.Builder()
             .baseUrl("https://lrclib.net/")
-            .client(get(named("noAuthClient")))
+            .client(get(named("lyricsClient")))
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }

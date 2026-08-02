@@ -127,4 +127,7 @@
     <string name="playlist_remove_song">حذف از پلی‌لیست</string>
     <string name="playlists_liked_subtitle">آهنگ‌های محبوب شما</string>
     <string name="playlists_recent_subtitle">اخیراً پخش‌شده</string>
+
+    <string name="karaoke_search_failed">جستجو ناموفق بود</string>
+    <string name="karaoke_search_rate_limited_hint">چند ثانیه صبر کنید و دوباره جستجو کنید.</string>
 </resources>

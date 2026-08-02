@@ -55,9 +55,12 @@ func (s *PlaylistService) Get(ctx context.Context, userID, playlistID int64) (ap
 		return api.PlaylistDetailResponse{}, ErrForbidden
 	}
 
-	songs, _, err := s.playlists.ListSongs(ctx, playlistID, 1, 500)
+	songs, total, err := s.playlists.ListSongs(ctx, playlistID, 1, 500)
 	if err != nil {
 		return api.PlaylistDetailResponse{}, err
+	}
+	if total > playlist.SongCount {
+		playlist.SongCount = total
 	}
 
 	return api.PlaylistDetailResponse{

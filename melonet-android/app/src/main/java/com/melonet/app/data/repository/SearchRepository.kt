@@ -64,8 +64,15 @@ class SearchRepository(
     }
 
     suspend fun searchSongs(query: String, limit: Int = 20): List<Song> = withContext(dispatchers.io) {
+        when (val result = searchSongsResult(query, limit)) {
+            is Result.Success -> result.data
+            is Result.Error -> emptyList()
+        }
+    }
+
+    suspend fun searchSongsResult(query: String, limit: Int = 20): Result<List<Song>> = withContext(dispatchers.io) {
         val trimmed = query.trim()
-        if (trimmed.isBlank()) return@withContext emptyList()
+        if (trimmed.isBlank()) return@withContext Result.Success(emptyList())
         when (
             val result = safeApiCall {
                 searchApi.search(
@@ -77,12 +84,13 @@ class SearchRepository(
             }
         ) {
             is Result.Success -> {
-                val response = result.data ?: return@withContext emptyList()
-                SearchMapper.toResultItems(response, SearchFilter.SONG)
+                val response = result.data ?: return@withContext Result.Success(emptyList())
+                val songs = SearchMapper.toResultItems(response, SearchFilter.SONG)
                     .filterIsInstance<SearchResultItem.SongItem>()
                     .map { it.song }
+                Result.Success(songs)
             }
-            is Result.Error -> emptyList()
+            is Result.Error -> result
         }
     }
 

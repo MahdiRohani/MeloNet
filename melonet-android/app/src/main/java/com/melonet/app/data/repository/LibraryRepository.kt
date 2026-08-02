@@ -22,6 +22,7 @@ import com.melonet.app.data.paging.PlaylistsPagingSource
 import com.melonet.app.data.paging.RecentSongsPagingSource
 import com.melonet.app.data.remote.LibraryApi
 import com.melonet.app.data.remote.PlaylistApi
+import com.melonet.app.data.remote.dto.AddPlaylistSongRequestDto
 import com.melonet.app.data.remote.dto.CreatePlaylistRequestDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -34,13 +35,17 @@ class PlaylistRepository(
     fun playlists(scope: PlaylistScope): Flow<PagingData<Playlist>> = Pager(
         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
         pagingSourceFactory = {
-            PlaylistsPagingSource(playlistApi, scope.apiValue)
+            PlaylistsPagingSource(
+                playlistApi = playlistApi,
+                scope = scope.apiValue,
+                localPlaylistDao = localPlaylistDao.takeIf { scope == PlaylistScope.MINE },
+            )
         },
     ).flow
 
     suspend fun getPlaylist(id: Int): Result<Playlist> = withContext(dispatchers.io) {
         when (val result = safeApiCall { playlistApi.getPlaylist(id) }) {
-            is Result.Success -> Result.Success(PlaylistMapper.toModel(result.data))
+            is Result.Success -> Result.Success(enrichPlaylistWithLocal(PlaylistMapper.toModel(result.data)))
             is Result.Error -> result
         }
     }
@@ -51,7 +56,10 @@ class PlaylistRepository(
                 playlistApi.getPlaylists(PlaylistScope.MINE.apiValue, page = 1, limit = 50)
             }
         ) {
-            is Result.Success -> Result.Success(result.data.map(PlaylistMapper::toModel))
+            is Result.Success -> {
+                val playlists = result.data.map(PlaylistMapper::toModel)
+                Result.Success(enrichPlaylistsWithLocal(playlists))
+            }
             is Result.Error -> result
         }
     }
@@ -98,24 +106,47 @@ class PlaylistRepository(
 
     suspend fun addLocalSongToPlaylist(playlistId: Int, song: Song): Result<Unit> =
         withContext(dispatchers.io) {
-            if (localPlaylistDao.exists(playlistId, song.id)) {
-                return@withContext Result.Success(Unit)
+            val isLocal = song.id.startsWith("local_") || song.category == "local"
+            if (!isLocal) {
+                safeApiCall {
+                    playlistApi.addPlaylistSong(
+                        playlistId,
+                        AddPlaylistSongRequestDto(songId = song.id),
+                    )
+                }
             }
-            localPlaylistDao.insert(
-                LocalPlaylistSongEntity(
-                    playlistId = playlistId,
-                    songId = song.id,
-                    title = song.title,
-                    artistName = song.artistName,
-                    coverUrl = song.coverUrl,
-                    audioUrl = song.audioUrl,
-                    durationSec = song.durationSec,
-                    isLocal = song.id.startsWith("local_") || song.category == "local",
-                    addedAt = System.currentTimeMillis(),
-                ),
-            )
+
+            if (!localPlaylistDao.exists(playlistId, song.id)) {
+                localPlaylistDao.insert(
+                    LocalPlaylistSongEntity(
+                        playlistId = playlistId,
+                        songId = song.id,
+                        title = song.title,
+                        artistName = song.artistName,
+                        coverUrl = song.coverUrl,
+                        audioUrl = song.audioUrl,
+                        durationSec = song.durationSec,
+                        isLocal = isLocal,
+                        addedAt = System.currentTimeMillis(),
+                    ),
+                )
+            }
             Result.Success(Unit)
         }
+
+    /** Push Room-only cloud songs up to the API so counts/covers match after older installs. */
+    suspend fun syncLocalSongsToServer(playlistId: Int) = withContext(dispatchers.io) {
+        val local = localPlaylistDao.getSongsForPlaylist(playlistId)
+        for (entity in local) {
+            if (entity.isLocal || entity.songId.startsWith("local_")) continue
+            safeApiCall {
+                playlistApi.addPlaylistSong(
+                    playlistId,
+                    AddPlaylistSongRequestDto(songId = entity.songId),
+                )
+            }
+        }
+    }
 
     suspend fun removeLocalSongFromPlaylist(playlistId: Int, songId: String): Result<Unit> =
         withContext(dispatchers.io) {
@@ -136,6 +167,39 @@ class PlaylistRepository(
                 is Result.Error -> result
             }
         }
+
+    private suspend fun enrichPlaylistWithLocal(playlist: Playlist): Playlist {
+        return enrichPlaylistsWithLocal(listOf(playlist)).first()
+    }
+
+    private suspend fun enrichPlaylistsWithLocal(playlists: List<Playlist>): List<Playlist> {
+        if (playlists.isEmpty()) return playlists
+        val localSongs = localPlaylistDao.getSongsForPlaylists(playlists.map { it.id })
+        val byPlaylist = localSongs.groupBy { it.playlistId }
+        return playlists.map { playlist ->
+            val local = byPlaylist[playlist.id].orEmpty()
+            if (local.isEmpty()) return@map playlist
+            val localCovers = local.map { it.coverUrl }.filter { it.isNotBlank() }.distinct().take(4)
+            val mosaic = pickMosaicCovers(playlist.coverUrls, localCovers)
+            playlist.copy(
+                songCount = maxOf(playlist.songCount, local.size),
+                coverUrls = mosaic,
+                coverUrl = playlist.coverUrl.ifBlank { mosaic.firstOrNull().orEmpty() },
+            )
+        }
+    }
+
+    private fun pickMosaicCovers(apiCovers: List<String>, localCovers: List<String>): List<String> {
+        val api = apiCovers.filter { it.isNotBlank() }.distinct().take(4)
+        val local = localCovers.filter { it.isNotBlank() }.distinct().take(4)
+        // Prefer the richer mosaic (up to 4 song arts), not a single cover_url fallback.
+        return when {
+            local.size >= 2 && local.size >= api.size -> local
+            api.size >= 2 -> api
+            local.isNotEmpty() -> local
+            else -> api
+        }
+    }
 }
 
 class LibraryRepository(

@@ -120,6 +120,7 @@ fun MelonetMainScreen() {
     val chatRepository: ChatRepository = koinInject()
     val networkMonitor: NetworkConnectivityMonitor = koinInject()
     val settingsRepository: SettingsRepository = koinInject()
+    val homeRepository: com.melonet.app.data.repository.HomeRepository = koinInject()
     val isOnline by networkMonitor.isOnline.collectAsState(initial = true)
     val authState by authViewModel.authState.collectAsState()
     val playerState by playerViewModel.uiState.collectAsState()
@@ -184,6 +185,8 @@ fun MelonetMainScreen() {
             if (isOnline) {
                 chatRepository.connect()
                 chatRepository.refreshUnreadCount()
+                // Warm home feed during splash / first frame so HomeScreen paints faster.
+                homeRepository.getHomeFeed()
             } else {
                 chatRepository.disconnect()
             }
@@ -580,7 +583,7 @@ fun MelonetMainScreen() {
                     .collectAsState()
                 LaunchedEffect(refreshPlaylist) {
                     if (refreshPlaylist) {
-                        detailViewModel.refreshSongs()
+                        detailViewModel.onReturnedFromAddSongs()
                         backStackEntry.savedStateHandle["refresh_playlist"] = false
                     }
                 }

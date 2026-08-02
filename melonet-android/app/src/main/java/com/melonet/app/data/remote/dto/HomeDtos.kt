@@ -29,19 +29,19 @@ data class HomeRowDto(
     @SerializedName("title") val title: String,
     @SerializedName("row_type") val rowType: String,
     @SerializedName("see_all_path") val seeAllPath: String?,
-    @SerializedName("items") val items: List<SongDto>
+    @SerializedName("items") val items: List<SongDto>? = null,
 )
 
 data class HomeArtistRowDto(
     @SerializedName("id") val id: String,
     @SerializedName("title") val title: String,
     @SerializedName("see_all_path") val seeAllPath: String?,
-    @SerializedName("items") val items: List<ArtistDto>?
+    @SerializedName("items") val items: List<ArtistDto>? = null,
 )
 
 data class HomeFeedDto(
-    @SerializedName("carousel") val carousel: List<SongDto>,
-    @SerializedName("quick_actions") val quickActions: List<QuickActionDto>,
-    @SerializedName("rows") val rows: List<HomeRowDto>,
-    @SerializedName("artist_rows") val artistRows: List<HomeArtistRowDto>?
+    @SerializedName("carousel") val carousel: List<SongDto>? = null,
+    @SerializedName("quick_actions") val quickActions: List<QuickActionDto>? = null,
+    @SerializedName("rows") val rows: List<HomeRowDto>? = null,
+    @SerializedName("artist_rows") val artistRows: List<HomeArtistRowDto>? = null,
 )

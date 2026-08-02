@@ -100,6 +100,7 @@ type Playlist struct {
 	UpdatedAt       time.Time
 	OwnerName       string
 	SongCount       int
+	CoverURLs       []string
 }
 
 type PlaylistSong struct {

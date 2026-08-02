@@ -12,9 +12,9 @@ import com.melonet.app.data.remote.dto.QuickActionDto
 object HomeMapper {
 
     fun toModel(dto: HomeFeedDto): HomeFeed = HomeFeed(
-        carousel = dto.carousel.map(SongMapper::toModel),
-        quickActions = dto.quickActions.map(::quickActionToModel),
-        rows = dto.rows.map(::rowToModel),
+        carousel = dto.carousel.orEmpty().map(SongMapper::toModel),
+        quickActions = dto.quickActions.orEmpty().map(::quickActionToModel),
+        rows = dto.rows.orEmpty().map(::rowToModel),
         artistRows = dto.artistRows.orEmpty().map(::artistRowToModel),
     )
 
@@ -37,6 +37,6 @@ object HomeMapper {
         title = dto.title,
         rowType = dto.rowType,
         seeAllPath = dto.seeAllPath,
-        items = dto.items.map(SongMapper::toModel)
+        items = dto.items.orEmpty().map(SongMapper::toModel),
     )
 }

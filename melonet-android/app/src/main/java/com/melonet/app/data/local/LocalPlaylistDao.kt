@@ -10,6 +10,15 @@ interface LocalPlaylistDao {
     @Query("SELECT * FROM local_playlist_songs WHERE playlistId = :playlistId ORDER BY addedAt ASC")
     suspend fun getSongsForPlaylist(playlistId: Int): List<LocalPlaylistSongEntity>
 
+    @Query(
+        """
+        SELECT * FROM local_playlist_songs
+        WHERE playlistId IN (:playlistIds)
+        ORDER BY playlistId ASC, addedAt ASC
+        """,
+    )
+    suspend fun getSongsForPlaylists(playlistIds: List<Int>): List<LocalPlaylistSongEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(song: LocalPlaylistSongEntity): Long
 

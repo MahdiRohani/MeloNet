@@ -2,9 +2,13 @@ package com.melonet.app.core.designsystem.component
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -13,8 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.unit.dp
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
 @Composable
@@ -28,6 +31,11 @@ fun MeloSearchBar(
     val spacing = MeloNetTheme.spacing
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    fun submit() {
+        onSearch(query)
+        keyboardController?.hide()
+    }
+
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
@@ -38,29 +46,27 @@ fun MeloSearchBar(
             Text(
                 text = placeholder,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = placeholder,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            IconButton(onClick = { submit() }) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = placeholder,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         },
         singleLine = true,
         shape = MaterialTheme.shapes.extraLarge,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(
-            onSearch = {
-                onSearch(query)
-                keyboardController?.hide()
-            },
-        ),
+        keyboardActions = KeyboardActions(onSearch = { submit() }),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             cursorColor = MaterialTheme.colorScheme.primary,
-        )
+        ),
     )
 }
