@@ -85,7 +85,6 @@ import com.melonet.app.feature.player.component.AudioVisualizer
 import com.melonet.app.feature.player.component.DynamicPlayerBackground
 import com.melonet.app.feature.player.component.LyricsSheet
 import com.melonet.app.feature.player.component.PlayerProgressBar
-import com.melonet.app.feature.player.component.QueueSheet
 import com.melonet.app.feature.player.component.RotatingCover
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -209,14 +208,11 @@ fun PlayerScreen(
                     Icon(
                         imageVector = Icons.Default.Lyrics,
                         contentDescription = stringResource(R.string.cd_lyrics),
-                        tint = onPrimary,
-                    )
-                }
-                IconButton(onClick = { viewModel.handleEvent(PlayerContract.Event.ShowQueueSheet) }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = stringResource(R.string.cd_queue),
-                        tint = onPrimary,
+                        tint = when {
+                            state.isLoadingLyrics -> onPrimary.copy(alpha = 0.5f)
+                            state.lyricsReady && state.lyrics.isEmpty -> onPrimary.copy(alpha = 0.45f)
+                            else -> onPrimary
+                        },
                     )
                 }
                 IconButton(onClick = onMinimize) {
@@ -273,6 +269,14 @@ fun PlayerScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (state.lyricsReady && state.lyrics.isEmpty) {
+                        Text(
+                            text = stringResource(R.string.player_lyrics_missing_badge),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = onPrimary.copy(alpha = 0.55f),
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
                 }
                 CircleActionButton(
                     icon = Icons.Default.Share,
@@ -495,17 +499,6 @@ fun PlayerScreen(
         UpgradeDialog(
             onUpgrade = { viewModel.upgradePremium() },
             onDismiss = { viewModel.handleEvent(PlayerContract.Event.DismissUpgradeDialog) },
-        )
-    }
-
-    if (state.showQueueSheet) {
-        QueueSheet(
-            queue = state.queue,
-            currentSongId = state.currentSong?.id,
-            onPlayIndex = { viewModel.handleEvent(PlayerContract.Event.PlayQueueIndex(it)) },
-            onRemove = { viewModel.handleEvent(PlayerContract.Event.RemoveFromQueue(it)) },
-            onMove = { from, to -> viewModel.handleEvent(PlayerContract.Event.MoveInQueue(from, to)) },
-            onDismiss = { viewModel.handleEvent(PlayerContract.Event.HideQueueSheet) },
         )
     }
 

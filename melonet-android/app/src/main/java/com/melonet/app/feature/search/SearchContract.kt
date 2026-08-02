@@ -26,7 +26,10 @@ object SearchContract {
     }
 
     sealed interface Effect : UiEffect {
-        data class PlaySong(val song: com.melonet.app.data.model.Song) : Effect
+        data class PlaySong(
+            val song: com.melonet.app.data.model.Song,
+            val queue: List<com.melonet.app.data.model.Song> = emptyList(),
+        ) : Effect
         data class NavigateToArtist(val artistId: Int) : Effect
         data class NavigateToUser(val userId: Int) : Effect
         data class ShowHistoryDeletedUndo(val query: String, val searchedAt: Long) : Effect

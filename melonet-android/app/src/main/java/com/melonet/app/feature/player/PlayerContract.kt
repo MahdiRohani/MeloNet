@@ -33,7 +33,6 @@ object PlayerContract {
         val showMoreMenu: Boolean = false,
         val showShareSheet: Boolean = false,
         val showAddToPlaylistDialog: Boolean = false,
-        val showQueueSheet: Boolean = false,
         val showLyricsSheet: Boolean = false,
         val playlists: List<Playlist> = emptyList(),
         val lyrics: Lyrics = Lyrics.EMPTY,
@@ -70,13 +69,8 @@ object PlayerContract {
         data object GoToArtist : Event
         data object ShareExternal : Event
         data object ShareToChat : Event
-        data object ShowQueueSheet : Event
-        data object HideQueueSheet : Event
         data object ShowLyricsSheet : Event
         data object HideLyricsSheet : Event
-        data class PlayQueueIndex(val index: Int) : Event
-        data class RemoveFromQueue(val songId: String) : Event
-        data class MoveInQueue(val fromIndex: Int, val toIndex: Int) : Event
         data class SeekToLyricLine(val index: Int) : Event
         data class AdjustLyricsOffset(val deltaMs: Long) : Event
     }

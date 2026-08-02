@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -78,22 +80,33 @@ fun LyricsSheet(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
-                if (synced && !lyrics.isEmpty) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { onAdjustOffset(-500L) }) {
-                            Text("−0.5s")
-                        }
+                when {
+                    isLoading -> Unit
+                    lyrics.isEmpty -> {
                         Text(
-                            text = if (lyricsOffsetMs == 0L) {
-                                stringResource(R.string.karaoke_synced_badge)
-                            } else {
-                                stringResource(R.string.player_lyrics_offset_ms, lyricsOffsetMs)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            text = stringResource(R.string.player_lyrics_missing_badge),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.SemiBold,
                         )
-                        TextButton(onClick = { onAdjustOffset(500L) }) {
-                            Text("+0.5s")
+                    }
+                    synced -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { onAdjustOffset(-500L) }) {
+                                Text("−0.5s")
+                            }
+                            Text(
+                                text = if (lyricsOffsetMs == 0L) {
+                                    stringResource(R.string.karaoke_synced_badge)
+                                } else {
+                                    stringResource(R.string.player_lyrics_offset_ms, lyricsOffsetMs)
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            TextButton(onClick = { onAdjustOffset(500L) }) {
+                                Text("+0.5s")
+                            }
                         }
                     }
                 }
@@ -114,7 +127,10 @@ fun LyricsSheet(
                     EmptyState(
                         title = stringResource(R.string.player_lyrics_empty_title),
                         description = stringResource(R.string.player_lyrics_empty_description),
-                        modifier = Modifier.padding(spacing.lg),
+                        icon = Icons.Filled.MusicOff,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(spacing.lg),
                     )
                 }
                 else -> {

@@ -283,8 +283,9 @@ fun MelonetMainScreen() {
                             upNextTitle = nextSong?.title,
                             onClick = { navController.navigate(PlayerRoute(songId = song.id)) },
                             onUpNextClick = {
-                                playerViewModel.handleEvent(PlayerContract.Event.ShowQueueSheet)
-                                navController.navigate(PlayerRoute(songId = song.id))
+                                nextSong?.let { next ->
+                                    playerViewModel.handleEvent(PlayerContract.Event.SkipNext)
+                                } ?: navController.navigate(PlayerRoute(songId = song.id))
                             },
                             onPlayPauseClick = {
                                 playerViewModel.handleEvent(PlayerContract.Event.TogglePlayPause)
@@ -460,7 +461,7 @@ fun MelonetMainScreen() {
                     val searchViewModel: SearchViewModel = koinViewModel()
                     SearchScreen(
                         viewModel = searchViewModel,
-                        onPlaySong = { song -> playSong(song) },
+                        onPlaySong = { song, queue -> playSong(song, queue) },
                         onNavigateToArtist = { artistId ->
                             navController.navigate(ArtistDetailRoute(artistId = artistId))
                         },

@@ -390,19 +390,13 @@
     <string name="placeholder_user_profile">User profile — ID: %1$d</string>
 
     <!-- Player queue / lyrics -->
-    <string name="player_queue_title">Queue</string>
-    <string name="player_queue_empty_title">Queue is empty</string>
-    <string name="player_queue_empty_description">Play a playlist or album to fill your up next list.</string>
     <string name="player_lyrics_title">Lyrics</string>
-    <string name="player_lyrics_empty_title">No lyrics found</string>
-    <string name="player_lyrics_empty_description">We couldn\'t find lyrics for this track.</string>
+    <string name="player_lyrics_empty_title">Lyrics unavailable</string>
+    <string name="player_lyrics_empty_description">We don\'t have lyrics for this track yet.</string>
+    <string name="player_lyrics_missing_badge">No lyrics</string>
     <string name="player_lyrics_offset_ms">%1$d ms</string>
     <string name="player_up_next">Up next · %1$s</string>
-    <string name="cd_queue">Queue</string>
     <string name="cd_lyrics">Lyrics</string>
-    <string name="cd_queue_move_up">Move up</string>
-    <string name="cd_queue_move_down">Move down</string>
-    <string name="cd_queue_remove">Remove from queue</string>
 
     <!-- Local music grouping -->
     <string name="local_music_tab_songs">Songs</string>

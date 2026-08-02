@@ -27,7 +27,6 @@ import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.core.ui.LocalNavAnimatedVisibilityScope
 import com.melonet.app.core.ui.LocalSharedTransitionScope
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SongCard(
     title: String,
@@ -36,9 +35,44 @@ fun SongCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionKey: String? = null,
+    /** Disable in dense Home rows — press springs on dozens of cards are expensive. */
+    enablePressAnimation: Boolean = true,
+    imageCrossfade: Boolean = true,
 ) {
-    val spacing = MeloNetTheme.spacing
-    val dimensions = MeloNetTheme.dimensions
+    if (enablePressAnimation) {
+        SongCardPressable(
+            title = title,
+            subtitle = subtitle,
+            imageUrl = imageUrl,
+            onClick = onClick,
+            modifier = modifier,
+            sharedTransitionKey = sharedTransitionKey,
+            imageCrossfade = imageCrossfade,
+        )
+    } else {
+        SongCardContent(
+            title = title,
+            subtitle = subtitle,
+            imageUrl = imageUrl,
+            onClick = onClick,
+            modifier = modifier,
+            sharedTransitionKey = sharedTransitionKey,
+            imageCrossfade = imageCrossfade,
+            scale = 1f,
+        )
+    }
+}
+
+@Composable
+private fun SongCardPressable(
+    title: String,
+    subtitle: String,
+    imageUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    sharedTransitionKey: String?,
+    imageCrossfade: Boolean,
+) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -46,6 +80,34 @@ fun SongCard(
         animationSpec = MeloMotion.pressSpring,
         label = "song_card_press",
     )
+    SongCardContent(
+        title = title,
+        subtitle = subtitle,
+        imageUrl = imageUrl,
+        onClick = onClick,
+        modifier = modifier,
+        sharedTransitionKey = sharedTransitionKey,
+        imageCrossfade = imageCrossfade,
+        scale = scale,
+        interaction = interaction,
+    )
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun SongCardContent(
+    title: String,
+    subtitle: String,
+    imageUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    sharedTransitionKey: String?,
+    imageCrossfade: Boolean,
+    scale: Float,
+    interaction: MutableInteractionSource = remember { MutableInteractionSource() },
+) {
+    val spacing = MeloNetTheme.spacing
+    val dimensions = MeloNetTheme.dimensions
     val sharedScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
     val sharedImageModifier = if (
@@ -78,6 +140,7 @@ fun SongCard(
             contentDescription = title,
             contentScale = ContentScale.Crop,
             targetSize = dimensions.songCardSize,
+            crossfade = imageCrossfade,
             modifier = Modifier
                 .size(dimensions.songCardSize)
                 .then(sharedImageModifier)

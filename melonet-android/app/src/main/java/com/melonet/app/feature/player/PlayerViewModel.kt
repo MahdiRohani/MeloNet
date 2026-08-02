@@ -139,16 +139,11 @@ class PlayerViewModel(
             PlayerContract.Event.GoToArtist -> goToArtist()
             PlayerContract.Event.ShareExternal -> shareExternal()
             PlayerContract.Event.ShareToChat -> shareToChat()
-            PlayerContract.Event.ShowQueueSheet -> setState { copy(showQueueSheet = true) }
-            PlayerContract.Event.HideQueueSheet -> setState { copy(showQueueSheet = false) }
             PlayerContract.Event.ShowLyricsSheet -> {
                 setState { copy(showLyricsSheet = true) }
                 uiState.value.currentSong?.let { loadLyricsFor(it) }
             }
             PlayerContract.Event.HideLyricsSheet -> setState { copy(showLyricsSheet = false) }
-            is PlayerContract.Event.PlayQueueIndex -> playbackManager.playQueueIndex(event.index)
-            is PlayerContract.Event.RemoveFromQueue -> playbackManager.removeFromQueue(event.songId)
-            is PlayerContract.Event.MoveInQueue -> playbackManager.moveInQueue(event.fromIndex, event.toIndex)
             is PlayerContract.Event.SeekToLyricLine -> seekToLyricLine(event.index)
             is PlayerContract.Event.AdjustLyricsOffset -> adjustLyricsOffset(event.deltaMs)
         }
@@ -156,10 +151,11 @@ class PlayerViewModel(
 
     fun playIfNeeded(songId: String) {
         viewModelScope.launch {
-            val current = uiState.value.currentSong
-            if (current?.id != songId) {
-                handleEvent(PlayerContract.Event.PlaySongId(songId))
-            }
+            val playback = playbackManager.state.value
+            // Sticky PlayerRoute.songId must never override an active/pending session
+            // (play() claims currentSong+queue synchronously before ExoPlayer setup).
+            if (playback.currentSong != null || playback.queue.isNotEmpty()) return@launch
+            handleEvent(PlayerContract.Event.PlaySongId(songId))
         }
     }
 

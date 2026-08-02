@@ -69,7 +69,7 @@ import com.melonet.app.data.model.Song
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel,
-    onPlaySong: (Song) -> Unit,
+    onPlaySong: (Song, List<Song>) -> Unit,
     onNavigateToArtist: (Int) -> Unit,
     onNavigateToUser: (Int) -> Unit,
 ) {
@@ -82,7 +82,22 @@ fun SearchScreen(
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is SearchContract.Effect.PlaySong -> onPlaySong(effect.song)
+                is SearchContract.Effect.PlaySong -> {
+                    val fromResults = buildList {
+                        for (i in 0 until searchResults.itemCount) {
+                            val song = (searchResults[i] as? SearchResultItem.SongItem)?.song
+                                ?: continue
+                            add(song)
+                        }
+                    }.distinctBy { it.id }
+                    val queue = when {
+                        fromResults.any { it.id == effect.song.id } -> fromResults
+                        fromResults.isNotEmpty() -> listOf(effect.song) + fromResults
+                        effect.queue.isNotEmpty() -> effect.queue
+                        else -> listOf(effect.song)
+                    }
+                    onPlaySong(effect.song, queue)
+                }
                 is SearchContract.Effect.NavigateToArtist -> onNavigateToArtist(effect.artistId)
                 is SearchContract.Effect.NavigateToUser -> onNavigateToUser(effect.userId)
                 is SearchContract.Effect.ShowHistoryDeletedUndo -> {

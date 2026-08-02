@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -21,7 +22,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,10 +58,14 @@ fun HomeCarousel(
     isLoading: Boolean,
     onCategoryClick: (HomeRow) -> Unit,
     modifier: Modifier = Modifier,
-    pauseAutoScroll: Boolean = false,
+    listState: LazyListState? = null,
 ) {
     val spacing = MeloNetTheme.spacing
     val dimensions = MeloNetTheme.dimensions
+    // Read scroll progress here only — avoids recomposing the whole Home feed on scroll.
+    val pauseAutoScroll by remember(listState) {
+        derivedStateOf { listState?.isScrollInProgress == true }
+    }
 
     Box(
         modifier = modifier
@@ -95,6 +102,7 @@ fun HomeCarousel(
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 0,
                 ) { page ->
                     val category = categories[page]
                     CarouselSlide(

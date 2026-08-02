@@ -2,10 +2,10 @@ package com.melonet.app.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -66,7 +66,6 @@ import com.melonet.app.core.designsystem.component.SectionHeaderShimmer
 import com.melonet.app.core.designsystem.component.SongCard
 import com.melonet.app.core.designsystem.component.SongCardShimmer
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
-import com.melonet.app.core.ui.PlayerSharedKeys
 import com.melonet.app.data.model.Artist
 import com.melonet.app.data.model.HomeArtistRow
 import com.melonet.app.data.model.HomeRow
@@ -125,7 +124,6 @@ fun HomeScreen(
                     artistRows = state.feed?.artistRows.orEmpty(),
                     isLoading = showSkeleton,
                     listState = listState,
-                    pauseCarousel = listState.isScrollInProgress,
                     onSongClick = { song ->
                         viewModel.handleEvent(HomeContract.Event.SongClicked(song))
                     },
@@ -152,7 +150,6 @@ private fun HomeFeedContent(
     artistRows: List<HomeArtistRow>,
     isLoading: Boolean,
     listState: LazyListState,
-    pauseCarousel: Boolean,
     onSongClick: (Song) -> Unit,
     onQuickActionClick: (QuickAction) -> Unit,
     onSeeAllClick: (HomeRow) -> Unit,
@@ -161,30 +158,35 @@ private fun HomeFeedContent(
 ) {
     val spacing = MeloNetTheme.spacing
 
-    val carouselCategories = rows
-        .filter { it.items.isNotEmpty() }
-        .map { row ->
-            CarouselCategory(
-                title = row.title,
-                coverUrl = row.items.first().coverUrl,
-                row = row,
-            )
-        }
+    val carouselCategories = remember(rows) {
+        rows
+            .filter { it.items.isNotEmpty() }
+            .map { row ->
+                CarouselCategory(
+                    title = row.title,
+                    coverUrl = row.items.first().coverUrl,
+                    row = row,
+                )
+            }
+    }
+    val visibleArtistRows = remember(artistRows) {
+        artistRows.filter { it.items.isNotEmpty() }
+    }
 
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
     ) {
-        item(key = "carousel") {
+        item(key = "carousel", contentType = "carousel") {
             HomeCarousel(
                 categories = carouselCategories,
                 isLoading = isLoading,
-                pauseAutoScroll = pauseCarousel,
+                listState = listState,
                 onCategoryClick = onSeeAllClick,
             )
         }
 
-        item(key = "quick_actions") {
+        item(key = "quick_actions", contentType = "quick_actions") {
             QuickActionsSection(
                 actions = quickActions,
                 isLoading = isLoading,
@@ -193,13 +195,13 @@ private fun HomeFeedContent(
         }
 
         if (!isLoading) {
-            item(key = "karaoke_banner") {
+            item(key = "karaoke_banner", contentType = "banner") {
                 KaraokeBanner(onClick = onKaraokeClick)
             }
         }
 
         if (isLoading) {
-            items(3, key = { "song_skeleton_$it" }) {
+            items(3, key = { "song_skeleton_$it" }, contentType = { "song_skeleton" }) {
                 SongSection(
                     title = null,
                     songs = emptyList(),
@@ -210,7 +212,11 @@ private fun HomeFeedContent(
                 )
             }
         } else {
-            items(rows, key = { it.id }) { row ->
+            items(
+                items = rows,
+                key = { it.id },
+                contentType = { "song_row" },
+            ) { row ->
                 SongSection(
                     title = row.title,
                     songs = row.items,
@@ -221,7 +227,11 @@ private fun HomeFeedContent(
                 )
             }
 
-            items(artistRows.filter { it.items.isNotEmpty() }, key = { it.id }) { row ->
+            items(
+                items = visibleArtistRows,
+                key = { it.id },
+                contentType = { "artist_row" },
+            ) { row ->
                 ArtistSection(
                     title = row.title,
                     artists = row.items,
@@ -304,18 +314,16 @@ private fun ArtistSection(
     val spacing = MeloNetTheme.spacing
     Column(modifier = Modifier.padding(vertical = spacing.sm + spacing.xs)) {
         SectionHeader(title = title, onActionClick = null)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = spacing.md),
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = spacing.md),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            artists.forEach { artist ->
+            items(artists, key = { it.id }) { artist ->
                 ArtistCircleItem(
                     name = artist.name,
                     imageUrl = artist.imageUrl,
                     onClick = { onArtistClick(artist) },
+                    imageCrossfade = false,
                 )
             }
         }
@@ -419,22 +427,23 @@ private fun SongSection(
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = spacing.md),
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = spacing.md),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             if (isLoading) {
-                repeat(5) { SongCardShimmer() }
+                items(5, key = { "shimmer_$it" }) {
+                    SongCardShimmer()
+                }
             } else {
-                songs.forEach { song ->
+                items(songs, key = { it.id }) { song ->
                     SongCard(
                         title = song.title,
                         subtitle = song.artistName,
                         imageUrl = song.coverUrl,
-                        sharedTransitionKey = PlayerSharedKeys.songCover(song.id),
+                        // No shared elements / press springs in dense Home rows.
+                        enablePressAnimation = false,
+                        imageCrossfade = false,
                         onClick = { onSongClick(song) },
                     )
                 }

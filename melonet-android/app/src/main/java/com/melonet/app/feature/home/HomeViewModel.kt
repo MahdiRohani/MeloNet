@@ -1,7 +1,6 @@
 package com.melonet.app.feature.home
 
 import androidx.lifecycle.viewModelScope
-import com.melonet.app.core.common.AppError
 import com.melonet.app.core.common.BaseViewModel
 import com.melonet.app.core.common.Result
 import com.melonet.app.data.repository.HomeRepository
@@ -14,6 +13,12 @@ class HomeViewModel(
     override fun createInitialState() = HomeContract.State()
 
     init {
+        // Must not touch homeRepository inside createInitialState(): BaseViewModel
+        // builds initial state during super construction, before ctor params are set.
+        val cached = homeRepository.peekCachedFeed()
+        if (cached != null) {
+            setState { copy(feed = cached, isLoading = false) }
+        }
         handleEvent(HomeContract.Event.Load)
     }
 
@@ -59,11 +64,13 @@ class HomeViewModel(
 
     private fun loadHomeFeed(refreshing: Boolean) {
         viewModelScope.launch {
+            val hasFeed = uiState.value.feed != null
             setState {
-                if (refreshing) {
-                    copy(isRefreshing = true, error = null)
-                } else {
-                    copy(isLoading = true, error = null)
+                when {
+                    refreshing -> copy(isRefreshing = true, error = null)
+                    // Keep showing cached/warm feed instead of flashing the skeleton.
+                    hasFeed -> copy(error = null)
+                    else -> copy(isLoading = true, error = null)
                 }
             }
             when (val result = homeRepository.getHomeFeed(forceRefresh = refreshing)) {

@@ -39,7 +39,7 @@ class LibrarySongsViewModel(
     override fun handleEvent(event: LibrarySongsContract.Event) {
         when (event) {
             is LibrarySongsContract.Event.SongClicked -> {
-                setEffect { LibrarySongsContract.Effect.NavigateToPlayer(event.songId) }
+                setEffect { LibrarySongsContract.Effect.PlayQueue(event.songId, shuffle = false) }
             }
             is LibrarySongsContract.Event.DismissSong -> dismissSong(event.songId)
             LibrarySongsContract.Event.PlayAll -> {

@@ -64,12 +64,15 @@ class PlaybackManager(
     private var progressJob: Job? = null
     private var sleepTimerJob: Job? = null
     private var crossfadeJob: Job? = null
+    private var playJob: Job? = null
     private var playRecordedForSongId: String? = null
     private var awaitingInitialReady: Boolean = false
     private var isSeekingInternal: Boolean = false
     private var seekTargetMs: Long = 0L
     private var crossfadeActive: Boolean = false
     private var skipCrossfadeOnce: Boolean = false
+    /** Bumped on every play/prepare so stale coroutines cannot overwrite a newer queue. */
+    private var playGeneration: Long = 0L
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -205,54 +208,69 @@ class PlaybackManager(
     }
 
     fun play(song: Song, queue: List<Song> = listOf(song)) {
-        scope.launch {
+        val playQueue = queue.ifEmpty { listOf(song) }
+        val startIndex = playQueue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        // Claim the session synchronously so PlayerScreen.playIfNeeded cannot race in a
+        // 1-song PlaySongId and collapse a multi-track queue before this coroutine runs.
+        claimPlayback(song, playQueue, startIndex, loading = true)
+        val generation = playGeneration
+        playJob?.cancel()
+        playJob = scope.launch {
             connectAndAwait()
+            if (generation != playGeneration) return@launch
             val c = controller ?: return@launch
             cancelCrossfade(resetVolume = true)
-            val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
             playRecordedForSongId = null
             awaitingInitialReady = true
             isSeekingInternal = false
             c.volume = defaultPlaybackVolume()
-            c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
+            setPlayerQueue(c, playQueue, startIndex)
+            if (generation != playGeneration) return@launch
             applyRepeatMode(_state.value.repeatMode)
             c.prepare()
             c.play()
-            _state.update {
-                it.copy(
-                    currentSong = song,
-                    queue = queue,
-                    currentIndex = startIndex,
-                    isLoading = true,
-                    isSeeking = false,
-                    positionMs = 0L,
-                )
-            }
         }
     }
 
     fun preparePaused(song: Song, queue: List<Song> = listOf(song)) {
-        scope.launch {
+        val playQueue = queue.ifEmpty { listOf(song) }
+        val startIndex = playQueue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        claimPlayback(song, playQueue, startIndex, loading = true)
+        val generation = playGeneration
+        playJob?.cancel()
+        playJob = scope.launch {
             connectAndAwait()
+            if (generation != playGeneration) return@launch
             val c = controller ?: return@launch
             cancelCrossfade(resetVolume = true)
-            val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
             playRecordedForSongId = null
             awaitingInitialReady = true
             c.volume = defaultPlaybackVolume()
-            c.setMediaItems(queue.map { buildMediaItem(it) }, startIndex, 0L)
+            setPlayerQueue(c, playQueue, startIndex)
+            if (generation != playGeneration) return@launch
             applyRepeatMode(_state.value.repeatMode)
             c.prepare()
             c.pause()
-            _state.update {
-                it.copy(
-                    currentSong = song,
-                    queue = queue,
-                    currentIndex = startIndex,
-                    isPlaying = false,
-                    isLoading = true,
-                )
-            }
+            _state.update { it.copy(isPlaying = false) }
+        }
+    }
+
+    private fun claimPlayback(
+        song: Song,
+        playQueue: List<Song>,
+        startIndex: Int,
+        loading: Boolean,
+    ) {
+        playGeneration += 1
+        _state.update {
+            it.copy(
+                currentSong = song,
+                queue = playQueue,
+                currentIndex = startIndex,
+                isLoading = loading,
+                isSeeking = false,
+                positionMs = 0L,
+            )
         }
     }
 
@@ -267,13 +285,19 @@ class PlaybackManager(
 
     fun playSongId(songId: String, queue: List<Song> = emptyList()) {
         scope.launch {
-            val existing = _state.value.queue.find { it.id == songId }
+            val existingQueue = _state.value.queue
+            val existing = existingQueue.find { it.id == songId }
                 ?: _state.value.currentSong?.takeIf { it.id == songId }
             val song = existing ?: when (val result = playerRepository.getSong(songId)) {
                 is Result.Success -> result.data
                 is Result.Error -> return@launch
             }
-            val songs = queue.ifEmpty { listOf(song) }
+            val songs = when {
+                queue.isNotEmpty() -> queue
+                // Keep an active multi-track queue instead of collapsing to one song.
+                existingQueue.size > 1 && existingQueue.any { it.id == songId } -> existingQueue
+                else -> listOf(song)
+            }
             play(song, songs)
         }
     }
@@ -289,15 +313,96 @@ class PlaybackManager(
     }
 
     fun skipNext() {
-        skipCrossfadeOnce = true
-        cancelCrossfade(resetVolume = true)
-        controller?.seekToNextMediaItem()
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            skipCrossfadeOnce = true
+            cancelCrossfade(resetVolume = true)
+            val queue = _state.value.queue
+            if (queue.isEmpty()) return@launch
+            if (queue.size == 1) {
+                // Prefer ExoPlayer playlist if it somehow has more items than app state.
+                if (c.hasNextMediaItem()) {
+                    c.seekToNextMediaItem()
+                    c.play()
+                    updateCurrentSongFromPlayer()
+                }
+                // Do not restart the same track — that feels like a broken skip.
+                return@launch
+            }
+            val currentId = _state.value.currentSong?.id
+            var index = queue.indexOfFirst { it.id == currentId }
+            if (index < 0) {
+                index = c.currentMediaItemIndex.coerceIn(0, queue.lastIndex)
+            }
+            val nextIndex = (index + 1) % queue.size
+            jumpToQueueIndex(c, queue, nextIndex)
+        }
     }
 
     fun skipPrevious() {
-        skipCrossfadeOnce = true
-        cancelCrossfade(resetVolume = true)
-        controller?.seekToPreviousMediaItem()
+        scope.launch {
+            connectAndAwait()
+            val c = controller ?: return@launch
+            skipCrossfadeOnce = true
+            cancelCrossfade(resetVolume = true)
+            val queue = _state.value.queue
+            if (queue.isEmpty()) return@launch
+            // Restart current if already into the track.
+            if (c.currentPosition > 3_000L) {
+                c.seekTo(0L)
+                return@launch
+            }
+            if (queue.size == 1) {
+                if (c.hasPreviousMediaItem()) {
+                    c.seekToPreviousMediaItem()
+                    c.play()
+                    updateCurrentSongFromPlayer()
+                }
+                return@launch
+            }
+            val currentId = _state.value.currentSong?.id
+            var index = queue.indexOfFirst { it.id == currentId }
+            if (index < 0) {
+                index = c.currentMediaItemIndex.coerceIn(0, queue.lastIndex)
+            }
+            val prevIndex = if (index <= 0) queue.lastIndex else index - 1
+            jumpToQueueIndex(c, queue, prevIndex)
+        }
+    }
+
+    private suspend fun jumpToQueueIndex(c: MediaController, queue: List<Song>, index: Int) {
+        val target = index.coerceIn(0, queue.lastIndex)
+        awaitingInitialReady = true
+        val playerInSync = c.mediaItemCount == queue.size &&
+            (0 until minOf(c.mediaItemCount, queue.size)).all { i ->
+                c.getMediaItemAt(i).mediaId == queue[i].id
+            }
+        if (!playerInSync) {
+            setPlayerQueue(c, queue, target)
+            c.prepare()
+        } else {
+            c.seekTo(target, 0L)
+        }
+        c.play()
+        _state.update {
+            it.copy(
+                currentSong = queue[target],
+                queue = queue,
+                currentIndex = target,
+                isLoading = true,
+                positionMs = 0L,
+            )
+        }
+    }
+
+    private suspend fun setPlayerQueue(c: MediaController, queue: List<Song>, startIndex: Int) {
+        val items = ArrayList<MediaItem>(queue.size)
+        for (song in queue) {
+            items.add(buildMediaItem(song))
+        }
+        val safeIndex = startIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        c.setMediaItems(items, safeIndex, 0L)
     }
 
     /** Insert [song] to play immediately after the current track. */
@@ -399,11 +504,7 @@ class PlaybackManager(
             if (index !in queue.indices) return@launch
             skipCrossfadeOnce = true
             cancelCrossfade(resetVolume = true)
-            c.seekTo(index, 0L)
-            c.play()
-            _state.update {
-                it.copy(currentSong = queue[index], currentIndex = index, isLoading = true, positionMs = 0L)
-            }
+            jumpToQueueIndex(c, queue, index)
         }
     }
 
@@ -542,9 +643,16 @@ class PlaybackManager(
 
     private suspend fun buildMediaItem(song: Song): MediaItem {
         val uri = playerRepository.resolveAudioUri(song)
+        val parsedUri = uri.toUri()
         return MediaItem.Builder()
-            .setUri(uri)
+            .setUri(parsedUri)
             .setMediaId(song.id)
+            // Survives MediaSession IPC when localConfiguration is stripped for non-trusted paths.
+            .setRequestMetadata(
+                MediaItem.RequestMetadata.Builder()
+                    .setMediaUri(parsedUri)
+                    .build(),
+            )
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(song.title)

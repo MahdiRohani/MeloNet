@@ -28,6 +28,7 @@ fun ArtistCircleItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Int = 96,
+    imageCrossfade: Boolean = true,
 ) {
     Column(
         modifier = modifier
@@ -41,6 +42,7 @@ fun ArtistCircleItem(
             contentDescription = name,
             contentScale = ContentScale.Crop,
             targetSize = size.dp,
+            crossfade = imageCrossfade,
             modifier = Modifier
                 .size(size.dp)
                 .clip(CircleShape),

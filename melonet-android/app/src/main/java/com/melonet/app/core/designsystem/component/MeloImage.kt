@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -37,6 +38,8 @@ fun MeloImage(
     contentScale: ContentScale = ContentScale.Crop,
     targetSize: Dp? = null,
     fallback: MeloImageFallback = MeloImageFallback.Album,
+    /** Prefer false in dense lists (Home rows) to avoid decode + fade jank. */
+    crossfade: Boolean = true,
 ) {
     val resolvedUrl = MediaUrl.resolve(imageUrl)
     if (resolvedUrl.isNullOrBlank()) {
@@ -47,11 +50,10 @@ fun MeloImage(
     val context = LocalContext.current
     val density = LocalDensity.current
     val pixelSize = targetSize?.let { with(density) { it.roundToPx() } }
-
-    SubcomposeAsyncImage(
-        model = ImageRequest.Builder(context)
+    val request = remember(resolvedUrl, pixelSize, crossfade) {
+        ImageRequest.Builder(context)
             .data(resolvedUrl)
-            .crossfade(true)
+            .crossfade(crossfade)
             .apply {
                 if (pixelSize != null) {
                     size(pixelSize)
@@ -59,7 +61,11 @@ fun MeloImage(
                     precision(Precision.INEXACT)
                 }
             }
-            .build(),
+            .build()
+    }
+
+    SubcomposeAsyncImage(
+        model = request,
         contentDescription = contentDescription,
         contentScale = contentScale,
         modifier = modifier,

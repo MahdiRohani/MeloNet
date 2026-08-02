@@ -21,6 +21,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 
 class MelonetPlaybackService : MediaSessionService() {
 
@@ -109,7 +110,44 @@ class MelonetPlaybackService : MediaSessionService() {
                 .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(sessionCommands)
+                .setAvailablePlayerCommands(MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
                 .build()
+        }
+
+        override fun onAddMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: List<androidx.media3.common.MediaItem>,
+        ): ListenableFuture<List<androidx.media3.common.MediaItem>> {
+            val resolved = mediaItems.map { item ->
+                if (item.localConfiguration != null) {
+                    item
+                } else {
+                    val uri = item.requestMetadata.mediaUri
+                    if (uri != null) {
+                        item.buildUpon().setUri(uri).build()
+                    } else {
+                        item
+                    }
+                }
+            }
+            return Futures.immediateFuture(resolved)
+        }
+
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: List<androidx.media3.common.MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            return Futures.transform(
+                onAddMediaItems(mediaSession, controller, mediaItems),
+                { resolved ->
+                    MediaSession.MediaItemsWithStartPosition(resolved, startIndex, startPositionMs)
+                },
+                MoreExecutors.directExecutor(),
+            )
         }
 
         override fun onCustomCommand(
