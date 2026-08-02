@@ -27,7 +27,7 @@ class MelonetPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private lateinit var player: ExoPlayer
     private val karaokeProcessor = KaraokeAudioProcessor()
-    private var sessionVisualizer: AudioSessionVisualizer? = null
+    private val visualizerProcessor = VisualizerAudioProcessor()
 
     override fun onCreate() {
         super.onCreate()
@@ -53,7 +53,12 @@ class MelonetPlaybackService : MediaSessionService() {
                 enableAudioTrackPlaybackParams: Boolean,
             ): AudioSink {
                 return DefaultAudioSink.Builder(context)
-                    .setAudioProcessors(arrayOf<AudioProcessor>(karaokeProcessor))
+                    .setAudioProcessors(
+                        arrayOf<AudioProcessor>(
+                            karaokeProcessor,
+                            visualizerProcessor,
+                        ),
+                    )
                     .setEnableFloatOutput(false)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .build()
@@ -74,13 +79,9 @@ class MelonetPlaybackService : MediaSessionService() {
             .build()
         player.volume = 1f
 
-        sessionVisualizer = AudioSessionVisualizer { magnitudes ->
-            PlaybackAudioBridge.updateFft(magnitudes)
-        }
         player.addListener(object : Player.Listener {
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 PlaybackAudioBridge.updateAudioSessionId(audioSessionId)
-                sessionVisualizer?.attach(audioSessionId)
                 EqualizerController.onAudioSessionChanged(audioSessionId)
             }
         })
@@ -88,7 +89,6 @@ class MelonetPlaybackService : MediaSessionService() {
         val initialSession = player.audioSessionId
         if (initialSession != C.AUDIO_SESSION_ID_UNSET) {
             PlaybackAudioBridge.updateAudioSessionId(initialSession)
-            sessionVisualizer?.attach(initialSession)
             EqualizerController.onAudioSessionChanged(initialSession)
         }
 
@@ -131,8 +131,6 @@ class MelonetPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        sessionVisualizer?.release()
-        sessionVisualizer = null
         PlaybackAudioBridge.clearFft()
         EqualizerController.release()
         mediaSession?.run {

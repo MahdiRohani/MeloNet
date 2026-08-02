@@ -1,23 +1,24 @@
 package com.melonet.app.feature.player
 
 import android.media.audiofx.Visualizer
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * Captures waveform amplitudes from the ExoPlayer audio session for the player visualizer.
- * Bars emphasize local temporal contrast (with light auto-gain) so motion reads clearly vertical.
+ * Captures FFT (+ light waveform energy) from the ExoPlayer audio session.
+ * Bars track song loudness: quiet passages stay low, peaks rise clearly.
  */
 class AudioSessionVisualizer(
-    private val barCount: Int = 40,
+    private val barCount: Int = 48,
     private val onMagnitudes: (FloatArray) -> Unit,
 ) {
     private var visualizer: Visualizer? = null
     private val output = FloatArray(barCount)
     private val smoothed = FloatArray(barCount)
-    private var gain = 1f
+    private var peakEma = 24f
+    @Volatile
+    private var waveEnergy = 0f
 
     fun attach(audioSessionId: Int) {
         release()
@@ -35,19 +36,27 @@ class AudioSessionVisualizer(
                         samplingRate: Int,
                     ) {
                         if (waveform == null || waveform.isEmpty()) return
-                        mapWaveformToBars(waveform, output)
-                        onMagnitudes(output.copyOf())
+                        var sumSq = 0.0
+                        for (b in waveform) {
+                            val centered = (b.toInt() and 0xFF) - 128
+                            sumSq += centered * centered
+                        }
+                        waveEnergy = sqrt(sumSq / waveform.size).toFloat() / 128f
                     }
 
                     override fun onFftDataCapture(
                         visualizer: Visualizer?,
                         fft: ByteArray?,
                         samplingRate: Int,
-                    ) = Unit
+                    ) {
+                        if (fft == null || fft.size < 4) return
+                        mapFftToBars(fft, output)
+                        onMagnitudes(output.copyOf())
+                    }
                 },
                 Visualizer.getMaxCaptureRate() / 2,
                 true,
-                false,
+                true,
             )
             viz.enabled = true
             visualizer = viz
@@ -63,48 +72,51 @@ class AudioSessionVisualizer(
         } catch (_: Exception) {
         }
         visualizer = null
-        gain = 1f
+        peakEma = 24f
+        waveEnergy = 0f
         smoothed.fill(0f)
         onMagnitudes(FloatArray(barCount))
     }
 
-    private fun mapWaveformToBars(waveform: ByteArray, out: FloatArray) {
-        val n = waveform.size
-        var framePeak = 0.001f
+    private fun mapFftToBars(fft: ByteArray, out: FloatArray) {
+        val n = fft.size / 2
+        val usable = (n - 1).coerceAtLeast(1)
         val raw = FloatArray(out.size)
+        var framePeak = 1e-3f
 
         for (i in raw.indices) {
-            val start = (i * n) / raw.size
-            val end = ((i + 1) * n) / raw.size
-            var localPeak = 0f
-            var localSumSq = 0.0
-            val count = (end - start).coerceAtLeast(1)
-            for (k in start until end) {
-                val centered = ((waveform[k].toInt() and 0xFF) - 128).toFloat()
-                val a = abs(centered)
-                if (a > localPeak) localPeak = a
-                localSumSq += centered * centered
+            val start = 1 + (i * usable) / out.size
+            val end = 1 + ((i + 1) * usable) / out.size
+            var sumSq = 0.0
+            var count = 0
+            for (k in start until end.coerceAtMost(n)) {
+                val re = fft[k * 2].toInt().toFloat()
+                val im = fft[k * 2 + 1].toInt().toFloat()
+                sumSq += re * re + im * im
+                count++
             }
-            val localRms = sqrt(localSumSq / count).toFloat()
-            // Prefer peak detail so neighboring bars differ clearly.
-            val amp = (localPeak * 0.75f + localRms * 0.25f) / 128f
-            raw[i] = amp
-            if (amp > framePeak) framePeak = amp
+            val rms = if (count > 0) sqrt(sumSq / count).toFloat() else 0f
+            raw[i] = rms
+            if (rms > framePeak) framePeak = rms
         }
 
-        // Soft auto-gain: keep relative bar motion without stretching waves to full height.
-        val targetGain = (0.55f / framePeak).coerceIn(1f, 2.2f)
-        gain = gain * 0.85f + targetGain * 0.15f
+        // Adaptive ceiling so bars use the full 0..1 range with real dynamics.
+        peakEma = max(framePeak, peakEma * 0.92f + framePeak * 0.08f)
+        val denom = peakEma.coerceAtLeast(12f)
+
+        // Overall waveform energy scales the whole equalizer with song volume.
+        val volume = (waveEnergy * 1.35f).coerceIn(0.15f, 1f)
 
         for (i in out.indices) {
-            val boosted = (raw[i] * gain * 0.72f).coerceIn(0f, 1f)
-            // Fast attack / slower release so bars feel lively, not a fixed pulse.
-            smoothed[i] = if (boosted > smoothed[i]) {
-                smoothed[i] * 0.35f + boosted * 0.65f
+            val normalized = (raw[i] / denom).coerceIn(0f, 1f)
+            // Mild curve keeps quiet notes visible but still volume-linked.
+            val shaped = sqrt(normalized) * volume
+            smoothed[i] = if (shaped > smoothed[i]) {
+                smoothed[i] * 0.35f + shaped * 0.65f
             } else {
-                smoothed[i] * 0.72f + boosted * 0.28f
+                smoothed[i] * 0.78f + shaped * 0.22f
             }
-            out[i] = smoothed[i].coerceIn(0.02f, 1f)
+            out[i] = smoothed[i].coerceIn(0.03f, 1f)
         }
     }
 }

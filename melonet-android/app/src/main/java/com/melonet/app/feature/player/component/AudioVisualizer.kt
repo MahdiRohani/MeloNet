@@ -15,12 +15,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 
 /**
- * Waveform-driven visualizer. Bars grow from the bottom; on pause the canvas
+ * FFT-driven visualizer. Bars follow [magnitudes]; on pause the whole canvas
  * fades out via alpha instead of collapsing bar heights to zero.
  */
 @Composable
@@ -29,7 +27,6 @@ fun AudioVisualizer(
     magnitudes: FloatArray,
     modifier: Modifier = Modifier,
     barCount: Int = 48,
-    height: Dp? = null,
 ) {
     val dimensions = MeloNetTheme.dimensions
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -41,37 +38,37 @@ fun AudioVisualizer(
         label = "visualizer_alpha",
     )
 
-    // contentHashCode forces Canvas invalidation when amplitude frames change.
+    // contentHashCode forces Canvas invalidation when FFT frames change.
     val frameKey = remember(magnitudes) { magnitudes.contentHashCode() }
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(height ?: dimensions.visualizerHeight)
+            .height(dimensions.visualizerHeight)
             .alpha(alpha),
     ) {
         @Suppress("UNUSED_EXPRESSION")
         frameKey
         if (alpha <= 0.01f) return@Canvas
-        val gap = size.width * 0.012f
+        val gap = size.width * 0.006f
         val barWidth = (size.width - gap * (barCount - 1)) / barCount
         val maxHeight = size.height
         val brush = Brush.verticalGradient(listOf(primaryColor, secondaryColor))
-        val corner = CornerRadius(barWidth / 2f, barWidth / 2f)
         for (index in 0 until barCount) {
             val sample = if (magnitudes.isNotEmpty()) {
                 magnitudes[(index * magnitudes.size) / barCount]
             } else {
                 0.05f
             }
-            val h = (maxHeight * sample.coerceIn(0.02f, 1f)).coerceAtLeast(2f)
+            // Allow bars to collapse on quiet audio; tiny floor only for visibility.
+            val h = (maxHeight * sample.coerceIn(0.02f, 1f)).coerceAtLeast(1.5f)
             val x = index * (barWidth + gap)
-            val y = maxHeight - h
+            val y = (maxHeight - h) / 2f
             drawRoundRect(
                 brush = brush,
                 topLeft = Offset(x, y),
                 size = Size(barWidth, h),
-                cornerRadius = corner,
+                cornerRadius = CornerRadius(barWidth / 2f),
             )
         }
     }
