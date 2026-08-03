@@ -89,11 +89,28 @@ data class MeloNetColors(
     val vinylOuter: Color,
     val vinylSpindle: Color,
     val vinylRim: Color,
+    val splashGradientTop: Color,
+    val splashGradientBottom: Color,
+    val splashLogoPlate: Color,
+    val coverRim: Color,
+    val playerFallbackTop: Color,
+    val playerFallbackMid: Color,
+    val playerFallbackBottom: Color,
+    val vignetteTop: Color,
+    val vignetteBottom: Color,
 ) {
     val surfaceBrush: Brush
         get() = Brush.verticalGradient(
             colors = listOf(surfaceGradientTop, surfaceGradientBottom),
         )
+
+    val splashBrush: Brush
+        get() = Brush.verticalGradient(
+            colors = listOf(splashGradientTop, surfaceGradientBottom, splashGradientBottom),
+        )
+
+    val playerFallbackColors: List<Color>
+        get() = listOf(playerFallbackTop, playerFallbackMid, playerFallbackBottom)
 }
 
 val DarkMeloNetColors = MeloNetColors(
@@ -113,6 +130,15 @@ val DarkMeloNetColors = MeloNetColors(
     vinylOuter = Color(0xFF0D0D0D),
     vinylSpindle = Color(0xFF111111),
     vinylRim = Color(0x14FFFFFF),
+    splashGradientTop = Color(0xFF1A160E),
+    splashGradientBottom = Color(0xFF0A0906),
+    splashLogoPlate = Color(0xFF16120A),
+    coverRim = Color.White.copy(alpha = 0.12f),
+    playerFallbackTop = Color(0xFF1A160E),
+    playerFallbackMid = Color(0xFF2A2418),
+    playerFallbackBottom = DarkBackground,
+    vignetteTop = Color.Black.copy(alpha = 0.18f),
+    vignetteBottom = Color.Black.copy(alpha = 0.45f),
 )
 
 val LightMeloNetColors = MeloNetColors(
@@ -132,4 +158,13 @@ val LightMeloNetColors = MeloNetColors(
     vinylOuter = Color(0xFF0D0D0D),
     vinylSpindle = Color(0xFF111111),
     vinylRim = Color(0x14FFFFFF),
+    splashGradientTop = LightPrimaryContainer,
+    splashGradientBottom = LightBackground,
+    splashLogoPlate = LightSurface,
+    coverRim = Color.Black.copy(alpha = 0.08f),
+    playerFallbackTop = LightPrimaryContainer,
+    playerFallbackMid = LightSurfaceVariant,
+    playerFallbackBottom = LightBackground,
+    vignetteTop = Color.Black.copy(alpha = 0.06f),
+    vignetteBottom = Color.Black.copy(alpha = 0.2f),
 )

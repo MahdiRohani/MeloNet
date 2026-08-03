@@ -31,6 +31,22 @@ data class Dimensions(
     val shimmerWidthFractionSm: Float = 0.4f,
     val shimmerWidthFractionMd: Float = 0.5f,
     val shimmerWidthFractionLg: Float = 0.8f,
+    /** Hairline borders (cover rim, badge stroke). */
+    val borderHairline: Dp = 1.dp,
+    val borderThin: Dp = 1.5.dp,
+    val borderStrong: Dp = 2.dp,
+    val circleActionSize: Dp = 44.dp,
+    val splashStageSize: Dp = 200.dp,
+    val splashBadgeSize: Dp = 112.dp,
+    val splashGlowLift: Dp = 36.dp,
+    val splashTickGap: Dp = 14.dp,
+    val splashTickMinLen: Dp = 8.dp,
+    val splashTickExtraLen: Dp = 14.dp,
+    val splashRingPad: Dp = 4.dp,
+    val splashRingStroke: Dp = 2.5.dp,
+    val splashTickStroke: Dp = 3.dp,
+    /** Adaptive-icon safe-zone compensation so the glyph fills the badge. */
+    val splashForegroundScale: Float = 1.36f,
 )
 
 val LocalDimensions = staticCompositionLocalOf { Dimensions() }

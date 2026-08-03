@@ -2,23 +2,21 @@ package com.melonet.app.feature.player.component
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
 import com.melonet.app.core.designsystem.component.MeloImage
+import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.core.ui.LocalNavAnimatedVisibilityScope
 import com.melonet.app.core.ui.LocalSharedTransitionScope
@@ -36,11 +34,13 @@ fun SimpleCoverArt(
     sharedTransitionKey: String? = null,
 ) {
     val dimensions = MeloNetTheme.dimensions
-    val coverShape = RoundedCornerShape(20.dp)
+    val elevation = MeloNetTheme.elevation
+    val colors = MeloNetTheme.colors
+    val coverShape = MaterialTheme.shapes.extraLarge
 
     val scale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 0.96f,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = 280f),
+        targetValue = if (isPlaying) 1f else MeloMotion.coverPausedScale,
+        animationSpec = MeloMotion.coverSpring,
         label = "cover_scale",
     )
 
@@ -77,11 +77,11 @@ fun SimpleCoverArt(
             modifier = Modifier
                 .fillMaxSize()
                 .then(sharedModifier)
-                .shadow(elevation = 16.dp, shape = coverShape)
+                .shadow(elevation = elevation.xxl, shape = coverShape)
                 .clip(coverShape)
                 .border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = 0.12f),
+                    width = dimensions.borderHairline,
+                    color = colors.coverRim,
                     shape = coverShape,
                 ),
         )

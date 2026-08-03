@@ -37,16 +37,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.melonet.app.R
-import com.melonet.app.core.designsystem.theme.Amber
-import com.melonet.app.core.designsystem.theme.Champagne
-import com.melonet.app.core.designsystem.theme.DarkBackground
-import com.melonet.app.core.designsystem.theme.Gold
-import com.melonet.app.core.designsystem.theme.GoldBright
+import com.melonet.app.core.designsystem.theme.MeloMotion
+import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.AuthState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -59,32 +56,54 @@ fun SplashScreen(
     onNavigateToAuth: () -> Unit,
     onNavigateToMain: () -> Unit,
 ) {
-    val logoScale = remember { Animatable(0.78f) }
+    val spacing = MeloNetTheme.spacing
+    val dimensions = MeloNetTheme.dimensions
+    val colors = MeloNetTheme.colors
+    val scheme = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    val titleStartOffsetPx = with(density) { spacing.md.toPx() }
+
+    val logoScale = remember { Animatable(MeloMotion.splashLogoStartScale) }
     val logoAlpha = remember { Animatable(0f) }
     val titleAlpha = remember { Animatable(0f) }
-    val titleOffset = remember { Animatable(18f) }
+    val titleOffset = remember { Animatable(titleStartOffsetPx) }
     val ringProgress = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
         launch {
-            logoAlpha.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+            logoAlpha.animateTo(
+                1f,
+                tween(MeloMotion.splashLogoFadeMs, easing = FastOutSlowInEasing),
+            )
         }
         launch {
-            logoScale.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
+            logoScale.animateTo(
+                1f,
+                tween(MeloMotion.splashLogoScaleMs, easing = FastOutSlowInEasing),
+            )
         }
         launch {
-            delay(220)
-            titleAlpha.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
-            titleOffset.animateTo(0f, tween(650, easing = FastOutSlowInEasing))
+            delay(MeloMotion.splashTitleDelayMs.toLong())
+            titleAlpha.animateTo(
+                1f,
+                tween(MeloMotion.splashTitleMs, easing = FastOutSlowInEasing),
+            )
+            titleOffset.animateTo(
+                0f,
+                tween(MeloMotion.splashTitleMs, easing = FastOutSlowInEasing),
+            )
         }
         launch {
-            ringProgress.animateTo(1f, tween(1100, easing = FastOutSlowInEasing))
+            ringProgress.animateTo(
+                1f,
+                tween(MeloMotion.splashRingMs, easing = FastOutSlowInEasing),
+            )
         }
     }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Loading) return@LaunchedEffect
-        delay(1400L)
+        delay(MeloMotion.splashHoldMs.toLong())
         when (authState) {
             is AuthState.Authenticated -> onNavigateToMain()
             AuthState.Unauthenticated -> onNavigateToAuth()
@@ -97,7 +116,7 @@ fun SplashScreen(
         initialValue = 0.35f,
         targetValue = 0.7f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = LinearEasing),
+            animation = tween(MeloMotion.splashPulseMs, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "glow",
@@ -106,7 +125,7 @@ fun SplashScreen(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4200, easing = LinearEasing),
+            animation = tween(MeloMotion.splashWaveMs, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
         label = "wave",
@@ -115,25 +134,16 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0xFF1A160E),
-                        DarkBackground,
-                        Color(0xFF0A0906),
-                    ),
-                ),
-            ),
+            .background(colors.splashBrush),
         contentAlignment = Alignment.Center,
     ) {
-        // Soft ambient glow behind the whole brand block.
         Canvas(modifier = Modifier.fillMaxSize()) {
             val cx = size.width / 2f
-            val cy = size.height / 2f - 36.dp.toPx()
+            val cy = size.height / 2f - dimensions.splashGlowLift.toPx()
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Gold.copy(alpha = 0.2f * glow),
+                        scheme.primary.copy(alpha = 0.22f * glow),
                         Color.Transparent,
                     ),
                     center = Offset(cx, cy),
@@ -145,10 +155,9 @@ fun SplashScreen(
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // Logo + rings share one box so everything stays concentric.
             Box(
                 modifier = Modifier
-                    .size(200.dp)
+                    .size(dimensions.splashStageSize)
                     .scale(logoScale.value)
                     .alpha(logoAlpha.value),
                 contentAlignment = Alignment.Center,
@@ -156,48 +165,50 @@ fun SplashScreen(
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
-                    val iconRadius = 56.dp.toPx()
-
-                    // Orbiting equalizer ticks around the icon.
+                    val iconRadius = dimensions.splashBadgeSize.toPx() / 2f
+                    val tickBase = iconRadius + dimensions.splashTickGap.toPx()
+                    val tickMin = dimensions.splashTickMinLen.toPx()
+                    val tickExtra = dimensions.splashTickExtraLen.toPx()
+                    val tickStroke = dimensions.splashTickStroke.toPx()
                     val bars = 28
-                    val tickBase = iconRadius + 14.dp.toPx()
+
                     for (i in 0 until bars) {
                         val angle = Math.toRadians((i * (360.0 / bars) + wavePhase).toDouble())
-                        val len = 8.dp.toPx() + 14.dp.toPx() * ((sin(angle * 3) + 1) / 2).toFloat()
+                        val len = tickMin + tickExtra * ((sin(angle * 3) + 1) / 2).toFloat()
                         val x0 = cx + (tickBase * cos(angle)).toFloat()
                         val y0 = cy + (tickBase * sin(angle)).toFloat()
                         val x1 = cx + ((tickBase + len) * cos(angle)).toFloat()
                         val y1 = cy + ((tickBase + len) * sin(angle)).toFloat()
                         drawLine(
-                            color = Amber.copy(alpha = 0.2f + 0.22f * glow),
+                            color = scheme.tertiary.copy(alpha = 0.2f + 0.22f * glow),
                             start = Offset(x0, y0),
                             end = Offset(x1, y1),
-                            strokeWidth = 3f,
+                            strokeWidth = tickStroke,
                             cap = StrokeCap.Round,
                         )
                     }
 
-                    // Animated gold ring hugging the icon edge.
                     drawCircle(
-                        color = GoldBright.copy(alpha = 0.45f * ringProgress.value),
-                        radius = iconRadius + 4.dp.toPx(),
+                        color = colors.premium.copy(alpha = 0.45f * ringProgress.value),
+                        radius = iconRadius + dimensions.splashRingPad.toPx(),
                         center = Offset(cx, cy),
-                        style = Stroke(width = 2.5.dp.toPx() * ringProgress.value),
+                        style = Stroke(
+                            width = dimensions.splashRingStroke.toPx() * ringProgress.value,
+                        ),
                     )
                 }
 
-                // Circular badge: background plate + scaled foreground so the mark fills the disc.
                 Box(
                     modifier = Modifier
-                        .size(112.dp)
+                        .size(dimensions.splashBadgeSize)
                         .clip(CircleShape)
-                        .background(Color(0xFF16120A))
+                        .background(colors.splashLogoPlate)
                         .border(
-                            width = 1.5.dp,
+                            width = dimensions.borderThin,
                             brush = Brush.linearGradient(
                                 listOf(
-                                    GoldBright.copy(alpha = 0.55f),
-                                    Gold.copy(alpha = 0.2f),
+                                    colors.premium.copy(alpha = 0.55f),
+                                    scheme.primary.copy(alpha = 0.2f),
                                 ),
                             ),
                             shape = CircleShape,
@@ -210,34 +221,32 @@ fun SplashScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    // Adaptive foregrounds leave a safe-zone margin; scale up so the
-                    // glyph fills the visible disc (parent Box already clips to circle).
                     Image(
                         painter = painterResource(R.drawable.ic_launcher_foreground),
                         contentDescription = stringResource(R.string.app_name),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
-                            .scale(1.36f),
+                            .scale(dimensions.splashForegroundScale),
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(spacing.md))
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                color = Champagne,
+                color = scheme.onBackground,
                 modifier = Modifier
                     .alpha(titleAlpha.value)
                     .graphicsLayer { translationY = titleOffset.value },
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacing.sm))
             Text(
                 text = stringResource(R.string.splash_tagline),
                 style = MaterialTheme.typography.bodyLarge,
-                color = Gold.copy(alpha = 0.85f),
+                color = scheme.primary.copy(alpha = 0.85f),
                 modifier = Modifier.alpha(titleAlpha.value * 0.95f),
             )
         }

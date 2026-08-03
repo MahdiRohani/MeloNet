@@ -11,6 +11,7 @@ data class Elevation(
     val md: Dp = 4.dp,
     val lg: Dp = 8.dp,
     val xl: Dp = 12.dp,
+    val xxl: Dp = 16.dp,
 )
 
 val LocalElevation = staticCompositionLocalOf { Elevation() }

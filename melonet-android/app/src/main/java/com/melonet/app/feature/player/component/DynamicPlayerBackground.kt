@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.melonet.app.core.designsystem.theme.MeloMotion
+import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -26,12 +28,12 @@ fun DynamicPlayerBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val colors = remember(gradientColors) {
-        if (gradientColors.size >= 2) {
-            gradientColors.map { Color(it) }
-        } else {
-            listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460))
-        }
+    val themeColors = MeloNetTheme.colors
+    val fallback = themeColors.playerFallbackColors
+    val colors = if (gradientColors.size >= 2) {
+        remember(gradientColors) { gradientColors.map { Color(it) } }
+    } else {
+        fallback
     }
 
     val infinite = rememberInfiniteTransition(label = "player_bg")
@@ -39,7 +41,7 @@ fun DynamicPlayerBackground(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(18_000, easing = LinearEasing),
+            animation = tween(MeloMotion.playerBgDriftAMs, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "drift_a",
@@ -48,7 +50,7 @@ fun DynamicPlayerBackground(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(24_000, easing = LinearEasing),
+            animation = tween(MeloMotion.playerBgDriftBMs, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "drift_b",
@@ -57,7 +59,7 @@ fun DynamicPlayerBackground(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(40_000, easing = LinearEasing),
+            animation = tween(MeloMotion.playerBgOrbitMs, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
         label = "orbit",
@@ -65,7 +67,6 @@ fun DynamicPlayerBackground(
 
     Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Base wash from cover palette.
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
@@ -118,13 +119,12 @@ fun DynamicPlayerBackground(
                 center = Offset(w * (0.45f - driftB * 0.1f), h * (0.78f - driftA * 0.08f)),
             )
 
-            // Subtle vignette for text readability.
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.Black.copy(alpha = 0.18f),
+                        themeColors.vignetteTop,
                         Color.Transparent,
-                        Color.Black.copy(alpha = 0.45f),
+                        themeColors.vignetteBottom,
                     ),
                 ),
             )

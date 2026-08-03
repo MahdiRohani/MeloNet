@@ -69,12 +69,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
 import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.melonet.app.R
+import androidx.compose.ui.graphics.toArgb
+import com.melonet.app.core.designsystem.theme.DarkMeloNetColors
 import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.DownloadStatus
@@ -274,7 +275,7 @@ fun PlayerScreen(
                             text = stringResource(R.string.player_lyrics_missing_badge),
                             style = MaterialTheme.typography.labelMedium,
                             color = onPrimary.copy(alpha = 0.55f),
-                            modifier = Modifier.padding(top = 2.dp),
+                            modifier = Modifier.padding(top = spacing.xs),
                         )
                     }
                 }
@@ -523,11 +524,13 @@ private fun CircleActionButton(
     tint: Color,
     onClick: () -> Unit,
 ) {
+    val dimensions = MeloNetTheme.dimensions
+    val colors = MeloNetTheme.colors
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(dimensions.circleActionSize)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.12f))
+            .background(colors.coverRim)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -574,7 +577,8 @@ private fun MoreMenuSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
-        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+        val spacing = MeloNetTheme.spacing
+        Column(modifier = Modifier.padding(bottom = spacing.lg)) {
             SheetRow(
                 icon = Icons.Default.PlaylistAdd,
                 label = stringResource(R.string.player_more_add_to_playlist),
@@ -602,11 +606,12 @@ private fun ShareSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
-        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+        val spacing = MeloNetTheme.spacing
+        Column(modifier = Modifier.padding(bottom = spacing.lg)) {
             Text(
                 text = stringResource(R.string.player_share_title),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = spacing.lg, vertical = spacing.sm),
             )
             SheetRow(
                 icon = Icons.AutoMirrored.Filled.QueueMusic,
@@ -759,11 +764,12 @@ private suspend fun extractPaletteColors(
             if (result !is SuccessResult) return@withContext emptyList()
             val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
                 ?: return@withContext emptyList()
+            val fallback = DarkMeloNetColors
             val palette = Palette.from(bitmap).generate()
             listOfNotNull(
-                palette.getDarkVibrantColor(0xFF1A1A2E.toInt()),
-                palette.getVibrantColor(0xFF16213E.toInt()),
-                palette.getMutedColor(0xFF0F3460.toInt()),
+                palette.getDarkVibrantColor(fallback.playerFallbackTop.toArgb()),
+                palette.getVibrantColor(fallback.playerFallbackMid.toArgb()),
+                palette.getMutedColor(fallback.playerFallbackBottom.toArgb()),
             ).map { it.toLong() and 0xFFFFFFFFL }
         } catch (_: Exception) {
             emptyList()
