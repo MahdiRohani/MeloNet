@@ -67,14 +67,28 @@ make test
 ```bash
 cd melonet-backend
 
-make docker-up             # PostgreSQL, Redis, MinIO, API
+# If Docker Hub TLS times out (common in IR), pull base images via a mirror first:
+make pull-base-images
+
+make docker-up             # PostgreSQL, Redis, MinIO, API, voice-worker
 make docker-seed           # 50 tracks (tries real audio, falls back to synthetic)
 make smoke                 # end-to-end API smoke test
 ```
 
 - API: `http://localhost:8080`
 - MinIO console: `http://localhost:9001` (user `melonet`, password `melonetsecret`)
+- Voice worker: consumes `voice_cover:jobs` (default `VOICE_WORKER_MODE=rvc`; run `make download-voice-models` first). Use `stub` only for passthrough testing without models.
 
+Optional permanent Hub mirror (needs sudo + Docker restart):
+
+```bash
+sudo tee /etc/docker/daemon.json >/dev/null <<'EOF'
+{
+  "registry-mirrors": ["https://docker.arvancloud.ir"]
+}
+EOF
+sudo systemctl restart docker
+```
 ### Seeding audio when downloads are blocked/slow
 
 The seeder downloads real royalty-free tracks (GitHub Open Lo-Fi + SoundHelix).

@@ -19,6 +19,7 @@ import com.melonet.app.data.remote.PlaylistApi
 import com.melonet.app.data.remote.SearchApi
 import com.melonet.app.data.remote.ChatApi
 import com.melonet.app.data.remote.SocialApi
+import com.melonet.app.data.remote.VoiceCoverApi
 import com.melonet.app.data.repository.ArtistRepository
 import com.melonet.app.data.repository.AuthRepository
 import com.melonet.app.data.repository.CatalogRepository
@@ -47,8 +48,12 @@ import com.melonet.app.feature.karaoke.KaraokePlayerViewModel
 import com.melonet.app.feature.karaoke.KaraokeRecordingsViewModel
 import com.melonet.app.feature.karaoke.KaraokeTakePlayerViewModel
 import com.melonet.app.feature.karaoke.KaraokeViewModel
+import com.melonet.app.feature.voicecover.VoiceCoverCreateViewModel
+import com.melonet.app.feature.voicecover.VoiceCoverPlayerViewModel
+import com.melonet.app.feature.voicecover.VoiceCoverViewModel
 import com.melonet.app.feature.chat.NewChatViewModel
 import com.melonet.app.data.repository.KaraokeRecordingRepository
+import com.melonet.app.data.repository.VoiceCoverRepository
 import com.melonet.app.feature.player.PlaybackManager
 import com.melonet.app.feature.player.PlayerViewModel
 import com.melonet.app.feature.playlists.LibrarySongsViewModel
@@ -149,6 +154,7 @@ val appModule = module {
     single { get<Retrofit>().create(PlaylistApi::class.java) }
     single { get<Retrofit>().create(SocialApi::class.java) }
     single { get<Retrofit>().create(ChatApi::class.java) }
+    single { get<Retrofit>().create(VoiceCoverApi::class.java) }
 
     // Dedicated client: LRCLIB rejects OkHttp's default User-Agent (HTTP 520).
     single(named("lyricsClient")) {
@@ -275,6 +281,7 @@ val appModule = module {
             dispatchers = get(),
         )
     }
+    single { VoiceCoverRepository(api = get(), dispatchers = get()) }
 
     viewModel { AuthViewModel(authRepository = get()) }
     viewModel { LoginViewModel(authRepository = get()) }
@@ -335,6 +342,23 @@ val appModule = module {
         KaraokeTakePlayerViewModel(
             repository = get(),
             playbackManager = get(),
+        )
+    }
+    viewModel {
+        VoiceCoverViewModel(
+            voiceCoverRepository = get(),
+            searchRepository = get(),
+        )
+    }
+    viewModel {
+        VoiceCoverCreateViewModel(
+            playerRepository = get(),
+            voiceCoverRepository = get(),
+        )
+    }
+    viewModel {
+        VoiceCoverPlayerViewModel(
+            voiceCoverRepository = get(),
         )
     }
     viewModel { NewChatViewModel(searchRepository = get()) }

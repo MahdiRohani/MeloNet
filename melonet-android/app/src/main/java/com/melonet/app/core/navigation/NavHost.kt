@@ -73,6 +73,12 @@ import com.melonet.app.feature.karaoke.KaraokeScreen
 import com.melonet.app.feature.karaoke.KaraokeTakePlayerScreen
 import com.melonet.app.feature.karaoke.KaraokeTakePlayerViewModel
 import com.melonet.app.feature.karaoke.KaraokeViewModel
+import com.melonet.app.feature.voicecover.VoiceCoverCreateScreen
+import com.melonet.app.feature.voicecover.VoiceCoverCreateViewModel
+import com.melonet.app.feature.voicecover.VoiceCoverPlayerScreen
+import com.melonet.app.feature.voicecover.VoiceCoverPlayerViewModel
+import com.melonet.app.feature.voicecover.VoiceCoverScreen
+import com.melonet.app.feature.voicecover.VoiceCoverViewModel
 import com.melonet.app.feature.chat.NewChatScreen
 import com.melonet.app.feature.chat.NewChatViewModel
 import com.melonet.app.feature.player.PlayerContract
@@ -149,6 +155,9 @@ fun MelonetMainScreen() {
             !destination.hasRoute(KaraokePlayerRoute::class) &&
             !destination.hasRoute(KaraokeRecordingsRoute::class) &&
             !destination.hasRoute(KaraokeTakeRoute::class) &&
+            !destination.hasRoute(VoiceCoverRoute::class) &&
+            !destination.hasRoute(VoiceCoverCreateRoute::class) &&
+            !destination.hasRoute(VoiceCoverPlayerRoute::class) &&
             !destination.hasRoute(NewChatRoute::class) &&
             !destination.hasRoute(ChatRoute::class) &&
             !destination.hasRoute(ConversationsRoute::class) &&
@@ -387,6 +396,7 @@ fun MelonetMainScreen() {
                         onPlaySong = { song, queue -> playSong(song, queue) },
                         onNavigate = { route -> navController.navigate(route) },
                         onOpenKaraoke = { navController.navigate(KaraokeRoute) },
+                        onOpenVoiceCover = { navController.navigate(VoiceCoverRoute) },
                     )
                 }
             }
@@ -434,6 +444,51 @@ fun MelonetMainScreen() {
                     recordingId = args.recordingId,
                     viewModel = takeViewModel,
                     onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<VoiceCoverRoute> {
+                val voiceCoverViewModel: VoiceCoverViewModel = koinViewModel()
+                VoiceCoverScreen(
+                    viewModel = voiceCoverViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onSongSelected = { songId ->
+                        navController.navigate(VoiceCoverCreateRoute(songId = songId))
+                    },
+                    onCoverSelected = { coverId ->
+                        navController.navigate(VoiceCoverPlayerRoute(coverId = coverId))
+                    },
+                )
+            }
+
+            composable<VoiceCoverCreateRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<VoiceCoverCreateRoute>()
+                val createViewModel: VoiceCoverCreateViewModel = koinViewModel()
+                VoiceCoverCreateScreen(
+                    viewModel = createViewModel,
+                    songId = args.songId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenPlayer = { coverId ->
+                        navController.navigate(VoiceCoverPlayerRoute(coverId = coverId)) {
+                            popUpTo(VoiceCoverCreateRoute(songId = args.songId)) {
+                                inclusive = true
+                            }
+                        }
+                    },
+                )
+            }
+
+            composable<VoiceCoverPlayerRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<VoiceCoverPlayerRoute>()
+                val coverPlayerViewModel: VoiceCoverPlayerViewModel = koinViewModel()
+                VoiceCoverPlayerScreen(
+                    viewModel = coverPlayerViewModel,
+                    playerViewModel = playerViewModel,
+                    coverId = args.coverId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenFullPlayer = { song ->
+                        navController.navigate(PlayerRoute(songId = song.id))
+                    },
                 )
             }
 

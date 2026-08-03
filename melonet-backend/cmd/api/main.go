@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"melonet-backend/internal/auth"
-	apphttp "melonet-backend/internal/http"
 	"melonet-backend/internal/audius"
+	"melonet-backend/internal/auth"
 	"melonet-backend/internal/config"
+	apphttp "melonet-backend/internal/http"
 	"melonet-backend/internal/http/handler"
 	"melonet-backend/internal/http/middleware"
 	"melonet-backend/internal/migrate"
@@ -86,6 +86,7 @@ func run(logger *slog.Logger) error {
 	followRepo := postgres.NewFollowRepository(db)
 	artistFollowRepo := postgres.NewArtistFollowRepository(db)
 	notificationRepo := postgres.NewNotificationRepository(db)
+	voiceCoverRepo := postgres.NewVoiceCoverRepository(db)
 
 	audiusClient := audius.NewClient(cfg.Audius.AppName, cfg.PublicBaseURL)
 
@@ -98,28 +99,37 @@ func run(logger *slog.Logger) error {
 	playlistService := service.NewPlaylistService(playlistRepo, songCacheRepo, audiusClient)
 	socialService := service.NewSocialService(userRepo, followRepo, playlistRepo, notificationRepo)
 	chatService := service.NewChatService(messageRepo, conversationRepo)
+	voiceCoverService := service.NewVoiceCoverService(
+		voiceCoverRepo,
+		catalogService,
+		redisClient,
+		mediaStorage.PublicURL,
+		mediaStorage.Delete,
+		cfg.PublicBaseURL,
+	)
 	chatPresence := realtime.NewPresence(redisClient)
 	chatHub := realtime.NewHub(logger, chatService, chatPresence)
 
 	rateLimitStore := middleware.NewRateLimitStore(redisClient.Raw(), cfg.RateLimit)
 
 	router := apphttp.NewRouter(apphttp.Dependencies{
-		Config:    cfg,
-		Logger:    logger,
-		TokenMgr:  tokenMgr,
-		RateLimit: rateLimitStore,
-		Health:   handler.NewHealthHandler(db, redisClient, storageClient),
-		Auth:     handler.NewAuthHandler(authService),
-		Media:    handler.NewMediaHandler(mediaStorage),
-		Stream:   handler.NewStreamHandler(audiusClient),
-		Catalog:  handler.NewCatalogHandler(catalogService),
-		Artist:   handler.NewArtistHandler(catalogService, artistFollowService),
-		Search:   handler.NewSearchHandler(searchService),
-		Home:     handler.NewHomeHandler(homeService),
-		Library:  handler.NewLibraryHandler(libraryService),
-		Playlist: handler.NewPlaylistHandler(playlistService),
-		Social:   handler.NewSocialHandler(socialService),
-		Chat:     handler.NewChatHandler(chatService, chatHub, mediaStorage),
+		Config:     cfg,
+		Logger:     logger,
+		TokenMgr:   tokenMgr,
+		RateLimit:  rateLimitStore,
+		Health:     handler.NewHealthHandler(db, redisClient, storageClient),
+		Auth:       handler.NewAuthHandler(authService),
+		Media:      handler.NewMediaHandler(mediaStorage),
+		Stream:     handler.NewStreamHandler(audiusClient),
+		Catalog:    handler.NewCatalogHandler(catalogService),
+		Artist:     handler.NewArtistHandler(catalogService, artistFollowService),
+		Search:     handler.NewSearchHandler(searchService),
+		Home:       handler.NewHomeHandler(homeService),
+		Library:    handler.NewLibraryHandler(libraryService),
+		Playlist:   handler.NewPlaylistHandler(playlistService),
+		Social:     handler.NewSocialHandler(socialService),
+		Chat:       handler.NewChatHandler(chatService, chatHub, mediaStorage),
+		VoiceCover: handler.NewVoiceCoverHandler(voiceCoverService),
 	})
 
 	server := &http.Server{

@@ -1,4 +1,4 @@
-.PHONY: run test test-integration smoke tidy migrate-up migrate-down docker-up docker-down seed seed-offline docker-seed docker-seed-offline sync-dev-url adb-reverse print-lan-ip
+.PHONY: run test test-integration smoke tidy migrate-up migrate-down docker-up docker-down seed seed-offline docker-seed docker-seed-offline sync-dev-url adb-reverse print-lan-ip pull-base-images download-voice-models
 
 LAN_IP := $(shell ./scripts/detect-lan-ip.sh)
 PUBLIC_BASE_URL ?= http://$(LAN_IP):8080
@@ -97,6 +97,19 @@ seed-offline:
 
 docker-up: sync-dev-url
 	PUBLIC_BASE_URL="$(PUBLIC_BASE_URL)" docker compose up --build -d
+
+# When Docker Hub TLS times out (common in IR), pull base images via a mirror
+# and retag them to official names first:
+#   make pull-base-images
+#   make docker-up
+pull-base-images:
+	@chmod +x scripts/pull-base-images.sh
+	./scripts/pull-base-images.sh
+
+# Download community RVC packs into data/voice-models/<slug>/model.pth
+download-voice-models:
+	@chmod +x scripts/download-voice-models.sh
+	./scripts/download-voice-models.sh
 
 docker-down:
 	docker compose down

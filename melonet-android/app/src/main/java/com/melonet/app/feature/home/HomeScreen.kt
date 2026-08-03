@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,6 +80,7 @@ fun HomeScreen(
     onPlaySong: (Song, List<Song>) -> Unit,
     onNavigate: (Any) -> Unit,
     onOpenKaraoke: () -> Unit = {},
+    onOpenVoiceCover: () -> Unit = {},
     snackbarHostState: SnackbarHostState? = null,
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -137,6 +139,7 @@ fun HomeScreen(
                         viewModel.handleEvent(HomeContract.Event.ArtistClicked(artist))
                     },
                     onKaraokeClick = onOpenKaraoke,
+                    onVoiceCoverClick = onOpenVoiceCover,
                 )
             }
         }
@@ -155,6 +158,7 @@ private fun HomeFeedContent(
     onSeeAllClick: (HomeRow) -> Unit,
     onArtistClick: (Artist) -> Unit,
     onKaraokeClick: () -> Unit,
+    onVoiceCoverClick: () -> Unit,
 ) {
     val spacing = MeloNetTheme.spacing
 
@@ -171,6 +175,16 @@ private fun HomeFeedContent(
     }
     val visibleArtistRows = remember(artistRows) {
         artistRows.filter { it.items.isNotEmpty() }
+    }
+    val feedItems = remember(rows) {
+        buildList {
+            rows.forEach { row ->
+                add(HomeFeedItem.SongRow(row))
+                if (row.id == "new") {
+                    add(HomeFeedItem.VoiceCoverBanner)
+                }
+            }
+        }
     }
 
     LazyColumn(
@@ -213,18 +227,35 @@ private fun HomeFeedContent(
             }
         } else {
             items(
-                items = rows,
-                key = { it.id },
-                contentType = { "song_row" },
-            ) { row ->
-                SongSection(
-                    title = row.title,
-                    songs = row.items,
-                    seeAllPath = row.seeAllPath,
-                    isLoading = false,
-                    onSongClick = onSongClick,
-                    onSeeAllClick = { onSeeAllClick(row) },
-                )
+                items = feedItems,
+                key = { item ->
+                    when (item) {
+                        is HomeFeedItem.SongRow -> item.row.id
+                        HomeFeedItem.VoiceCoverBanner -> "voice_cover_banner"
+                    }
+                },
+                contentType = { item ->
+                    when (item) {
+                        is HomeFeedItem.SongRow -> "song_row"
+                        HomeFeedItem.VoiceCoverBanner -> "banner"
+                    }
+                },
+            ) { item ->
+                when (item) {
+                    is HomeFeedItem.SongRow -> {
+                        SongSection(
+                            title = item.row.title,
+                            songs = item.row.items,
+                            seeAllPath = item.row.seeAllPath,
+                            isLoading = false,
+                            onSongClick = onSongClick,
+                            onSeeAllClick = { onSeeAllClick(item.row) },
+                        )
+                    }
+                    HomeFeedItem.VoiceCoverBanner -> {
+                        VoiceCoverBanner(onClick = onVoiceCoverClick)
+                    }
+                }
             }
 
             items(
@@ -246,25 +277,57 @@ private fun HomeFeedContent(
     }
 }
 
+private sealed interface HomeFeedItem {
+    data class SongRow(val row: HomeRow) : HomeFeedItem
+    data object VoiceCoverBanner : HomeFeedItem
+}
+
 @Composable
 private fun KaraokeBanner(onClick: () -> Unit) {
+    HomeFeatureBanner(
+        onClick = onClick,
+        icon = Icons.Default.Mic,
+        title = stringResource(R.string.karaoke_banner_title),
+        subtitle = stringResource(R.string.karaoke_banner_subtitle),
+        gradient = listOf(
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.tertiary,
+            MeloNetTheme.colors.premium,
+        ),
+    )
+}
+
+@Composable
+private fun VoiceCoverBanner(onClick: () -> Unit) {
+    HomeFeatureBanner(
+        onClick = onClick,
+        icon = Icons.Default.RecordVoiceOver,
+        title = stringResource(R.string.voice_cover_banner_title),
+        subtitle = stringResource(R.string.voice_cover_banner_subtitle),
+        gradient = listOf(
+            MaterialTheme.colorScheme.tertiary,
+            MaterialTheme.colorScheme.primary,
+            MeloNetTheme.colors.premium,
+        ),
+    )
+}
+
+@Composable
+private fun HomeFeatureBanner(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    gradient: List<androidx.compose.ui.graphics.Color>,
+) {
     val spacing = MeloNetTheme.spacing
-    val colors = MeloNetTheme.colors
     val onBanner = MaterialTheme.colorScheme.onPrimary
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = spacing.md, vertical = spacing.sm)
             .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.tertiary,
-                        colors.premium,
-                    ),
-                ),
-            )
+            .background(Brush.horizontalGradient(gradient))
             .clickable(onClick = onClick)
             .padding(horizontal = spacing.lg, vertical = spacing.md),
     ) {
@@ -277,7 +340,7 @@ private fun KaraokeBanner(onClick: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Mic,
+                    imageVector = icon,
                     contentDescription = null,
                     tint = onBanner,
                 )
@@ -285,13 +348,13 @@ private fun KaraokeBanner(onClick: () -> Unit) {
             Spacer(modifier = Modifier.width(spacing.md))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.karaoke_banner_title),
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = onBanner,
                 )
                 Text(
-                    text = stringResource(R.string.karaoke_banner_subtitle),
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = onBanner.copy(alpha = 0.85f),
                 )

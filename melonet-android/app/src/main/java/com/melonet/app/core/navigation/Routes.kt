@@ -59,6 +59,14 @@ data class KaraokePlayerRoute(val songId: String)
 @Serializable
 data class KaraokeTakeRoute(val recordingId: Long)
 
+@Serializable data object VoiceCoverRoute
+
+@Serializable
+data class VoiceCoverCreateRoute(val songId: String)
+
+@Serializable
+data class VoiceCoverPlayerRoute(val coverId: Long)
+
 @Serializable data class NewChatRoute(val shareSongId: String? = null)
 
 @Serializable

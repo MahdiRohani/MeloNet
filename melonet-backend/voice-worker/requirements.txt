@@ -1,0 +1,9 @@
+# Base worker deps + RVC inference stack (CPU).
+# Leave numpy unconstrained here — rvc-python==0.1.5 pins numpy<=1.23.5.
+redis>=5.0.0,<6
+psycopg[binary]>=3.1.0
+minio>=7.2.0
+requests>=2.31.0
+demucs>=4.0.1
+rvc-python==0.1.5
+soundfile>=0.12.1
