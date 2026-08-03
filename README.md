@@ -1,6 +1,6 @@
 # MeloNet
 
-پلتفرم موسیقی اندروید با بک‌اند اختصاصی: پخش آنلاین، کتابخانه شخصی، چت هم‌زمان، کارائوکه، و تبدیل صدای خواننده (Voice Cover) با هوش مصنوعی.
+Android music platform with a dedicated backend: online playback, personal library, real-time chat, karaoke, and AI voice covers.
 
 <p align="center">
   <img src="docs/media/player.png" alt="MeloNet player" width="280" />
@@ -9,198 +9,198 @@
 </p>
 
 <p align="center">
-  <b>پلیر کامل</b> با ویژوالایزر و کنترل‌های پیشرفته &nbsp;·&nbsp; <b>Following</b> برای هنرمندان و افراد
+  <b>Full player</b> with visualizer and advanced controls &nbsp;·&nbsp; <b>Following</b> for artists and people
 </p>
 
 ---
 
-## دمو
+## Demo
 
-ویدیوی کوتاه از جریان استفاده در اپ:
+Short walkthrough of the app in use:
 
 <video src="docs/media/demo.mp4" controls width="360" poster="docs/media/player.png">
-  مرورگر شما تگ ویدیو را پشتیبانی نمی‌کند —
-  <a href="docs/media/demo.mp4">دانلود / تماشای demo.mp4</a>
+  Your browser does not support the video tag —
+  <a href="docs/media/demo.mp4">download / watch demo.mp4</a>
 </video>
 
-اگر پیش‌نمایش ویدیو در GitHub نشان داده نشد، فایل را از مسیر زیر باز کنید:
+If the video preview does not render on GitHub, open the file directly:
 
 [`docs/media/demo.mp4`](docs/media/demo.mp4)
 
 ---
 
-## قابلیت‌ها
+## Features
 
-### پخش و تجربه شنیدن
-- **پلیر تمام‌صفحه** با کاور آلبوم، گرادیان پالت‌محور، و **ویژوالایزر صوتی**
-- کنترل‌های کامل: پخش/توقف، قبلی/بعدی، shuffle، repeat، seek
-- **مینی‌پلیر** در پایین اپ + انتقال نرم به پلیر کامل (shared element)
-- سرعت پخش (مثلاً `1x`)، **خواب‌تایمر**، و **اکولایزر**
-- دانلود برای شنیدن آفلاین (Premium)
-- همگام‌سازی با MediaSession / نوتیفیکیشن سیستم
+### Playback & listening
+- **Full-screen player** with album art, palette-driven gradients, and an **audio visualizer**
+- Full controls: play/pause, previous/next, shuffle, repeat, seek
+- **Mini player** in the app shell with a smooth expand transition (shared element)
+- Playback speed (e.g. `1x`), **sleep timer**, and **equalizer**
+- Downloads for offline listening (Premium)
+- MediaSession / system notification integration
 
-### کاتالوگ و کشف
-- خانه با پیشنهادها و ترندها
-- جستجو در آهنگ‌ها و هنرمندان
-- صفحه جزئیات هنرمند و آهنگ
-- کاتالوگ دسته‌بندی‌شده
+### Catalog & discovery
+- Home feed with recommendations and trending content
+- Search across songs and artists
+- Artist and song detail screens
+- Categorized catalog browsing
 
-### کتابخانه شخصی
-- لایک آهنگ‌ها، اخیراً پخش‌شده‌ها
-- پلی‌لیست‌های کاربر (ساخت، جزئیات، افزودن آهنگ)
-- **موسیقی لوکال** از حافظه گوشی
-- مدیریت دانلودها
+### Personal library
+- Liked songs and recently played
+- User playlists (create, detail, add songs)
+- **Local music** from device storage
+- Download management
 
-### اجتماعی
-- **Following** — افراد و هنرمندان، با تب جدا و جستجو داخل لیست
-- پروفایل کاربر / ویرایش پروفایل
-- اشتراک‌گذاری آهنگ (داخل چت یا خارج از اپ)
+### Social
+- **Following** — people and artists, with separate tabs and in-list search
+- User profile / edit profile
+- Song sharing (in chat or externally)
 
-### چت هم‌زمان
-- لیست مکالمات و چت یک‌به‌یک
-- ارسال پیام و اشتراک آهنگ داخل چت
-- اتصال **WebSocket** برای پیام لحظه‌ای و وضعیت آنلاین/آفلاین
+### Real-time chat
+- Conversation list and one-to-one chat
+- Messages and in-chat song sharing
+- **WebSocket** connection for live messages and online/offline status
 
-### کارائوکه
-- انتخاب آهنگ، ضبط با میکروفون
-- مدیریت takeها و پخش ضبط‌ها
+### Karaoke
+- Pick a song and record with the microphone
+- Manage takes and play recordings back
 
 ### Voice Cover (AI)
-- انتخاب آهنگ و مدل صدای هنرمند
-- صف پردازش در بک‌اند (Demucs → RVC → mix)
-- پخش کاور آماده داخل اپ
+- Choose a song and an artist voice model
+- Backend job queue (Demucs → RVC → mix)
+- Play finished covers inside the app
 
-### حساب کاربری و تنظیمات
-- ثبت‌نام / ورود با JWT
-- تنظیمات اپ، پشتیبانی RTL و رشته‌های فارسی/انگلیسی
-- حالت Premium برای دانلود آفلاین
+### Account & settings
+- Sign up / sign in with JWT
+- App settings, RTL support, Persian & English strings
+- Premium mode for offline downloads
 
 ---
 
-## معماری مخزن
+## Repository layout
 
 ```text
 MeloNet/
-├── melonet-android/     # اپلیکیشن Android (Kotlin + Jetpack Compose)
+├── melonet-android/     # Android app (Kotlin + Jetpack Compose)
 ├── melonet-backend/     # API (Go) + Voice Worker (Python)
-└── docs/media/          # اسکرین‌شات و دمو برای README
+└── docs/media/          # Screenshots and demo for this README
 ```
 
-| بخش | نقش |
-|-----|-----|
-| **melonet-android** | کلاینت موبایل، UI، پخش، کش محلی |
-| **melonet-backend** | REST API، WebSocket چت، استریم، استوریج |
-| **voice-worker** | جاب‌های Voice Cover روی Redis |
+| Part | Role |
+|------|------|
+| **melonet-android** | Mobile client, UI, playback, local cache |
+| **melonet-backend** | REST API, chat WebSocket, streaming, storage |
+| **voice-worker** | Voice Cover jobs on Redis |
 
 ---
 
-## تکنولوژی‌ها
+## Tech stack
 
 ### Android (`melonet-android`)
 
-| حوزه | تکنولوژی |
-|------|-----------|
-| زبان | **Kotlin 2.2** |
+| Area | Technology |
+|------|------------|
+| Language | **Kotlin 2.2** |
 | UI | **Jetpack Compose** + **Material 3** |
-| معماری | MVI-style (Contract / ViewModel / Effect)، Navigation Compose |
+| Architecture | MVI-style (Contract / ViewModel / Effect), Navigation Compose |
 | DI | **Koin** |
-| شبکه | **Retrofit**، **OkHttp**، Gson |
-| هم‌زمانی | **Kotlin Coroutines** + Flow |
-| پخش | **Media3 (ExoPlayer)** + MediaSession |
-| دیتابیس محلی | **Room** |
-| لیست‌های بزرگ | **Paging 3** |
-| ترجیحات | **DataStore** |
-| تصویر | **Coil** + **Palette** (گرادیان پلیر) |
-| پس‌زمینه | **WorkManager** (دانلود) |
-| سریال‌سازی مسیرها | **Kotlinx Serialization** |
-| تست | JUnit، MockK، Turbine، Espresso |
+| Networking | **Retrofit**, **OkHttp**, Gson |
+| Concurrency | **Kotlin Coroutines** + Flow |
+| Playback | **Media3 (ExoPlayer)** + MediaSession |
+| Local database | **Room** |
+| Large lists | **Paging 3** |
+| Preferences | **DataStore** |
+| Images | **Coil** + **Palette** (player gradients) |
+| Background work | **WorkManager** (downloads) |
+| Route serialization | **Kotlinx Serialization** |
+| Testing | JUnit, MockK, Turbine, Espresso |
 
 ### Backend API (`melonet-backend`)
 
-| حوزه | تکنولوژی |
-|------|-----------|
-| زبان | **Go 1.22+** |
+| Area | Technology |
+|------|------------|
+| Language | **Go 1.22+** |
 | HTTP | **Gin** |
-| دیتابیس | **PostgreSQL 16** + golang-migrate |
-| کش / صف / presence | **Redis** |
-| استوریج فایل | **MinIO** (S3-compatible) |
-| احراز هویت | **JWT** (golang-jwt) |
-| چت | **Gorilla WebSocket** |
-| درایور DB | **pgx** |
-| کاتالوگ صوتی | پروکسی استریم (از جمله مسیرهای Audius) |
-| ارکستراسیون | **Docker Compose** |
+| Database | **PostgreSQL 16** + golang-migrate |
+| Cache / queues / presence | **Redis** |
+| File storage | **MinIO** (S3-compatible) |
+| Auth | **JWT** (golang-jwt) |
+| Chat | **Gorilla WebSocket** |
+| DB driver | **pgx** |
+| Audio catalog | Stream proxy (including Audius-backed paths) |
+| Orchestration | **Docker Compose** |
 
 ### Voice Cover Worker
 
-| حوزه | تکنولوژی |
-|------|-----------|
-| زبان | **Python** |
-| صف | Redis list (`voice_cover:jobs`) |
-| جداسازی ترک | **Demucs** |
-| تبدیل صدا | **RVC** (`rvc-python`) |
-| آپلود نتیجه | MinIO |
-| وضعیت جاب | PostgreSQL |
+| Area | Technology |
+|------|------------|
+| Language | **Python** |
+| Queue | Redis list (`voice_cover:jobs`) |
+| Source separation | **Demucs** |
+| Voice conversion | **RVC** (`rvc-python`) |
+| Result upload | MinIO |
+| Job status | PostgreSQL |
 
-### زیرساخت و ابزار
+### Tooling & infrastructure
 
-- Android Gradle Plugin 8.13، KSP  
+- Android Gradle Plugin 8.13, KSP  
 - Flavors: `dev` / `staging` / `prod`  
-- Makefile برای `docker-up`، seed، sync آدرس API روی LAN/USB  
-- LRCLIB برای اشعار همگام‌شده در کلاینت  
+- Makefile for `docker-up`, seed, and API URL sync on LAN/USB  
+- LRCLIB for synced lyrics on the client  
 
 ---
 
-## شروع سریع
+## Quick start
 
-### ۱) بک‌اند
+### 1) Backend
 
 ```bash
 cd melonet-backend
 make docker-up      # Postgres + Redis + MinIO + API (+ voice-worker)
-make docker-seed    # اختیاری: داده نمونه
+make docker-seed    # optional: sample data
 ```
 
-API روی `http://localhost:8080`.
+API listens on `http://localhost:8080`.
 
-جزئیات بیشتر: [`melonet-backend/README.md`](melonet-backend/README.md)
+More detail: [`melonet-backend/README.md`](melonet-backend/README.md)
 
-### ۲) اندروید
+### 2) Android
 
 ```bash
 cd melonet-android
-# در local.properties آدرس API را تنظیم کنید، مثلاً:
+# Set the API base URL in local.properties, for example:
 # melonet.devApiBaseUrl=http://127.0.0.1:8080/
 ```
 
-در Android Studio واریانت **`devDebug`** (یا `devRelease` با `adb reverse`) را بسازید و روی دستگاه/امولاتور نصب کنید.
+In Android Studio, build the **`devDebug`** variant (or `devRelease` with `adb reverse`) and install on a device/emulator.
 
-برای گوشی فیزیکی با USB:
+For a physical phone over USB:
 
 ```bash
 adb reverse tcp:8080 tcp:8080
 ```
 
-> نسخهٔ `dev` به بک‌اند لوکال وابسته است؛ برای تست واقعی API باید روی لپتاپ بالا باشد.
+> The `dev` flavor talks to a local backend — the API must be running on your machine for real end-to-end testing.
 
 ---
 
-## اسکرین‌شات‌ها
+## Screenshots
 
-| پلیر | Following |
-|------|-----------|
+| Player | Following |
+|--------|-----------|
 | ![Player](docs/media/player.png) | ![Following](docs/media/following.png) |
 
-- **Player:** کاور، ویژوالایزر، لایک/شیر، seek، shuffle/repeat، دانلود، خواب‌تایمر، سرعت، اکولایزر  
-- **Following:** جستجو، تب People / Artists، گرید هنرمندان دنبال‌شده  
+- **Player:** cover art, visualizer, like/share, seek, shuffle/repeat, download, sleep timer, speed, equalizer  
+- **Following:** search, People / Artists tabs, followed-artist grid  
 
 ---
 
-## وضعیت پروژه
+## Project status
 
-این مخزن شامل کلاینت اندروید و بک‌اند کامل برای توسعه و دموی لوکال است. سرورهای `staging` / `prod` در صورت استقرار جداگانه از طریق flavorهای اپ قابل انتخاب‌اند.
+This repository includes a full Android client and backend for local development and demos. Separate `staging` / `prod` deployments can be selected via the app product flavors when those environments are available.
 
 ---
 
-## لایسنس
+## License
 
-در صورت نیاز، فایل لایسنس را به ریشهٔ مخزن اضافه کنید.
+Add a license file at the repository root if you want to publish one.
