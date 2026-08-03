@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,7 +59,7 @@ fun SplashScreen(
     onNavigateToAuth: () -> Unit,
     onNavigateToMain: () -> Unit,
 ) {
-    val logoScale = remember { Animatable(0.72f) }
+    val logoScale = remember { Animatable(0.78f) }
     val logoAlpha = remember { Animatable(0f) }
     val titleAlpha = remember { Animatable(0f) }
     val titleOffset = remember { Animatable(18f) }
@@ -76,7 +78,7 @@ fun SplashScreen(
             titleOffset.animateTo(0f, tween(650, easing = FastOutSlowInEasing))
         }
         launch {
-            ringProgress.animateTo(1f, tween(1200, easing = FastOutSlowInEasing))
+            ringProgress.animateTo(1f, tween(1100, easing = FastOutSlowInEasing))
         }
     }
 
@@ -124,77 +126,104 @@ fun SplashScreen(
             ),
         contentAlignment = Alignment.Center,
     ) {
+        // Soft ambient glow behind the whole brand block.
         Canvas(modifier = Modifier.fillMaxSize()) {
             val cx = size.width / 2f
-            val cy = size.height * 0.42f
+            val cy = size.height / 2f - 36.dp.toPx()
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Gold.copy(alpha = 0.22f * glow),
+                        Gold.copy(alpha = 0.2f * glow),
                         Color.Transparent,
                     ),
                     center = Offset(cx, cy),
-                    radius = size.minDimension * 0.42f,
+                    radius = size.minDimension * 0.38f,
                 ),
-                radius = size.minDimension * 0.42f,
+                radius = size.minDimension * 0.38f,
                 center = Offset(cx, cy),
-            )
-            val bars = 28
-            for (i in 0 until bars) {
-                val angle = Math.toRadians((i * (360.0 / bars) + wavePhase).toDouble())
-                val radius = size.minDimension * 0.28f
-                val len = 18f + 26f * ((sin(angle * 3) + 1) / 2).toFloat()
-                val x0 = cx + (radius * cos(angle)).toFloat()
-                val y0 = cy + (radius * sin(angle)).toFloat()
-                val x1 = cx + ((radius + len) * cos(angle)).toFloat()
-                val y1 = cy + ((radius + len) * sin(angle)).toFloat()
-                drawLine(
-                    color = Amber.copy(alpha = 0.18f + 0.2f * glow),
-                    start = Offset(x0, y0),
-                    end = Offset(x1, y1),
-                    strokeWidth = 3.5f,
-                    cap = StrokeCap.Round,
-                )
-            }
-            drawCircle(
-                color = GoldBright.copy(alpha = 0.35f),
-                radius = size.minDimension * 0.16f * ringProgress.value,
-                center = Offset(cx, cy),
-                style = Stroke(width = 3f * ringProgress.value),
             )
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Logo + rings share one box so everything stays concentric.
             Box(
                 modifier = Modifier
-                    .size(128.dp)
+                    .size(200.dp)
                     .scale(logoScale.value)
                     .alpha(logoAlpha.value),
                 contentAlignment = Alignment.Center,
             ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val iconRadius = 56.dp.toPx()
+
+                    // Orbiting equalizer ticks around the icon.
+                    val bars = 28
+                    val tickBase = iconRadius + 14.dp.toPx()
+                    for (i in 0 until bars) {
+                        val angle = Math.toRadians((i * (360.0 / bars) + wavePhase).toDouble())
+                        val len = 8.dp.toPx() + 14.dp.toPx() * ((sin(angle * 3) + 1) / 2).toFloat()
+                        val x0 = cx + (tickBase * cos(angle)).toFloat()
+                        val y0 = cy + (tickBase * sin(angle)).toFloat()
+                        val x1 = cx + ((tickBase + len) * cos(angle)).toFloat()
+                        val y1 = cy + ((tickBase + len) * sin(angle)).toFloat()
+                        drawLine(
+                            color = Amber.copy(alpha = 0.2f + 0.22f * glow),
+                            start = Offset(x0, y0),
+                            end = Offset(x1, y1),
+                            strokeWidth = 3f,
+                            cap = StrokeCap.Round,
+                        )
+                    }
+
+                    // Animated gold ring hugging the icon edge.
+                    drawCircle(
+                        color = GoldBright.copy(alpha = 0.45f * ringProgress.value),
+                        radius = iconRadius + 4.dp.toPx(),
+                        center = Offset(cx, cy),
+                        style = Stroke(width = 2.5.dp.toPx() * ringProgress.value),
+                    )
+                }
+
+                // Circular badge: background plate + scaled foreground so the mark fills the disc.
                 Box(
                     modifier = Modifier
-                        .size(128.dp)
+                        .size(112.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
+                        .background(Color(0xFF16120A))
+                        .border(
+                            width = 1.5.dp,
+                            brush = Brush.linearGradient(
                                 listOf(
-                                    Gold.copy(alpha = 0.35f),
-                                    Color.Transparent,
+                                    GoldBright.copy(alpha = 0.55f),
+                                    Gold.copy(alpha = 0.2f),
                                 ),
                             ),
+                            shape = CircleShape,
                         ),
-                )
-                Image(
-                    painter = painterResource(R.drawable.ic_launcher_foreground),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier
-                        .size(96.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF16120A)),
-                )
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_background),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    // Adaptive foregrounds leave a safe-zone margin; scale up so the
+                    // glyph fills the visible disc (parent Box already clips to circle).
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_foreground),
+                        contentDescription = stringResource(R.string.app_name),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .scale(1.36f),
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(28.dp))
+
+            Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.displaySmall,

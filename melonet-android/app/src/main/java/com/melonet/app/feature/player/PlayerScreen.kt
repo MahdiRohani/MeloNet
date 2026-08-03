@@ -85,7 +85,7 @@ import com.melonet.app.feature.player.component.AudioVisualizer
 import com.melonet.app.feature.player.component.DynamicPlayerBackground
 import com.melonet.app.feature.player.component.LyricsSheet
 import com.melonet.app.feature.player.component.PlayerProgressBar
-import com.melonet.app.feature.player.component.RotatingCover
+import com.melonet.app.feature.player.component.SimpleCoverArt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
@@ -226,7 +226,7 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(spacing.lg))
 
-            RotatingCover(
+            SimpleCoverArt(
                 coverUrl = state.currentSong?.coverUrl,
                 title = state.currentSong?.title.orEmpty(),
                 isPlaying = state.isPlaying,
