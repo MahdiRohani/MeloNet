@@ -1,9 +1,6 @@
 package com.melonet.app.feature.player.component
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -62,13 +59,18 @@ fun PlayerProgressBar(
         else -> actualFraction
     }
 
-    val pulse by rememberInfiniteTransition(label = "thumb_pulse").animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "pulse",
-    )
-    val glow = if (isPlaying && !dragging) pulse else 0.7f
+    val glowAnim = remember { Animatable(0.7f) }
+    LaunchedEffect(isPlaying, dragging) {
+        if (!isPlaying || dragging) {
+            glowAnim.snapTo(0.7f)
+            return@LaunchedEffect
+        }
+        while (true) {
+            glowAnim.animateTo(1f, tween(900))
+            glowAnim.animateTo(0.7f, tween(900))
+        }
+    }
+    val glow = glowAnim.value
 
     Canvas(
         modifier = modifier

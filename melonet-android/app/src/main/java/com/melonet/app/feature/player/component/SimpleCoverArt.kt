@@ -46,14 +46,12 @@ fun SimpleCoverArt(
 
     val sharedScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
-    val sharedModifier = if (
-        sharedTransitionKey != null &&
-        sharedScope != null &&
-        animatedVisibilityScope != null
-    ) {
+    // Key must be non-null whenever rememberSharedContentState runs (song id can arrive late).
+    val transitionKey = sharedTransitionKey ?: "player_cover_placeholder"
+    val sharedModifier = if (sharedScope != null && animatedVisibilityScope != null) {
         with(sharedScope) {
             Modifier.sharedElement(
-                sharedContentState = rememberSharedContentState(key = sharedTransitionKey),
+                sharedContentState = rememberSharedContentState(key = transitionKey),
                 animatedVisibilityScope = animatedVisibilityScope,
             )
         }

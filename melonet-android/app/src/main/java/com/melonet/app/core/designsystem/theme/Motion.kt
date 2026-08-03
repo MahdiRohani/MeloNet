@@ -27,9 +27,12 @@ object MeloMotion {
 
     const val coverPausedScale = 0.96f
     const val splashLogoStartScale = 0.78f
+    const val playerExpandMs = 380
 
     val fadeTween = tween<Float>(durationMillis = mediumMs, easing = FastOutSlowInEasing)
     val slideTween = tween<IntOffset>(durationMillis = mediumMs, easing = FastOutSlowInEasing)
+    val playerExpandTween = tween<IntOffset>(durationMillis = playerExpandMs, easing = FastOutSlowInEasing)
+    val playerFadeTween = tween<Float>(durationMillis = playerExpandMs, easing = FastOutSlowInEasing)
     val pressSpring = spring<Float>(
         dampingRatio = Spring.DampingRatioMediumBouncy,
         stiffness = Spring.StiffnessMedium,

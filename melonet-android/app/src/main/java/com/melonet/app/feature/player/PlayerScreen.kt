@@ -1,7 +1,6 @@
 package com.melonet.app.feature.player
 
 import android.content.Intent
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,14 +54,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -71,12 +66,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.palette.graphics.Palette
 import coil.ImageLoader
+import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.melonet.app.R
 import androidx.compose.ui.graphics.toArgb
 import com.melonet.app.core.designsystem.theme.DarkMeloNetColors
-import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.designsystem.theme.MeloNetTheme
 import com.melonet.app.data.model.DownloadStatus
 import com.melonet.app.data.model.RepeatMode
@@ -107,25 +102,9 @@ fun PlayerScreen(
     val context = LocalContext.current
     val audioShareHelper: AudioShareHelper = koinInject()
     val dimensions = MeloNetTheme.dimensions
-    val imageLoader = remember { ImageLoader(context) }
     val onPrimary = MaterialTheme.colorScheme.onPrimary
-    val fftMagnitudes by PlaybackAudioBridge.fftMagnitudes.collectAsState()
     val haptics = rememberMeloHaptics()
-
-    var contentEntered by remember(songId) { mutableStateOf(false) }
-    LaunchedEffect(songId) {
-        contentEntered = true
-    }
-    val coverEnterAlpha by animateFloatAsState(
-        targetValue = if (contentEntered) 1f else 0f,
-        animationSpec = MeloMotion.fadeTween,
-        label = "player_cover_alpha",
-    )
-    val coverEnterScale by animateFloatAsState(
-        targetValue = if (contentEntered) 1f else 0.92f,
-        animationSpec = MeloMotion.pressSpring,
-        label = "player_cover_scale",
-    )
+    val imageLoader = context.imageLoader
 
     LaunchedEffect(songId) {
         viewModel.playIfNeeded(songId)
@@ -232,19 +211,12 @@ fun PlayerScreen(
                 title = state.currentSong?.title.orEmpty(),
                 isPlaying = state.isPlaying,
                 sharedTransitionKey = state.currentSong?.id?.let(PlayerSharedKeys::songCover),
-                modifier = Modifier.graphicsLayer {
-                    alpha = coverEnterAlpha
-                    scaleX = coverEnterScale
-                    scaleY = coverEnterScale
-                },
             )
 
             Spacer(modifier = Modifier.height(spacing.lg))
 
             AudioVisualizer(
                 isPlaying = state.isPlaying,
-                magnitudes = fftMagnitudes,
-                modifier = Modifier.graphicsLayer { alpha = coverEnterAlpha },
             )
 
             Spacer(modifier = Modifier.height(spacing.lg))

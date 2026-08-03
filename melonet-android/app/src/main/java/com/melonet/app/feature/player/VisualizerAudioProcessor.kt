@@ -19,6 +19,7 @@ class VisualizerAudioProcessor(
 ) : BaseAudioProcessor() {
 
     private val smoothed = FloatArray(barCount)
+    private val raw = FloatArray(barCount)
     private var peakEma = 0.25f
     private var lastEmitNs = 0L
 
@@ -64,7 +65,6 @@ class VisualizerAudioProcessor(
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         val startPos = buffer.position()
         var framePeak = 1e-4f
-        val raw = FloatArray(barCount)
 
         for (i in 0 until barCount) {
             val f0 = (i * frames) / barCount
@@ -109,7 +109,7 @@ class VisualizerAudioProcessor(
         val now = System.nanoTime()
         if (now - lastEmitNs < EMIT_INTERVAL_NS) return
         lastEmitNs = now
-        PlaybackAudioBridge.updateFft(smoothed.copyOf())
+        PlaybackAudioBridge.updateFft(smoothed)
     }
 
     companion object {

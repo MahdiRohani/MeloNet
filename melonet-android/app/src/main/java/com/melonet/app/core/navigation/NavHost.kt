@@ -1,6 +1,8 @@
 package com.melonet.app.core.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
@@ -45,6 +47,7 @@ import com.melonet.app.core.designsystem.theme.MeloMotion
 import com.melonet.app.core.network.NetworkConnectivityMonitor
 import com.melonet.app.core.ui.LocalNavAnimatedVisibilityScope
 import com.melonet.app.core.ui.LocalSharedTransitionScope
+import com.melonet.app.core.ui.PlayerSharedKeys
 import com.melonet.app.data.local.SettingsRepository
 import com.melonet.app.data.model.AuthState
 import com.melonet.app.data.model.Song
@@ -264,12 +267,9 @@ fun MelonetMainScreen() {
                         visible = showMiniPlayer && miniSong != null,
                         enter = slideInVertically(
                             animationSpec = MeloMotion.slideTween,
-                            initialOffsetY = { it },
+                            initialOffsetY = { it / 3 },
                         ) + fadeIn(animationSpec = MeloMotion.fadeTween),
-                        exit = slideOutVertically(
-                            animationSpec = MeloMotion.slideTween,
-                            targetOffsetY = { it },
-                        ) + fadeOut(animationSpec = MeloMotion.fadeTween),
+                        exit = fadeOut(animationSpec = MeloMotion.playerFadeTween),
                     ) {
                         val song = miniSong ?: return@AnimatedVisibility
                         val progress = if (playerState.durationMs > 0) {
@@ -283,6 +283,19 @@ fun MelonetMainScreen() {
                                 .dropWhile { it.id != song.id }
                                 .drop(1)
                                 .firstOrNull()
+                        val sharedScope = LocalSharedTransitionScope.current
+                        val coverSharedModifier = if (sharedScope != null) {
+                            with(sharedScope) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(
+                                        key = PlayerSharedKeys.songCover(song.id),
+                                    ),
+                                    animatedVisibilityScope = this@AnimatedVisibility,
+                                )
+                            }
+                        } else {
+                            Modifier
+                        }
                         MiniPlayerBar(
                             title = song.title,
                             artist = song.artistName,
@@ -290,12 +303,8 @@ fun MelonetMainScreen() {
                             isPlaying = playerState.isPlaying,
                             progress = progress,
                             upNextTitle = nextSong?.title,
+                            coverModifier = coverSharedModifier,
                             onClick = { navController.navigate(PlayerRoute(songId = song.id)) },
-                            onUpNextClick = {
-                                nextSong?.let { next ->
-                                    playerViewModel.handleEvent(PlayerContract.Event.SkipNext)
-                                } ?: navController.navigate(PlayerRoute(songId = song.id))
-                            },
                             onPlayPauseClick = {
                                 playerViewModel.handleEvent(PlayerContract.Event.TogglePlayPause)
                             },
@@ -314,32 +323,58 @@ fun MelonetMainScreen() {
             startDestination = SplashRoute,
             modifier = Modifier.padding(innerPadding),
             enterTransition = {
-                fadeIn(animationSpec = MeloMotion.fadeTween) +
-                    slideInHorizontally(
-                        animationSpec = MeloMotion.slideTween,
-                        initialOffsetX = { it / 12 },
-                    )
+                if (targetState.destination.hasRoute(PlayerRoute::class)) {
+                    // Soft expand over the current tab; cover morphs via shared element.
+                    fadeIn(animationSpec = MeloMotion.playerFadeTween) +
+                        slideInVertically(
+                            animationSpec = MeloMotion.playerExpandTween,
+                            initialOffsetY = { it / 14 },
+                        )
+                } else {
+                    fadeIn(animationSpec = MeloMotion.fadeTween) +
+                        slideInHorizontally(
+                            animationSpec = MeloMotion.slideTween,
+                            initialOffsetX = { it / 12 },
+                        )
+                }
             },
             exitTransition = {
-                fadeOut(animationSpec = MeloMotion.fadeTween) +
-                    slideOutHorizontally(
-                        animationSpec = MeloMotion.slideTween,
-                        targetOffsetX = { -it / 16 },
-                    )
+                if (targetState.destination.hasRoute(PlayerRoute::class)) {
+                    // Hold the underlying tab in place — no competing slide/fade.
+                    ExitTransition.None
+                } else {
+                    fadeOut(animationSpec = MeloMotion.fadeTween) +
+                        slideOutHorizontally(
+                            animationSpec = MeloMotion.slideTween,
+                            targetOffsetX = { -it / 16 },
+                        )
+                }
             },
             popEnterTransition = {
-                fadeIn(animationSpec = MeloMotion.fadeTween) +
-                    slideInHorizontally(
-                        animationSpec = MeloMotion.slideTween,
-                        initialOffsetX = { -it / 16 },
-                    )
+                if (initialState.destination.hasRoute(PlayerRoute::class)) {
+                    EnterTransition.None
+                } else {
+                    fadeIn(animationSpec = MeloMotion.fadeTween) +
+                        slideInHorizontally(
+                            animationSpec = MeloMotion.slideTween,
+                            initialOffsetX = { -it / 16 },
+                        )
+                }
             },
             popExitTransition = {
-                fadeOut(animationSpec = MeloMotion.fadeTween) +
-                    slideOutHorizontally(
-                        animationSpec = MeloMotion.slideTween,
-                        targetOffsetX = { it / 12 },
-                    )
+                if (initialState.destination.hasRoute(PlayerRoute::class)) {
+                    fadeOut(animationSpec = MeloMotion.playerFadeTween) +
+                        slideOutVertically(
+                            animationSpec = MeloMotion.playerExpandTween,
+                            targetOffsetY = { it / 14 },
+                        )
+                } else {
+                    fadeOut(animationSpec = MeloMotion.fadeTween) +
+                        slideOutHorizontally(
+                            animationSpec = MeloMotion.slideTween,
+                            targetOffsetX = { it / 12 },
+                        )
+                }
             },
         ) {
             composable<SplashRoute> {

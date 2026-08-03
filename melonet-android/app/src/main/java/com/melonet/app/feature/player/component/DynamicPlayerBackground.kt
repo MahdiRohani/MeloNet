@@ -22,6 +22,10 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+/**
+ * Player backdrop. Animation state is isolated in [AnimatedWash] so the
+ * [content] slot does not recompose on every drift/orbit frame.
+ */
 @Composable
 fun DynamicPlayerBackground(
     gradientColors: List<Long>,
@@ -36,6 +40,22 @@ fun DynamicPlayerBackground(
         fallback
     }
 
+    Box(modifier = modifier.fillMaxSize()) {
+        AnimatedWash(
+            colors = colors,
+            vignetteTop = themeColors.vignetteTop,
+            vignetteBottom = themeColors.vignetteBottom,
+        )
+        content()
+    }
+}
+
+@Composable
+private fun AnimatedWash(
+    colors: List<Color>,
+    vignetteTop: Color,
+    vignetteBottom: Color,
+) {
     val infinite = rememberInfiniteTransition(label = "player_bg")
     val driftA by infinite.animateFloat(
         initialValue = 0f,
@@ -65,70 +85,61 @@ fun DynamicPlayerBackground(
         label = "orbit",
     )
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        colors.first().copy(alpha = 0.95f),
-                        colors.getOrElse(1) { colors.first() }.copy(alpha = 0.9f),
-                        colors.last().copy(alpha = 1f),
-                    ),
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    colors.first().copy(alpha = 0.95f),
+                    colors.getOrElse(1) { colors.first() }.copy(alpha = 0.9f),
+                    colors.last().copy(alpha = 1f),
                 ),
-            )
+            ),
+        )
 
-            val c0 = colors[0]
-            val c1 = colors.getOrElse(1) { colors[0] }
-            val c2 = colors.getOrElse(2) { colors.last() }
+        val c0 = colors[0]
+        val c1 = colors.getOrElse(1) { colors[0] }
+        val c2 = colors.getOrElse(2) { colors.last() }
+        val w = size.width
+        val h = size.height
+        val rad = (orbit * PI / 180.0).toFloat()
 
-            val w = size.width
-            val h = size.height
-            val rad = (orbit * PI / 180.0).toFloat()
-
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(c0.copy(alpha = 0.42f), Color.Transparent),
-                    center = Offset(w * (0.22f + driftA * 0.18f), h * (0.18f + driftB * 0.12f)),
-                    radius = w * 0.55f,
-                ),
-                radius = w * 0.55f,
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(c0.copy(alpha = 0.42f), Color.Transparent),
                 center = Offset(w * (0.22f + driftA * 0.18f), h * (0.18f + driftB * 0.12f)),
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(c1.copy(alpha = 0.34f), Color.Transparent),
-                    center = Offset(
-                        w * (0.78f + cos(rad) * 0.06f),
-                        h * (0.42f + sin(rad) * 0.08f),
-                    ),
-                    radius = w * 0.48f,
-                ),
-                radius = w * 0.48f,
+                radius = w * 0.55f,
+            ),
+            radius = w * 0.55f,
+            center = Offset(w * (0.22f + driftA * 0.18f), h * (0.18f + driftB * 0.12f)),
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(c1.copy(alpha = 0.34f), Color.Transparent),
                 center = Offset(
                     w * (0.78f + cos(rad) * 0.06f),
                     h * (0.42f + sin(rad) * 0.08f),
                 ),
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(c2.copy(alpha = 0.28f), Color.Transparent),
-                    center = Offset(w * (0.45f - driftB * 0.1f), h * (0.78f - driftA * 0.08f)),
-                    radius = w * 0.6f,
-                ),
-                radius = w * 0.6f,
+                radius = w * 0.48f,
+            ),
+            radius = w * 0.48f,
+            center = Offset(
+                w * (0.78f + cos(rad) * 0.06f),
+                h * (0.42f + sin(rad) * 0.08f),
+            ),
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(c2.copy(alpha = 0.28f), Color.Transparent),
                 center = Offset(w * (0.45f - driftB * 0.1f), h * (0.78f - driftA * 0.08f)),
-            )
-
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        themeColors.vignetteTop,
-                        Color.Transparent,
-                        themeColors.vignetteBottom,
-                    ),
-                ),
-            )
-        }
-        content()
+                radius = w * 0.6f,
+            ),
+            radius = w * 0.6f,
+            center = Offset(w * (0.45f - driftB * 0.1f), h * (0.78f - driftA * 0.08f)),
+        )
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(vignetteTop, Color.Transparent, vignetteBottom),
+            ),
+        )
     }
 }

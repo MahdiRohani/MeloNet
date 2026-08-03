@@ -1,7 +1,6 @@
 package com.melonet.app.core.designsystem.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -92,7 +91,6 @@ fun MiniPlayerBar(
     onPlayPauseClick: () -> Unit,
     modifier: Modifier = Modifier,
     upNextTitle: String? = null,
-    onUpNextClick: (() -> Unit)? = null,
     coverModifier: Modifier = Modifier,
 ) {
     val spacing = MeloNetTheme.spacing
@@ -123,21 +121,13 @@ fun MiniPlayerBar(
                     contentDescription = title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
+                        .then(coverModifier)
                         .size(dimensions.iconLg)
-                        .clip(MaterialTheme.shapes.medium)
-                        .then(coverModifier),
+                        .clip(MaterialTheme.shapes.medium),
                 )
                 Spacer(modifier = Modifier.width(spacing.sm))
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .then(
-                            if (onUpNextClick != null && !upNextTitle.isNullOrBlank()) {
-                                Modifier.clickable(onClick = onUpNextClick)
-                            } else {
-                                Modifier
-                            },
-                        ),
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = title,
