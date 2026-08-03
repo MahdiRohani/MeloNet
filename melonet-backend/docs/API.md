@@ -108,6 +108,26 @@ Base URL (local): `http://localhost:8080`
 |--------|------|------|
 | POST | `/api/me/premium/activate` | — (grants demo premium via `GrantPremium`) |
 
+## Voice Covers
+
+کاور با صدای یکی از ۱۰ خوانندهٔ ثابت. خروجی با کلید `(source_song_id, target_artist_slug)` کش می‌شود.
+
+| Method | Path | Auth | Body / Query |
+|--------|------|------|--------------|
+| GET | `/api/voice-covers/artists` | Yes | — |
+| GET | `/api/voice-covers` | Yes | `page`, `limit` (فقط `status=ready`) |
+| POST | `/api/voice-covers` | Yes | `source_song_id`, `target_artist_slug` |
+| GET | `/api/voice-covers/:id` | Yes | — |
+| DELETE | `/api/voice-covers/:id` | Yes | حذف کاور + فایل MinIO |
+
+`POST` اگر کاور از قبل `ready` باشد همان را با `200` برمی‌گرداند؛ وگرنه job را enqueue می‌کند و `201` با `status=pending|processing` می‌دهد. کلاینت با polling روی `GET /:id` منتظر `ready` و `audio_url` می‌ماند.
+
+خواننده‌های هدف (slug):
+
+`shadmehr` · `morteza-pashaei` · `mohsen-yeganeh` · `ebi` · `mahasti` · `hayedeh` · `googoosh` · `moein` · `mohsen-chavoshi` · `siavash-ghomayshi`
+
+Worker پایتون (`voice-worker`) از صف Redis `voice_cover:jobs` می‌خواند، خروجی را در MinIO تحت `voice-covers/{id}.mp3` می‌گذارد و از `/api/media/...` سرو می‌شود.
+
 ## WebSocket
 
 `GET /ws/chat?token=<access_token>` یا header `Authorization: Bearer <token>`

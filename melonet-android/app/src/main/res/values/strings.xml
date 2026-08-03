@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">MeloNet</string>
+    <string name="splash_tagline">Feel the music</string>
 
     <!-- Navigation -->
     <string name="nav_home">Home</string>
@@ -425,4 +426,34 @@
     <string name="karaoke_lyrics_not_found">Synced lyrics not available for this song</string>
     <string name="karaoke_mode_instrumental">Instrumental</string>
     <string name="karaoke_mode_original">Original</string>
+
+    <string name="voice_cover_banner_title">Voice Cover</string>
+    <string name="voice_cover_banner_subtitle">Hear any track in another singer\'s voice</string>
+    <string name="voice_cover_search_hint">Search a song to cover…</string>
+    <string name="voice_cover_search_failed">Search failed</string>
+    <string name="voice_cover_no_results">No songs found</string>
+    <string name="voice_cover_empty_title">Make your first voice cover</string>
+    <string name="voice_cover_empty_description">Search for a track, then pick one of 10 target voices.</string>
+    <string name="voice_cover_ready_title">Ready covers</string>
+    <string name="voice_cover_ready_subtitle">Tap to play · swipe or trash to delete</string>
+    <string name="voice_cover_catalog_failed">Could not load covers</string>
+    <string name="voice_cover_choose_artist">Choose a voice</string>
+    <string name="voice_cover_pick_voice">Pick a singer with an available voice model</string>
+    <string name="voice_cover_model_unavailable">This singer\'s voice model is not available yet. Pick another.</string>
+    <string name="voice_cover_building">Building cover…</string>
+    <string name="voice_cover_building_hint">Stay on this screen while we build your cover.</string>
+    <string name="voice_cover_building_for">Creating with %1$s\'s voice</string>
+    <string name="voice_cover_progress_pct">%1$d%%</string>
+    <string name="voice_cover_stage_preparing">Preparing audio…</string>
+    <string name="voice_cover_stage_separating">Separating vocals…</string>
+    <string name="voice_cover_stage_converting">Converting voice…</string>
+    <string name="voice_cover_stage_mixing">Mixing track…</string>
+    <string name="voice_cover_stage_uploading">Uploading…</string>
+    <string name="voice_cover_stage_done">Done</string>
+    <string name="voice_cover_create_failed">Could not create voice cover</string>
+    <string name="voice_cover_load_failed">Could not load voice cover</string>
+    <string name="voice_cover_in_voice_of">In the voice of %1$s</string>
+    <string name="voice_cover_player_title">Voice Cover</string>
+    <string name="voice_cover_open_full_player">Open full player</string>
+    <string name="cd_delete_voice_cover">Delete voice cover</string>
 </resources>

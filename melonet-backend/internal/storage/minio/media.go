@@ -56,3 +56,15 @@ func (s *MediaStorage) Exists(ctx context.Context, objectKey string) (bool, erro
 	}
 	return false, err
 }
+
+func (s *MediaStorage) Delete(ctx context.Context, objectKey string) error {
+	objectKey = strings.TrimSpace(objectKey)
+	if objectKey == "" {
+		return nil
+	}
+	err := s.client.Raw().RemoveObject(ctx, s.client.Bucket(), objectKey, minio.RemoveObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("remove object: %w", err)
+	}
+	return nil
+}

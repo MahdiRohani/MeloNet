@@ -19,8 +19,13 @@ object MediaUrl {
             return raw
         }
         // On-device absolute paths (karaoke takes, downloads) must not be prefixed with API base.
+        // Bundled assets use file:///android_asset/... and are already absolute URI form above.
         if (isLocalFilesystemPath(raw)) {
             return Uri.fromFile(File(raw)).toString()
+        }
+        // Prefer Coil's android asset URI form when callers pass asset-relative paths.
+        if (raw.startsWith("asset:///") || raw.startsWith("file:///android_asset/")) {
+            return raw
         }
         val base = BuildConfig.API_BASE_URL.trimEnd('/')
         return if (raw.startsWith('/')) "$base$raw" else "$base/$raw"

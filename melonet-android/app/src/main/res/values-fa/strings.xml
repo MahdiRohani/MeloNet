@@ -14,6 +14,7 @@
     <string name="error_unknown">مشکلی پیش آمد؛ دوباره تلاش کنید</string>
 
     <string name="offline_banner_message">آفلاین هستید؛ بعضی قابلیت‌ها در دسترس نیست</string>
+    <string name="splash_tagline">حس موسیقی</string>
 
     <string name="nav_chat">چت</string>
     <string name="chat_conversations_title">پیام‌ها</string>
@@ -130,4 +131,34 @@
 
     <string name="karaoke_search_failed">جستجو ناموفق بود</string>
     <string name="karaoke_search_rate_limited_hint">چند ثانیه صبر کنید و دوباره جستجو کنید.</string>
+
+    <string name="voice_cover_banner_title">کاور صوتی</string>
+    <string name="voice_cover_banner_subtitle">هر آهنگ را با صدای خوانندهٔ دیگر بشنو</string>
+    <string name="voice_cover_search_hint">آهنگ منبع را جستجو کن…</string>
+    <string name="voice_cover_search_failed">جستجو ناموفق بود</string>
+    <string name="voice_cover_no_results">آهنگی پیدا نشد</string>
+    <string name="voice_cover_empty_title">اولین کاور صوتی را بساز</string>
+    <string name="voice_cover_empty_description">یک آهنگ را جستجو کن، بعد یکی از ۱۰ صدا را انتخاب کن.</string>
+    <string name="voice_cover_ready_title">کاورهای آماده</string>
+    <string name="voice_cover_ready_subtitle">برای پخش لمس کن · برای حذف بکش یا سطل زباله</string>
+    <string name="voice_cover_catalog_failed">بارگذاری کاورها ناموفق بود</string>
+    <string name="voice_cover_choose_artist">انتخاب صدا</string>
+    <string name="voice_cover_pick_voice">یکی از خواننده‌هایی که مدل صدا دارند را انتخاب کن</string>
+    <string name="voice_cover_model_unavailable">مدل صدای این خواننده هنوز آماده نیست. خوانندهٔ دیگری انتخاب کن.</string>
+    <string name="voice_cover_building">در حال ساخت کاور…</string>
+    <string name="voice_cover_building_hint">تا ساخت کاور در همین صفحه بمان.</string>
+    <string name="voice_cover_building_for">در حال ساخت با صدای %1$s</string>
+    <string name="voice_cover_progress_pct">%1$d٪</string>
+    <string name="voice_cover_stage_preparing">آماده‌سازی صدا…</string>
+    <string name="voice_cover_stage_separating">جداسازی وکال…</string>
+    <string name="voice_cover_stage_converting">تبدیل صدا…</string>
+    <string name="voice_cover_stage_mixing">میکس نهایی…</string>
+    <string name="voice_cover_stage_uploading">آپلود…</string>
+    <string name="voice_cover_stage_done">تمام</string>
+    <string name="voice_cover_create_failed">ساخت کاور صوتی ناموفق بود</string>
+    <string name="voice_cover_load_failed">بارگذاری کاور ناموفق بود</string>
+    <string name="voice_cover_in_voice_of">با صدای %1$s</string>
+    <string name="voice_cover_player_title">کاور صوتی</string>
+    <string name="voice_cover_open_full_player">باز کردن پلیر کامل</string>
+    <string name="cd_delete_voice_cover">حذف کاور صوتی</string>
 </resources>

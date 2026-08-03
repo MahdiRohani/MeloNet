@@ -4,3 +4,6 @@ melonet.db-journal
 /bin/
 /tmp/
 data/.cache/
+data/rvc-base/
+data/voice-models/**/model.pth
+data/voice-models/**/*.index

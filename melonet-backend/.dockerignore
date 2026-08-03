@@ -8,5 +8,7 @@ melonet.db-journal
 data/audio/*
 data/covers/*
 data/.cache/
+data/rvc-base/
+data/voice-models/
 !data/audio/.gitkeep
 !data/covers/.gitkeep

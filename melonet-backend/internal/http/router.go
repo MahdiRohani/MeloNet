@@ -13,22 +13,23 @@ import (
 )
 
 type Dependencies struct {
-	Config    *config.Config
-	Logger    *slog.Logger
-	TokenMgr  *auth.TokenManager
-	RateLimit middleware.RateLimitStore
-	Health    *handler.HealthHandler
-	Auth      *handler.AuthHandler
-	Media     *handler.MediaHandler
-	Stream    *handler.StreamHandler
-	Catalog   *handler.CatalogHandler
-	Artist    *handler.ArtistHandler
-	Search    *handler.SearchHandler
-	Home      *handler.HomeHandler
-	Chat      *handler.ChatHandler
-	Library   *handler.LibraryHandler
-	Playlist  *handler.PlaylistHandler
-	Social    *handler.SocialHandler
+	Config     *config.Config
+	Logger     *slog.Logger
+	TokenMgr   *auth.TokenManager
+	RateLimit  middleware.RateLimitStore
+	Health     *handler.HealthHandler
+	Auth       *handler.AuthHandler
+	Media      *handler.MediaHandler
+	Stream     *handler.StreamHandler
+	Catalog    *handler.CatalogHandler
+	Artist     *handler.ArtistHandler
+	Search     *handler.SearchHandler
+	Home       *handler.HomeHandler
+	Chat       *handler.ChatHandler
+	Library    *handler.LibraryHandler
+	Playlist   *handler.PlaylistHandler
+	Social     *handler.SocialHandler
+	VoiceCover *handler.VoiceCoverHandler
 }
 
 func NewRouter(deps Dependencies) *gin.Engine {
@@ -149,6 +150,14 @@ func NewRouter(deps Dependencies) *gin.Engine {
 		api.GET("/conversations/:id", deps.Chat.GetConversation)
 		api.GET("/conversations/:id/messages", deps.Chat.ConversationMessages)
 		api.POST("/conversations/:id/read", deps.Chat.MarkRead)
+
+		if deps.VoiceCover != nil {
+			api.GET("/voice-covers/artists", deps.VoiceCover.ListArtists)
+			api.GET("/voice-covers", deps.VoiceCover.List)
+			api.POST("/voice-covers", deps.VoiceCover.Create)
+			api.GET("/voice-covers/:id", deps.VoiceCover.Get)
+			api.DELETE("/voice-covers/:id", deps.VoiceCover.Delete)
+		}
 	}
 
 	router.GET("/ws/chat", middleware.AuthRequired(deps.TokenMgr), chatLimit, deps.Chat.WebSocket)

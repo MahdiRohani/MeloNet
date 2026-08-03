@@ -22,8 +22,8 @@ class KaraokeAudioProcessor : BaseAudioProcessor() {
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount != 2) {
-            // Unsupported format -> stay inactive (pure passthrough by the sink).
-            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+            // Inactive for mono/unsupported formats — BaseAudioProcessor passthrough.
+            return AudioProcessor.AudioFormat.NOT_SET
         }
         // Output format is identical to the input (stereo, 16-bit).
         return inputAudioFormat

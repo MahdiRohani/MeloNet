@@ -67,6 +67,55 @@ services:
       minio:
         condition: service_healthy
 
+  voice-worker:
+    build:
+      context: ./voice-worker
+      dockerfile: Dockerfile
+    env_file:
+      - .env.example
+    environment:
+      DATABASE_URL: postgres://melonet:melonet@postgres:5432/melonet?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: melonet
+      STORAGE_SECRET_KEY: melonetsecret
+      STORAGE_BUCKET: melonet-media
+      STORAGE_USE_SSL: "false"
+      # Worker reaches the API stream proxy inside the compose network.
+      PUBLIC_BASE_URL: http://api:8080
+      VOICE_WORKER_MODE: ${VOICE_WORKER_MODE:-rvc}
+      VOICE_MODELS_DIR: /models
+      VOICE_WORKER_MAX_ATTEMPTS: "3"
+      VOICE_WORKER_CONCURRENCY: "1"
+      VOICE_WORKER_JOB_TIMEOUT_SEC: "3600"
+      # Cap clip length so CPU RVC finishes in ~5–12 min and avoids OOM on long songs.
+      VOICE_MAX_SOURCE_SEC: ${VOICE_MAX_SOURCE_SEC:-60}
+      VOICE_RVC_DEVICE: ${VOICE_RVC_DEVICE:-cpu}
+      VOICE_DEMUCS_DEVICE: ${VOICE_DEMUCS_DEVICE:-cpu}
+      # CPU speed knobs: harvest f0 + no demucs shifts + reused in-process models.
+      # Prefer harvest over pm/rmvpe: no runtime f0-model download, faster on CPU.
+      VOICE_RVC_METHOD: ${VOICE_RVC_METHOD:-harvest}
+      VOICE_RVC_INDEX_RATE: ${VOICE_RVC_INDEX_RATE:-0.5}
+      VOICE_DEMUCS_SHIFTS: ${VOICE_DEMUCS_SHIFTS:-0}
+      VOICE_TORCH_THREADS: ${VOICE_TORCH_THREADS:-0}
+      # rvc-python always checks base_model/{hubert_base,rmvpe}.pt on init.
+      RVC_BASE_MODELS_DIR: /rvc-base
+    volumes:
+      - ./data/voice-models:/models
+      # Persist hubert/rmvpe so conversion does not re-download ~350MB every job.
+      - ./data/rvc-base:/rvc-base
+      - ./data/rvc-base:/usr/local/lib/python3.10/site-packages/rvc_python/base_model
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+
   seed:
     build:
       context: .

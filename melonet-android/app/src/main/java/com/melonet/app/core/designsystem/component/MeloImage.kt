@@ -54,6 +54,8 @@ fun MeloImage(
         ImageRequest.Builder(context)
             .data(resolvedUrl)
             .crossfade(crossfade)
+            // Wikimedia and some CDNs reject empty/default agents.
+            .addHeader("User-Agent", "MeloNet/1.0 (Android; voice-cover avatars)")
             .apply {
                 if (pixelSize != null) {
                     size(pixelSize)
