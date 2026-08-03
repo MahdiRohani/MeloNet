@@ -152,9 +152,19 @@ class PlayerViewModel(
     fun playIfNeeded(songId: String) {
         viewModelScope.launch {
             val playback = playbackManager.state.value
-            // Sticky PlayerRoute.songId must never override an active/pending session
-            // (play() claims currentSong+queue synchronously before ExoPlayer setup).
-            if (playback.currentSong != null || playback.queue.isNotEmpty()) return@launch
+            val sameSong = playback.currentSong?.id == songId
+            // Healthy or in-flight session for this song — do not restart.
+            if (sameSong && (playback.isPlaying || playback.isLoading || playback.durationMs > 0L)) {
+                return@launch
+            }
+            // Another song is claimed/playing — sticky route must not steal it.
+            if (!sameSong &&
+                playback.currentSong != null &&
+                (playback.isPlaying || playback.isLoading)
+            ) {
+                return@launch
+            }
+            // Empty, failed (claimed but not loading/ready), or idle → (re)start.
             handleEvent(PlayerContract.Event.PlaySongId(songId))
         }
     }

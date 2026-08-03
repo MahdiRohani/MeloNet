@@ -109,8 +109,18 @@ class PlaybackManager(
                     maybeRecordPlay()
                 }
                 Player.STATE_ENDED -> handlePlaybackEnded()
+                Player.STATE_IDLE -> {
+                    // Failed prepare / cleared media often lands here without READY.
+                    if (awaitingInitialReady) {
+                        clearInitialLoading()
+                    }
+                }
                 else -> Unit
             }
+        }
+
+        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            clearInitialLoading()
         }
 
         override fun onPositionDiscontinuity(
@@ -216,19 +226,27 @@ class PlaybackManager(
         val generation = playGeneration
         playJob?.cancel()
         playJob = scope.launch {
-            connectAndAwait()
-            if (generation != playGeneration) return@launch
-            val c = controller ?: return@launch
-            cancelCrossfade(resetVolume = true)
-            playRecordedForSongId = null
-            awaitingInitialReady = true
-            isSeekingInternal = false
-            c.volume = defaultPlaybackVolume()
-            setPlayerQueue(c, playQueue, startIndex)
-            if (generation != playGeneration) return@launch
-            applyRepeatMode(_state.value.repeatMode)
-            c.prepare()
-            c.play()
+            try {
+                connectAndAwait()
+                if (generation != playGeneration) return@launch
+                val c = controller
+                if (c == null) {
+                    if (generation == playGeneration) clearInitialLoading()
+                    return@launch
+                }
+                cancelCrossfade(resetVolume = true)
+                playRecordedForSongId = null
+                awaitingInitialReady = true
+                isSeekingInternal = false
+                c.volume = defaultPlaybackVolume()
+                setPlayerQueue(c, playQueue, startIndex)
+                if (generation != playGeneration) return@launch
+                applyRepeatMode(_state.value.repeatMode)
+                c.prepare()
+                c.play()
+            } catch (_: Exception) {
+                if (generation == playGeneration) clearInitialLoading()
+            }
         }
     }
 
@@ -239,20 +257,33 @@ class PlaybackManager(
         val generation = playGeneration
         playJob?.cancel()
         playJob = scope.launch {
-            connectAndAwait()
-            if (generation != playGeneration) return@launch
-            val c = controller ?: return@launch
-            cancelCrossfade(resetVolume = true)
-            playRecordedForSongId = null
-            awaitingInitialReady = true
-            c.volume = defaultPlaybackVolume()
-            setPlayerQueue(c, playQueue, startIndex)
-            if (generation != playGeneration) return@launch
-            applyRepeatMode(_state.value.repeatMode)
-            c.prepare()
-            c.pause()
-            _state.update { it.copy(isPlaying = false) }
+            try {
+                connectAndAwait()
+                if (generation != playGeneration) return@launch
+                val c = controller
+                if (c == null) {
+                    if (generation == playGeneration) clearInitialLoading()
+                    return@launch
+                }
+                cancelCrossfade(resetVolume = true)
+                playRecordedForSongId = null
+                awaitingInitialReady = true
+                c.volume = defaultPlaybackVolume()
+                setPlayerQueue(c, playQueue, startIndex)
+                if (generation != playGeneration) return@launch
+                applyRepeatMode(_state.value.repeatMode)
+                c.prepare()
+                c.pause()
+                _state.update { it.copy(isPlaying = false) }
+            } catch (_: Exception) {
+                if (generation == playGeneration) clearInitialLoading()
+            }
         }
+    }
+
+    private fun clearInitialLoading() {
+        awaitingInitialReady = false
+        _state.update { it.copy(isLoading = false) }
     }
 
     private fun claimPlayback(
